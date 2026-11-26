@@ -74,6 +74,10 @@ namespace Ling {
         void setLineSpacing(float val);
         void setSingleLine(bool val);
         void setSelectionRange(int start, int end);
+        // 按当前折行宽度把高度自适应到文本内容（逻辑像素，限制在 [minH, maxH]）。
+        void fitHeightToText(float maxH, float minH);
+        // 设置高度并立即请求重排。
+        void setHeightAndReflow(float h);
         bool canScroll() const { return needScrollBar(); }
         bool isPosInScrollBar(POINT pos) const;
     public:

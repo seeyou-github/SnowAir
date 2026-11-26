@@ -383,7 +383,7 @@ namespace {
 	// 它只作为「这一次粘贴」的素材，不参与导出；放在 AppData\temp 下。
 	std::wstring pasteTempPngPath()
 	{
-		std::filesystem::path dir = tempDir();
+		std::filesystem::path dir = Util::tempDir();
 		std::error_code ec;
 		std::filesystem::create_directories(dir, ec);
 

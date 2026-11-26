@@ -221,6 +221,33 @@ namespace Ling {
         win->refresh();
     }
 
+    void TextBox::fitHeightToText(float maxH, float minH)
+    {
+        if (maxH < minH) std::swap(maxH, minH);
+        // 按当前折行宽度量一次文本高度（物理像素）。空文本时 textLayout 高度为 0，
+        // 用首字符的行高兜底，避免把控件压成一条缝。
+        createLayouts(wrapWidth());
+        float th = textH();
+        if (th <= 0.f && textLayout) {
+            FLOAT cx{ 0.f }, cy{ 0.f };
+            DWRITE_HIT_TEST_METRICS hm{};
+            if (SUCCEEDED(textLayout->HitTestTextPosition(0, FALSE, &cx, &cy, &hm)) && hm.height > 0.f)
+                th = hm.height;
+        }
+        if (th <= 0.f) th = fontSize * win->dpi;
+        auto [pl, pt, pr, pb] = getPadding();
+        const float logical = (th + (pt + pb) * win->dpi) / win->dpi;
+        Node::setHeight(std::clamp(logical, minH, maxH));
+        buildLayout();
+        win->refresh();
+    }
+
+    void TextBox::setHeightAndReflow(float h)
+    {
+        Node::setHeight(h);
+        win->refresh();
+    }
+
     void TextBox::setPlaceholder(const std::wstring& val)
     {
         placeholder = val;
