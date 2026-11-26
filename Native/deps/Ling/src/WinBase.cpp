@@ -86,7 +86,13 @@ namespace Ling {
 		DwmExtendFrameIntoClientArea(hwnd, &margins);
 		int value = 2;
 		DwmSetWindowAttribute(hwnd, DWMWA_NCRENDERING_POLICY, &value, sizeof(value));
-		DwmSetWindowAttribute(hwnd, DWMWA_ALLOW_NCPAINT, &value, sizeof(value));
+		// DWMWA_ALLOW_NCPAINT 会告诉 DWM「非客户区由应用自己画」。带原生标题栏的窗口
+		// 并没有实现 WM_NCPAINT，于是 DWM 不再绘制标题栏，整块非客户区退化成未绘制的
+		// 背景色：白底、没有标题文字、没有最小化/最大化/关闭按钮，看起来就是一圈白框。
+		// 只有自绘的 WS_POPUP 窗口才需要让出非客户区。
+		if ((GetWindowLongPtr(hwnd, GWL_STYLE) & WS_CAPTION) == 0) {
+			DwmSetWindowAttribute(hwnd, DWMWA_ALLOW_NCPAINT, &value, sizeof(value));
+		}
 	}
 
 	void WinBase::setTimer(UINT elapse, UINT id)
@@ -195,7 +201,10 @@ namespace Ling {
 		if (nativeFrame) {
 			// 非客户区跟随系统深色主题，避免出现白色边框、标题栏按钮不可见
 			BOOL dark = TRUE;
-			DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, sizeof(dark));
+			// Win11 是属性 20；Win10 1809~21H2 是 19，失败时回退
+			if (FAILED(DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, sizeof(dark)))) {
+				DwmSetWindowAttribute(hwnd, 19, &dark, sizeof(dark));
+			}
 		}
 		auto interop = compositor.as<ABI::Windows::UI::Composition::Desktop::ICompositorDesktopInterop>();
 		auto r = reinterpret_cast<ABI::Windows::UI::Composition::Desktop::IDesktopWindowTarget**>(winrt::put_abi(winTarget));
