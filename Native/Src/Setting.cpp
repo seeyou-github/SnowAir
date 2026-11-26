@@ -30,7 +30,6 @@
 #include <map>
 #include <set>
 #include <cwctype>
-#include <sddl.h>   // ConvertSidToStringSidW
 
 namespace {
     std::unique_ptr<Setting> setting;
@@ -76,176 +75,8 @@ namespace {
     // 配置文件的默认内容。空文件、坏 JSON、缺键都拿它兜底，所以这里列出的每一项
     // 都是代码里会直接按名字取的（见 getLang / getAutoStart）。
     // 全局热键**不在这里**给默认值 —— 键位统一由 getShortcutKey 的内置默认表决定（defaultShortcutOf）
-    constexpr std::wstring_view defaultConfig{ LR"""({"common":{"autoStart":true,"runAsAdmin":false,"language":"zh-CN","languageAuto":true,"updateCheckFreq":0}})""" };
+    constexpr std::wstring_view defaultConfig{ LR"""({"common":{"autoStart":false,"runAsAdmin":false,"language":"zh-CN","languageAuto":true,"updateCheckFreq":0}})""" };
 
-    // System32 下的系统工具全路径（schtasks 等）。取不到时只给文件名，让系统按 PATH 找。
-    std::wstring systemTool(const wchar_t* name)
-    {
-        wchar_t dir[MAX_PATH]{};
-        const UINT n = GetSystemDirectoryW(dir, MAX_PATH);
-        if (n == 0 || n >= MAX_PATH) return name;
-        std::wstring p{ dir };
-        if (!p.empty() && p.back() != L'\\') p.push_back(L'\\');
-        p += name;
-        return p;
-    }
-
-    // 静默跑一个程序（不弹控制台、不经过 cmd.exe），返回退出码；拉不起来返回 -1。
-    // 为什么不拼 "cmd.exe /c ..."：cmd 会对命令行做第二次解析（引号、%、&、^ 都是它的元字符），
-    // 它再把自己的理解拼给子进程 —— 我们精心转义过的引号会被它吃掉或改写。
-    // 这里 exe 与参数分开传、lpApplicationName 显式给全路径：全程只有 CreateProcessW 一次解析，
-    // 路径里的空格 / & / % 都可以原样放进去。
-    int runHidden(const std::wstring& exePath, const std::wstring& args)
-    {
-        STARTUPINFOW si{ sizeof(si) };
-        si.dwFlags = STARTF_USESHOWWINDOW;
-        si.wShowWindow = SW_HIDE;
-        PROCESS_INFORMATION pi{};
-        std::wstring full = exePath + L" " + args;
-        std::vector<wchar_t> buf(full.begin(), full.end());
-        buf.push_back(0);
-        if (!CreateProcessW(exePath.c_str(), buf.data(), nullptr, nullptr, FALSE,
-            CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi)) {
-            return -1;
-        }
-        // schtasks 正常在秒级返回；若确实卡住，也不要长时间阻塞 UI 线程
-        const DWORD wait = WaitForSingleObject(pi.hProcess, 15000);
-        DWORD code = 0;
-        if (wait == WAIT_OBJECT_0) GetExitCodeProcess(pi.hProcess, &code);
-        CloseHandle(pi.hThread);
-        CloseHandle(pi.hProcess);
-        return wait == WAIT_OBJECT_0 ? static_cast<int>(code) : -2;
-    }
-
-    // 当前登录用户的 SID 字符串。计划任务的 Principal / LogonTrigger 都按 SID 绑用户，
-    // 这样任务只在该用户登录时触发。取不到返回空串。
-    std::wstring currentUserSid()
-    {
-        HANDLE token = nullptr;
-        if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token)) return {};
-        DWORD size = 0;
-        GetTokenInformation(token, TokenUser, nullptr, 0, &size);
-        std::vector<BYTE> buf(size);
-        std::wstring sid;
-        if (size != 0 && GetTokenInformation(token, TokenUser, buf.data(), size, &size)) {
-            LPWSTR text = nullptr;
-            if (ConvertSidToStringSidW(reinterpret_cast<TOKEN_USER*>(buf.data())->User.Sid, &text)) {
-                sid = text;
-                LocalFree(text);
-            }
-        }
-        CloseHandle(token);
-        return sid;
-    }
-
-    std::wstring xmlEscape(const std::wstring& s)
-    {
-        std::wstring out;
-        out.reserve(s.size() + 8);
-        for (const wchar_t c : s) {
-            switch (c) {
-            case L'&': out += L"&amp;"; break;
-            case L'<': out += L"&lt;"; break;
-            case L'>': out += L"&gt;"; break;
-            case L'"': out += L"&quot;"; break;
-            case L'\'': out += L"&apos;"; break;
-            default: out += c; break;
-            }
-        }
-        return out;
-    }
-
-    // 注册「登录时以最高权限启动」的计划任务（同名任务会先被 /F 覆盖）。成功返回 true。
-    //
-    // 使用 XML 注册，而不是拼接 schtasks 的 /TR 命令行 —— 后者有两个已知问题：
-    //   1) /TR 里要放的是一条「将来要执行的命令行」，路径带空格就得加引号；这层引号还要穿过
-    //      cmd / CreateProcess / schtasks 三层解析，少转义一层就静默登记失败（"C:\Program Files"、
-    //      带空格的中文目录全中招，开关看着是开的，重启后什么也没发生）。
-    //      写进 <Command> 则完全不过命令行，空格 / & / % 原样保留。
-    //   2) 命令行开关关不掉任务的两个默认设置，而它们正是「自启时灵时不灵」的根源：
-    //        DisallowStartIfOnBatteries 默认开 —— 笔记本不插电时开机根本不启动；
-    //        ExecutionTimeLimit 默认 PT72H —— 托盘常驻满三天被计划任务直接杀掉。
-    bool registerLogonTask(const std::wstring& exePath, const std::wstring& schtasksExe)
-    {
-        const std::wstring sid = currentUserSid();
-        if (sid.empty()) return false;
-
-        std::wstring xml{ LR"XML(<?xml version="1.0" encoding="UTF-16"?>
-<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
-  <RegistrationInfo>
-    <Description>SnowAir 开机自启</Description>
-    <URI>\SnowAir</URI>
-  </RegistrationInfo>
-  <Triggers>
-    <LogonTrigger>
-      <Enabled>true</Enabled>
-      <UserId>@SID@</UserId>
-    </LogonTrigger>
-  </Triggers>
-  <Principals>
-    <Principal id="Author">
-      <UserId>@SID@</UserId>
-      <LogonType>InteractiveToken</LogonType>
-      <RunLevel>HighestAvailable</RunLevel>
-    </Principal>
-  </Principals>
-  <Settings>
-    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
-    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
-    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
-    <AllowHardTerminate>true</AllowHardTerminate>
-    <StartWhenAvailable>false</StartWhenAvailable>
-    <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
-    <IdleSettings>
-      <StopOnIdleEnd>false</StopOnIdleEnd>
-      <RestartOnIdle>false</RestartOnIdle>
-    </IdleSettings>
-    <AllowStartOnDemand>true</AllowStartOnDemand>
-    <Enabled>true</Enabled>
-    <Hidden>false</Hidden>
-    <RunOnlyIfIdle>false</RunOnlyIfIdle>
-    <WakeToRun>false</WakeToRun>
-    <ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
-    <Priority>7</Priority>
-  </Settings>
-  <Actions Context="Author">
-    <Exec>
-      <Command>@EXE@</Command>
-      <Arguments>--auto-start</Arguments>
-    </Exec>
-  </Actions>
-</Task>
-)XML" };
-        const std::wstring esid = xmlEscape(sid);
-        const std::wstring eexe = xmlEscape(exePath);
-        for (size_t pos = xml.find(L"@SID@"); pos != std::wstring::npos; pos = xml.find(L"@SID@", pos + esid.size())) {
-            xml.replace(pos, 5, esid);
-        }
-        if (const size_t pos = xml.find(L"@EXE@"); pos != std::wstring::npos) xml.replace(pos, 5, eexe);
-
-        wchar_t tmpDir[MAX_PATH]{};
-        if (GetTempPathW(MAX_PATH, tmpDir) == 0) return false;
-        wchar_t tmpFile[MAX_PATH]{};
-        if (GetTempFileNameW(tmpDir, L"snow", 0, tmpFile) == 0) return false;
-        // schtasks /XML 只认 Unicode 文件：UTF-16LE + BOM
-        HANDLE h = CreateFileW(tmpFile, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
-            FILE_ATTRIBUTE_NORMAL, nullptr);
-        if (h == INVALID_HANDLE_VALUE) return false;
-        const WORD bom = 0xFEFF;
-        DWORD written = 0;
-        const DWORD bytes = static_cast<DWORD>(xml.size() * sizeof(wchar_t));
-        const bool ok = WriteFile(h, &bom, sizeof(bom), &written, nullptr) && written == sizeof(bom)
-            && WriteFile(h, xml.data(), bytes, &written, nullptr) && written == bytes;
-        CloseHandle(h);
-        if (!ok) {
-            DeleteFileW(tmpFile);
-            return false;
-        }
-        const int rc = runHidden(schtasksExe,
-            L"/Create /TN \"SnowAir\" /XML \"" + std::wstring(tmpFile) + L"\" /F");
-        DeleteFileW(tmpFile);
-        return rc == 0;
-    }
 }
 
 
@@ -1111,39 +942,27 @@ void Setting::purgeLegacyShortcutKeys()
 
 void Setting::setAutoStart(bool autoStart)
 {
-    std::wstring runKey = L"Software\\Microsoft\\Windows\\CurrentVersion\\Run";
-    // 无论开关与否，先移除两种自启方式，避免残留旧的注册表项/计划任务。
-    {
-        HKEY hKey;
-        if (RegOpenKeyEx(HKEY_CURRENT_USER, runKey.data(), 0, KEY_WRITE, &hKey) == ERROR_SUCCESS) {
-            RegDeleteValue(hKey, L"SnowAir");
+    // 和 TrafficMonitor 一致：只登记当前用户的 Run 键，值是带引号的 exe 全路径，
+    // 不带任何命令行参数；关闭时删掉值，并删掉 Run 键本身。
+    constexpr const wchar_t* runKey = L"Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+    constexpr const wchar_t* runValue = L"SnowAir";
+    HKEY hKey{};
+    if (RegCreateKeyExW(HKEY_CURRENT_USER, runKey, 0, nullptr, 0, KEY_SET_VALUE,
+        nullptr, &hKey, nullptr) == ERROR_SUCCESS) {
+        if (autoStart) {
+            wchar_t buffer[MAX_PATH]{};
+            GetModuleFileNameW(nullptr, buffer, MAX_PATH);
+            const std::wstring command = wfmt(L"\"%s\"", buffer);
+            RegSetValueExW(hKey, runValue, 0, REG_SZ,
+                reinterpret_cast<const BYTE*>(command.c_str()),
+                static_cast<DWORD>((command.size() + 1) * sizeof(wchar_t)));
             RegCloseKey(hKey);
         }
-    }
-    const std::wstring schtasks = systemTool(L"schtasks.exe");
-    runHidden(schtasks, L"/Delete /TN \"SnowAir\" /F");
-
-    std::wstring selfPath;   // 当前 exe 路径：登记后记进配置，供启动时判断是否需要接管
-    if (autoStart) {
-        wchar_t buffer[MAX_PATH];
-        GetModuleFileName(nullptr, buffer, MAX_PATH);
-        auto curPath = std::filesystem::path(buffer);
-        selfPath = curPath.wstring();
-        std::wstring commandLine = wfmt(L"\"%s\" --auto-start", curPath.wstring().c_str());
-
-        if (getRunAsAdmin() && !Util::isBuiltinAdminAccount()) {
-            // 需要静默提权（普通管理员账户 + UAC 过滤）：用计划任务（最高权限）在登录时启动。
-            // 计划任务由登录触发器启动，可在「任务计划程序」中查看或删除。
-            registerLogonTask(selfPath, schtasks);
-        }
         else {
-            // 普通自启，或内置 Administrator 账户（天然提权，无需计划任务）：写当前用户 Run 键，
-            // 这样会出现在「任务管理器 → 启动」里。
-            HKEY hKey;
-            if (RegOpenKeyEx(HKEY_CURRENT_USER, runKey.data(), 0, KEY_WRITE, &hKey) == ERROR_SUCCESS) {
-                RegSetValueEx(hKey, L"SnowAir", 0, REG_SZ, (const BYTE*)commandLine.data(), (DWORD)((commandLine.size() + 1) * sizeof(wchar_t)));
-                RegCloseKey(hKey);
-            }
+            RegDeleteValueW(hKey, runValue);
+            RegCloseKey(hKey);
+            // 键里若还有别的程序的值，RegDeleteKeyW 会失败（不会误删别人的自启项）。
+            RegDeleteKeyW(HKEY_CURRENT_USER, runKey);
         }
     }
     auto common = configObj.GetNamedObject(L"common", nullptr);
@@ -1152,32 +971,21 @@ void Setting::setAutoStart(bool autoStart)
         configObj.SetNamedValue(L"common", common);
     }
     common.SetNamedValue(L"autoStart", JsonValue::CreateBooleanValue(autoStart));
-    // 自启登记指向哪个 exe 属于本机状态，写入 local.json
-    setLocalStateString(L"autoStartExe", autoStart ? selfPath : L"");
     save();
 }
 
 bool Setting::getAutoStart()
 {
     auto common = configObj.GetNamedObject(L"common", nullptr);
-    // 出厂默认开启开机自启；老配置里没这一项时也按开启处理
-    return common && common.GetNamedBoolean(L"autoStart", true);
+    // 默认不开启开机自启
+    return common && common.GetNamedBoolean(L"autoStart", false);
 }
 
-// 启动时调用：开了自启就确保登记项指向当前这个 exe。软件的配置落在 %AppData%（除非 exe 同目录
-// 放了便携 config.json），所以"换目录/重装/升级"后，旧的自启项（Run 项或计划任务）仍可能指着
-// 老 exe —— 老 exe 要么已被删、要么是旧版本。这里按当前 exe 重登记一次，把旧项接管过来。
-// 只在配置里记下的 exe 与当前不一致时动作，正常情况下零开销。
-void Setting::takeOverAutoStart()
+// 每次启动都按当前配置同步一次 Run 项：开启时用当前 exe 路径覆盖（换目录 / 升级后自动接管），
+// 关闭时清掉残留的值和键。与 TrafficMonitor 的 SyncAutoStart() 行为一致。
+void Setting::syncAutoStart()
 {
-    if (!getAutoStart()) return;
-    wchar_t buffer[MAX_PATH]{};
-    if (!GetModuleFileName(nullptr, buffer, MAX_PATH)) return;
-    const std::wstring cur{ buffer };
-    const std::wstring recorded = getLocalStateString(L"autoStartExe");
-    if (!recorded.empty() && _wcsicmp(recorded.c_str(), cur.c_str()) == 0) return;
-    if (!recorded.empty() && _wcsicmp(recorded.c_str(), cur.c_str()) == 0) return;
-    setAutoStart(true);
+    setAutoStart(getAutoStart());
 }
 
 bool Setting::getRunAsAdmin()
@@ -1199,8 +1007,6 @@ void Setting::setRunAsAdmin(bool on)
     }
     common.SetNamedValue(L"runAsAdmin", JsonValue::CreateBooleanValue(on));
     save();
-    // 关机自启若处于开启状态，按新的权限方式重新注册。
-    if (getAutoStart()) setAutoStart(true);
 }
 
 std::filesystem::path Setting::initDataPath()
@@ -1471,7 +1277,6 @@ void Setting::normalizeConfigSections()
         ensureType(common, L"runAsAdmin", JsonValueType::Boolean);
         ensureType(common, L"language", JsonValueType::String);
         ensureType(common, L"pluginDir", JsonValueType::String);
-        ensureType(common, L"autoStartExe", JsonValueType::String);
         ensureType(common, L"updateCheckFreq", JsonValueType::Number);
         ensureType(common, L"updateCheckDay", JsonValueType::Number);
     }
@@ -1781,7 +1586,7 @@ void Setting::setCancelConfirmDialog(bool on) { setFeatBool(L"cancelConfirmDialo
 
 void Setting::restoreFunctionScreenshotDefaults()
 {
-	setAutoStart(true);
+	setAutoStart(false);
 	setRunAsAdmin(false);
 	setFindWindowElements(true);
 	setCancelConfirmDialog(false);
@@ -1869,7 +1674,7 @@ bool Setting::functionScreenshotAtDefaults()
 	// 内置 Administrator 账户的「以管理员身份运行」恒为开且无法关闭，故不参与判定；
 	// 否则该子页永远不会被判为默认状态，「恢复默认」按钮将始终可用
 	const bool runAsAdminDefault = Util::isBuiltinAdminAccount() || !getRunAsAdmin();
-	return getAutoStart() && runAsAdminDefault
+	return !getAutoStart() && runAsAdminDefault
 		&& getFindWindowElements() && !getCancelConfirmDialog() && !getAutoSaveAfterCapture()
 		&& getCaptureFinishAction() == 0 && getSaveFormat() == L"PNG (*.png)"
 		&& getManualSaveFormat().empty() && getAutoSaveFormat().empty()

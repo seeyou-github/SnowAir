@@ -195,7 +195,7 @@ inputArea->setPadding(0.f, 8.f, 0.f, 0.f);
 | 触发方式 | 行为 | 位置 |
 |---|---|---|
 | 直接运行 exe（无参数） | 仅托盘待命，同时 `Update::checkLater()` | `App::App()` |
-| `--auto-start`（开机自启）/ 升级后重启 / `--enter=tray` | 同上，仅托盘待命 | `App::App()` |
+| 开机自启（无参数启动）/ 升级后重启 / `--enter=tray` | 同上，仅托盘待命 | `App::App()` |
 | `--enter=pin\|long\|video\|ocr\|qr` | 直接进入对应模式（`WinCap::init()` → `enterByArg()`）；该参数**一次性**，只作用于进程内第一个会话，取走后 F1 / 托盘截图恢复普通截图 | `App::App()` / `WinCap::init()` / `WinCap::enterByArg()` |
 | `--enter=demo`（别名 `canvas`） | 直接进入演示画布：`WinCap::init()` 识别到该值后改按 `StartMode::Demo` 建会话（实时桌面、无框选、不抓静帧），值不透传给 `enterByArg()`；同样一次性 | `App::App()` / `WinCap::init()` |
 | `--enter=edit`（别名 `image`） | 直接打开图片编辑窗口（`WinImageEdit::init()`），与托盘「图片编辑」同一入口；不进入截图会话，参数取走后清掉 | `App::App()` |
@@ -210,14 +210,14 @@ inputArea->setPadding(0.f, 8.f, 0.f, 0.f);
 
 ### 开机自启（`Setting::setAutoStart()`）
 
-| 场景 | 登记方式 |
-|---|---|
-| 普通自启 / 内置 Administrator | `HKCU\...\Run` 的 `SnowAir` 值，WinAPI 直写，值为 `"<exe>" --auto-start` |
-| 开了「以管理员身份运行」 | 计划任务 `SnowAir`（登录触发 + 最高权限）；Run 键给不了提权启动 |
+只使用一种方式：**当前用户** `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` 的 `SnowAir` 值，
+类型 `REG_SZ`，数据是带引号的 exe 全路径（如 `"D:\...\SnowAir.exe"`），不带任何命令行参数。
 
-- 两者互斥：先删 Run 值与同名任务，只登记一种；启动时 `takeOverAutoStart()` 按 `autoStartExe` 重登记
-- 计划任务用 XML + `schtasks /Create /XML`：`<Command>` 不过命令行解析（`/TR` 遇带空格路径会静默失败），并写死 `ExecutionTimeLimit=PT0S` 与电池两项 `false`（默认 3 天被杀、不插电不启动）
-- schtasks 用 `CreateProcessW` 直起，不经 `cmd.exe`；注册表不用 `reg add`（薄壳，多一层转义与代码页）
+- 默认**关闭**：配置缺 `common.autoStart` 时按 `false` 处理；出厂配置也写 `false`
+- 开启：用当前 exe 全路径写入 / 覆盖该值；关闭：先删 `SnowAir` 值，再删 `Run` 键本身（键里若还有别的程序的值，删键会失败，不会影响其他自启项）
+- 每次启动调用 `syncAutoStart()` 按配置重新同步一次，换目录 / 升级后旧值会被当前路径覆盖，关闭状态则会清掉残留
+- 不使用计划任务、启动文件夹快捷方式、服务，也不调用 `reg.exe`
+- 「以管理员身份运行」是独立的提权设置，与开机自启登记无关
 
 ## 9. 托盘右键菜单（源：Src\Tray.cpp）
 

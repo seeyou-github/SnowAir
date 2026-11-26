@@ -91,7 +91,7 @@ public:
 
 	// —— 管理员 / 提权判定 ——
 	// 当前登录账户是否为内置 Administrator（域内 SID 的 RID == 500）。该账户默认不受 UAC 过滤，
-	// 进程天然就是管理员：自启直接写 Run 键即可，既不需要 runas 提权、也不需要计划任务。
+	// 进程天然就是管理员，提权开关对它没有意义（开机自启统一走 Run 键，与账户类型无关）。
 	static bool isBuiltinAdminAccount();
 	// 当前进程是否已处于管理员提权状态。
 	static bool isElevated();

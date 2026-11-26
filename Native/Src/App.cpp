@@ -396,14 +396,9 @@ App::App()
         if (Util::spawnElevated(params)) app->exit(0); // 提权进程已拉起，原进程退出
     }
 
-    // 提权重启后，用提权身份把自启补登记一次：非提权进程建不出"最高权限"的计划任务，
-    // 打开开关时那一次登记可能已被系统拒绝，这里补上，免得自启悄悄失效。
-    if (launchedElevated && Setting::get()->getAutoStart()) {
-        Setting::get()->setAutoStart(true);
-    }
-    // 开了自启就确保登记项指向当前这个 exe：换目录 / 重装 / 升级换版本后，旧的自启项
-    // 还指着老 exe，这里按当前 exe 重登记一次把它接管过来（路径没变则什么都不做）。
-    Setting::get()->takeOverAutoStart();
+    // 每次启动按当前配置同步一次开机自启登记：开启时把 Run 值指向当前 exe，
+    // 关闭时清掉残留的值和键（换目录 / 升级后也能自动接管）。
+    Setting::get()->syncAutoStart();
 
     if (autoQuit) {
         WinCap::init();
@@ -415,7 +410,7 @@ App::App()
         // 全局热键，或再次运行 exe（等同"打开设置"）。
         // 只有显式命令行入口 --enter=pin/long/video/ocr/demo/edit 才直接进入对应模式
         // （--enter=demo 由 WinCap::init() 换成演示画布，不需要框选）；
-        // --enter=tray 与 --auto-start（开机自启）同样是纯托盘待命。
+        // --enter=tray 同样是纯托盘待命（开机自启走无参数的 exe 路径，行为一致）。
         const auto enterIt = app->args.find(L"--enter");
         const bool enterDirect = enterIt != app->args.end()
             && enterIt->second != L"tray" && enterIt->second != L"true";

@@ -34,9 +34,9 @@ public:
 	void setLastCaptureRect(int x, int y, int w, int h);
 	void setAutoStart(bool autoStart);
 	bool getAutoStart();
-	// 启动时调用：开了「开机自启」就确保登记项指向当前这个 exe。换了安装目录 / 升级更换版本后，
-	// 旧的自启（Run 项或计划任务）还指着老 exe，这里按当前 exe 重登记一次把它接管过来。
-	void takeOverAutoStart();
+	// 启动时调用：按当前配置同步一次 HKCU Run 项。开启时用当前 exe 路径覆盖，
+	// 关闭时删掉值和键（与 TrafficMonitor 的 SyncAutoStart 一致）。
+	void syncAutoStart();
 	bool getRunAsAdmin();
 	void setRunAsAdmin(bool on);
 	std::wstring getLang();
