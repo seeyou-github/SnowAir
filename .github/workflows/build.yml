@@ -56,14 +56,14 @@ jobs:
           New-Item -ItemType Directory -Force (Split-Path $log) | Out-Null
           cmake -S Native/deps/zxing-cpp-311 -B Native/deps/zxing-cpp-311/build -G "Visual Studio 17 2022" -A x64 "-DCMAKE_GENERATOR_INSTANCE=$vsInstance" -DBUILD_SHARED_LIBS=OFF -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DZXING_BUILD_TEST=OFF -DZXING_BUILD_EXAMPLES=OFF 2>&1 | Tee-Object -FilePath $log
           if ($LASTEXITCODE -ne 0) {
-            "### CMake configure failed" >> $env:GITHUB_STEP_SUMMARY
-            Get-Content $log -Raw >> $env:GITHUB_STEP_SUMMARY
+            "::error::CMake configure failed"
+            Get-Content $log | Where-Object { $_ -match 'Error|error|CMake|failed|MSB|cl :|LINK' } | Select-Object -First 40 | ForEach-Object { "::error::$_" }
             exit $LASTEXITCODE
           }
           cmake --build Native/deps/zxing-cpp-311/build --config Release --target ZXing --parallel 2>&1 | Tee-Object -FilePath $log -Append
           if ($LASTEXITCODE -ne 0) {
-            "### CMake build failed" >> $env:GITHUB_STEP_SUMMARY
-            Get-Content $log -Raw >> $env:GITHUB_STEP_SUMMARY
+            "::error::CMake build failed"
+            Get-Content $log | Where-Object { $_ -match 'Error|error|CMake|failed|MSB|cl :|LINK' } | Select-Object -First 40 | ForEach-Object { "::error::$_" }
             exit $LASTEXITCODE
           }
 
