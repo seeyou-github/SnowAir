@@ -167,6 +167,45 @@ namespace Ling {
         win->refresh();
     }
 
+    void TextBox::setReadOnly(bool val)
+    {
+        readOnly = val;
+        win->refresh();
+    }
+
+    void TextBox::setMouseSelectionEnabled(bool val)
+    {
+        mouseSelectionEnabled = val;
+        win->refresh();
+    }
+
+    void TextBox::setScrollBarVisible(bool val)
+    {
+        scrollBarVisible = val;
+        win->refresh();
+    }
+
+    void TextBox::setTextAlignCenter(bool val)
+    {
+        textAlignCenter = val;
+        buildLayout();
+        win->refresh();
+    }
+
+    void TextBox::setLineSpacing(float val)
+    {
+        lineSpacing = val;
+        buildLayout();
+        win->refresh();
+    }
+
+    void TextBox::setSingleLine(bool val)
+    {
+        singleLine = val;
+        buildLayout();
+        win->refresh();
+    }
+
     void TextBox::setSelectionRange(int start, int end)
     {
         const int len = (int)text.length();

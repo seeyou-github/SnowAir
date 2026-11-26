@@ -63,15 +63,15 @@ namespace Ling {
         void blur();
 
         // ---- 定制版 Ling 兼容接口 ----
-        void setReadOnly(bool val) { readOnly = val; win->refresh(); }
-        void setMouseSelectionEnabled(bool val) { mouseSelectionEnabled = val; win->refresh(); }
+        void setReadOnly(bool val);
+        void setMouseSelectionEnabled(bool val);
         void setTextHoverCursor(bool val) { textHoverCursor = val; }
-        void setScrollBarVisible(bool val) { scrollBarVisible = val; win->refresh(); }
-        void setTextAlignCenter(bool val) { textAlignCenter = val; buildLayout(); win->refresh(); }
+        void setScrollBarVisible(bool val);
+        void setTextAlignCenter(bool val);
         void setKeepFocusOnWindowBlur(bool val) { keepFocusOnWindowBlur = val; }
         void setSelectionTextColor(Color val) { setSelectionBgColor(val); }
-        void setLineSpacing(float val) { lineSpacing = val; buildLayout(); win->refresh(); }
-        void setSingleLine(bool val) { singleLine = val; buildLayout(); win->refresh(); }
+        void setLineSpacing(float val);
+        void setSingleLine(bool val);
         void setSelectionRange(int start, int end);
         bool canScroll() const { return needScrollBar(); }
         bool isPosInScrollBar(POINT pos) const;
