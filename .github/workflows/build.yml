@@ -7,7 +7,9 @@ on:
 
 jobs:
   build:
-    runs-on: windows-2025
+    # windows-2025 now serves the VS 2026 image (installed under ...\18\...),
+    # which has no VS 2022 / v143 toolset. Pin to windows-2022 for VS 2022.
+    runs-on: windows-2022
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -42,7 +44,7 @@ jobs:
           if (-not (Test-Path $vsInstance)) {
             $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
             if (Test-Path $vswhere) {
-              $vsInstance = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+              $vsInstance = & $vswhere -latest -version "[17.0,18.0)" -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
             }
           }
           if (-not $vsInstance -or -not (Test-Path $vsInstance)) {
@@ -50,6 +52,7 @@ jobs:
           }
           $vsInstance = $vsInstance -replace '\\', '/'
           $env:VS170COMNTOOLS = "$vsInstance/Common7/Tools"
+          $env:CMAKE_GENERATOR = "Visual Studio 17 2022"
           $env:CMAKE_GENERATOR_INSTANCE = $vsInstance
           "Using Visual Studio instance: $vsInstance"
           $log = "Native/deps/zxing-cpp-311/cmake-zxing.log"
