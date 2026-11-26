@@ -38,7 +38,19 @@ jobs:
       - name: Build ZXing static library
         shell: pwsh
         run: |
-          cmake -S Native/deps/zxing-cpp-311 -B Native/deps/zxing-cpp-311/build -G "Visual Studio 17 2022" -A x64 -DBUILD_SHARED_LIBS=OFF -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DZXING_BUILD_TEST=OFF -DZXING_BUILD_EXAMPLES=OFF
+          $vsInstance = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
+          if (-not (Test-Path $vsInstance)) {
+            $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+            if (Test-Path $vswhere) {
+              $vsInstance = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+            }
+          }
+          if (-not $vsInstance -or -not (Test-Path $vsInstance)) {
+            throw "Visual Studio 2022 with VC tools was not found."
+          }
+          $vsInstance = $vsInstance -replace '\\', '/'
+          "Using Visual Studio instance: $vsInstance"
+          cmake -S Native/deps/zxing-cpp-311 -B Native/deps/zxing-cpp-311/build -G "Visual Studio 17 2022" -A x64 "-DCMAKE_GENERATOR_INSTANCE=$vsInstance" -DBUILD_SHARED_LIBS=OFF -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DZXING_BUILD_TEST=OFF -DZXING_BUILD_EXAMPLES=OFF
           cmake --build Native/deps/zxing-cpp-311/build --config Release --target ZXing --parallel
 
       - name: Build SnowAir
