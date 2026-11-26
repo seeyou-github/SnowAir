@@ -84,3 +84,4 @@ jobs:
           name: SnowAir
           path: Native/x64/Release/SnowAir.exe
           if-no-files-found: error
+          retention-days: 1
