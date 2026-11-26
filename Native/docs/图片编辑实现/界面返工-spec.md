@@ -208,7 +208,7 @@
 - `Res/lang.zh-CN.json` / `lang.en-US.json`：新增
   `imageEdit.tool.split|layout|rect|arrow|line|marker|text|number|mosaic|blur|eraser|ocr|sticker|undo|redo|reset`
   与 `imageEdit.size|border|gap|radius|background|addLayout|rows|cols|format`。
-- 不新增源文件、不改 `SnowAir.vcxproj`。
+- 不新增源文件、不改 `ScreenShut.vcxproj`。
 
 ---
 
@@ -225,7 +225,7 @@
 
 ## 4. 验证步骤
 
-1. `MSBuild Native/Src/SnowAir.vcxproj /p:Configuration=Release /p:Platform=x64` 通过。
+1. `MSBuild Native/Src/ScreenShut.vcxproj /p:Configuration=Release /p:Platform=x64` 通过。
 2. 工具栏 15 个图标顺序与 1.1 表一致；3 条分隔线在 x≈211/715/779；首个图标左缘约窗口 x=125。
 3. 选中分割/布局为 `#34C759`，其余 `#FFFFFF`，悬停 `#333333`。
 4. 顶部胶囊 `407,71,124×36`，四图标均来自字库。

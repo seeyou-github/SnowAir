@@ -32,7 +32,7 @@ public:
 	static void beginWithRect(const RECT& screenRect);
 	// 启动后的一次性预热：建一个隐藏小窗 + Tip，把 comctl32/tooltip 首次初始化提前付掉。
 	// tip（默认）只热 tooltip；tipd2d 还把 D3D/D2D 设备热掉；off 关闭。
-	// requestedMode 为空时读 SNOWAIR_WARMUP；再为空则默认 "tip"。
+	// requestedMode 为空时读 SCREENSHUT_WARMUP；再为空则默认 "tip"。
 	static void warmupOnce(const std::wstring& requestedMode = L"");
 	// 演示模式：选画笔（fade=true 为渐隐画笔/laser），并同步工具条按钮选中态
 	void startPenSlot(bool fade);

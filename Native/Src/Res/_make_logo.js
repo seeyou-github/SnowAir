@@ -4,7 +4,7 @@ const { Resvg } = require('@resvg/resvg-js');
 const pngToIco = require('png-to-ico').default;
 
 const root = path.join(__dirname);
-const svgPath = path.join(root, 'icons', 'snowair-tray.svg');
+const svgPath = path.join(root, 'icons', 'screenshut-tray.svg');
 const svg = fs.readFileSync(svgPath);
 
 async function main() {

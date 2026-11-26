@@ -18,7 +18,7 @@ public:
 	bool exportConfigTo(const std::filesystem::path& path);
 	bool importConfigFrom(const std::filesystem::path& path);
 	// 插件（OCR / 翻译模型等）根目录。留空 = 自动：exe 同目录下已有 plugin 文件夹就用它
-	// （绿色包 / 不想占用 C 盘），否则退回 %AppData%\SnowAir\plugin。见 Ocr/PluginPaths.h。
+	// （绿色包 / 不想占用 C 盘），否则退回 AppData\config\plugin。见 Ocr/PluginPaths.h。
 	std::wstring getPluginDir();
 	void setPluginDir(const std::wstring& dir);
 	const JsonObject getConfigObj();
@@ -239,7 +239,7 @@ public:
 	void setAutoSaveFormat(const std::wstring& v);
 	std::wstring getVideoRecordFormat();
 	void setVideoRecordFormat(const std::wstring& v);
-	// 文件输出目录：空串表示用默认目录（图片\SnowAir）
+	// 文件输出目录：空串表示用默认目录（AppData\save）
 	std::wstring getScreenshotDir();
 	void setScreenshotDir(const std::wstring& v);
 	std::wstring getRecordDir();

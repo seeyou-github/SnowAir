@@ -140,7 +140,7 @@ int clipPath(void*, int index, wchar_t* path, int capacity)
     return 1;
 }
 
-/* ---- Envelope panel: SnowAir history + clipboard in one list ---- */
+/* ---- Envelope panel: ScreenShut history + clipboard in one list ---- */
 
 std::vector<Setting::HistoryItem> g_entries;
 std::vector<std::wstring> g_entryTags;
@@ -1043,7 +1043,7 @@ void PluginHost::init()
         return;
     }
     // Peek only for the first run after a fresh install, never on ordinary
-    // SnowAir starts. The installer may also drop .show-intro explicitly.
+    // ScreenShut starts. The installer may also drop .show-intro explicitly.
     auto* setting = Setting::get();
     const bool firstInstall =
         setting && !setting->getRackFlag(L"rack.install_seen", false);
@@ -1193,7 +1193,7 @@ void PluginHost::quickHang()
     }
 }
 
-/* 插件可调用：把图片按 SnowAir 的贴图形态贴到桌面（带原生落下动效）。
+/* 插件可调用：把图片按 ScreenShut 的贴图形态贴到桌面（带原生落下动效）。
    同一张图重复贴图时不再新建，而是让已有贴图抖动提示。
    导出符号给插件用 GetProcAddress 查找，旧宿主没有这个符号时插件自行降级。 */
 static std::map<std::wstring, HWND> g_rackPinnedImages;

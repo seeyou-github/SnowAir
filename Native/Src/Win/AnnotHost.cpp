@@ -1848,7 +1848,7 @@ void AnnotHost::paintSizePreview(ID2D1DeviceContext* ctx)
 
 	if (id == L"text") {
 		const float px = std::max(8.f, toolSub->getSliderVal());
-		const std::wstring sample = L"SnowAir 轻雪";
+		const std::wstring sample = L"ScreenShut 轻雪";
 		// 用 makeTextLayout（左对齐定宽），避免 CENTER+超宽 layout 把字画飞到屏外
 		auto layout = Ling::D2D::get()->makeTextLayout(sample, px);
 		if (!layout) { pop(); return; }

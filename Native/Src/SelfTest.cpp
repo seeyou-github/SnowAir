@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "SelfTest.h"
+#include "Util.h"
 #include "BlacklistMatch.h"
 #include "ConfigMerge.h"
 #include "Shape/RoundBox.h"
@@ -55,12 +56,8 @@ namespace
 
 int RunSelfTest()
 {
-	wchar_t exe[MAX_PATH]{};
-	GetModuleFileNameW(nullptr, exe, MAX_PATH);
-	std::wstring dir(exe);
-	const auto slash = dir.find_last_of(L"\\/");
-	if (slash != std::wstring::npos) dir.resize(slash + 1);
-	_wfopen_s(&g_log, (dir + L"SnowAir-selftest.log").c_str(), L"w, ccs=UTF-8");
+	const auto path = (Util::tempDir() / L"ScreenShut-selftest.log").wstring();
+	_wfopen_s(&g_log, path.c_str(), L"w, ccs=UTF-8");
 
 	// —— RoundBox ——
 	const D2D1_RECT_F r10x4{ 0.f, 0.f, 10.f, 4.f };
@@ -285,7 +282,7 @@ int RunSelfTest()
 		// 开始菜单显示名和进程名不同：Illustrator.exe / Code.exe
 		check(matches(L"Adobe Illustrator 2026", L"未命名-1.ai @ 100% (RGB/预览)", L"Illustrator", L"Adobe Illustrator"),
 			L"黑名单 显示名与进程名不同（Illustrator）也命中");
-		check(matches(L"Visual Studio Code", L"Setting.cpp - SnowAir", L"Code", L"Visual Studio Code"),
+		check(matches(L"Visual Studio Code", L"Setting.cpp - ScreenShut", L"Code", L"Visual Studio Code"),
 			L"黑名单 进程名是显示名里的一个词（Code）也命中");
 		check(matches(L"ChatGPT.exe", L"新对话", L"ChatGPT", L"ChatGPT"),
 			L"黑名单 词条带 .exe 也能匹配进程名");

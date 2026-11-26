@@ -325,7 +325,7 @@ namespace {
 
 WinCap::WinCap() : AnnotHost()
 {
-	setTitle(L"SnowAir 轻雪");
+	setTitle(L"ScreenShut 轻雪");
 	// 覆盖窗还没建，此刻的前台窗口就是用户当时正在用的 App —— 留给 {{FOCUS_WINDOW_APP_NAME}}
 	focusAppName_ = Util::foregroundAppName();
     auto [x1, y1, w1, h1] = App::get()->getScreenArea();
@@ -575,14 +575,14 @@ private:
 
 // 进程空闲时的一次性预热：首次截图慢的大头是 Tip/comctl32 首次初始化（约 150ms），
 // 这里用一个隐藏小窗 + Tip 把它提前付掉；tipd2d 再把 D3D/D2D 设备也热掉（约 +15MB，首次 ~48ms）。
-// requestedMode 为空时读 SNOWAIR_WARMUP；再为空则默认 "tip"。
+// requestedMode 为空时读 SCREENSHUT_WARMUP；再为空则默认 "tip"。
 void WinCap::warmupOnce(const std::wstring& requestedMode)
 {
     if (winCap) return;
     std::wstring modeStr = requestedMode;
     if (modeStr.empty()) {
         wchar_t mode[16]{};
-        GetEnvironmentVariableW(L"SNOWAIR_WARMUP", mode, 16);
+        GetEnvironmentVariableW(L"SCREENSHUT_WARMUP", mode, 16);
         modeStr = mode;
     }
     if (modeStr.empty()) modeStr = L"tip";       // 默认只预热 tooltip/comctl32
@@ -1277,13 +1277,13 @@ namespace {
         return hr == RPC_E_CALL_REJECTED || hr == RPC_E_SERVERCALL_RETRYLATER;
     }
 
-    // 排障用：把每一步的 HRESULT 落到 %TEMP%\SnowAir-ppt.log（追加，不影响功能）。
-    // 默认关闭：只有设置环境变量 SNOWAIR_PPT_LOG=1 时才写，正常使用不会往临时目录追加日志。
+    // 排障用：把每一步的 HRESULT 落到 AppData\temp\ScreenShut-ppt.log（追加，不影响功能）。
+    // 默认关闭：只有设置环境变量 SCREENSHUT_PPT_LOG=1 时才写，正常使用不会往临时目录追加日志。
     void PptLog(const wchar_t* fmt, ...)
     {
         static const bool enabled = [] {
             wchar_t value[8]{};
-            return GetEnvironmentVariableW(L"SNOWAIR_PPT_LOG", value, _countof(value)) > 0;
+            return GetEnvironmentVariableW(L"SCREENSHUT_PPT_LOG", value, _countof(value)) > 0;
         }();
         if (!enabled) return;
         wchar_t body[1024]{};
@@ -1291,9 +1291,7 @@ namespace {
         va_start(ap, fmt);
         vswprintf_s(body, fmt, ap);
         va_end(ap);
-        wchar_t tmp[MAX_PATH]{};
-        if (!GetTempPathW(MAX_PATH, tmp)) return;
-        const std::wstring file = std::wstring(tmp) + L"SnowAir-ppt.log";
+        const std::wstring file = (Util::tempDir() / L"ScreenShut-ppt.log").wstring();
         HANDLE h = CreateFileW(file.c_str(), FILE_APPEND_DATA,
             FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
         if (h == INVALID_HANDLE_VALUE) return;
@@ -2072,7 +2070,7 @@ void WinCap::onCreated()
     canvas->enableSwapChain();
     canvas->setSizePercent(100.f, 100.f);
     // Tip 改为懒创建（见 updateInfoBarTip）：首次截图不再为 comctl32/tooltip 首次初始化付 150ms。
-    // 启动后的 SNOWAIR_WARMUP 预热仍会提前创建 Tip，工具栏自己的 Tip 不受影响。
+    // 启动后的 SCREENSHUT_WARMUP 预热仍会提前创建 Tip，工具栏自己的 Tip 不受影响。
     d2d->deviceContext->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), brushText.GetAddressOf());
     d2d->deviceContext->CreateSolidColorBrush(D2D1::ColorF(1.f, 1.f, 1.f, 0.75f), brushMuted.GetAddressOf());
     d2d->deviceContext->CreateSolidColorBrush(D2D1::ColorF(1.f, 1.f, 1.f, 0.45f), brushHint.GetAddressOf());

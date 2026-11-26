@@ -1,14 +1,14 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: light)" srcset="./images/banner.png" />
-    <img src="./images/banner.png" alt="SnowAir 轻雪" />
+    <img src="./images/banner.png" alt="ScreenShut 轻雪" />
   </picture>
 </p>
 <h1 align="center">
-  <span>SnowAir 轻雪</span>
+  <span>ScreenShut 轻雪</span>
 </h1>
 <p align="center">
-  <span align="center">SnowAir 轻雪是一套轻量的 Windows 截图与标注工具，覆盖截图、长截图、录屏、OCR 识别、标注与贴图，提供 Lite 版与功能更完整的专业版。</span>
+  <span align="center">ScreenShut 轻雪是一套轻量的 Windows 截图与标注工具，覆盖截图、长截图、录屏、OCR 识别、标注与贴图，提供 Lite 版与功能更完整的专业版。</span>
 </p>
 <h3 align="center">
   <a href="#-版本">版本</a>
@@ -27,7 +27,7 @@
 
 ## 🔨 功能
 
-从区域截图、屏幕录制、演示画布到贴图、长截图与文字识别，SnowAir 内置日常截图所需的一整套工具：
+从区域截图、屏幕录制、演示画布到贴图、长截图与文字识别，ScreenShut 内置日常截图所需的一整套工具：
 
 |   |   |   |
 | --- | --- | --- |
@@ -52,7 +52,7 @@
 
 ## 🧩 版本
 
-SnowAir 分为两个版本，共享同一套使用体验与功能布局：
+ScreenShut 分为两个版本，共享同一套使用体验与功能布局：
 
 | 版&#8288;本 | 说明 | 获&#8288;取&#8288;方&#8288;式 |
 | --- | --- | --- |
@@ -67,9 +67,9 @@ SnowAir 分为两个版本，共享同一套使用体验与功能布局：
 <summary><strong>软件下载</strong></summary>
 <br/>
 
-前往 [SnowAir Releases](https://github.com/CM-idea/SnowAir/releases)，展开 **Assets** 下载 `SnowAir.exe`，双击即可运行，无需安装。
+前往 [ScreenShut Releases](https://github.com/CM-idea/SnowAir/releases)，展开 **Assets** 下载 `ScreenShut.exe`，双击即可运行，无需安装。
 
-配置、语言与插件默认放在 `%AppData%\SnowAir\`；想让它们跟着程序放在一起（整个文件夹拷到 U 盘、换机后还是一套配置）：在 `SnowAir.exe` 同目录放一个空文件 `config.json` 即可，删掉该文件即恢复默认。剪贴板历史、截图/录屏历史与上次选区属于本机数据，固定放在 `%AppData%\SnowAir\local.json`，不随便携配置同步。
+所有数据都放在 exe 同目录的 `AppData\` 下：`AppData\config\` 存配置、语言、插件及本机数据（含 `local.json`），截图/录像默认输出到 `AppData\save\`，运行时的临时文件写在 `AppData\temp\`。把整个文件夹拷走即可带着全部设置一起迁移；截图与录像目录仍可在设置中改为其它路径。
 
 </details>
 
@@ -77,9 +77,9 @@ SnowAir 分为两个版本，共享同一套使用体验与功能布局：
 <summary><strong>开源范围</strong></summary>
 <br/>
 
-SnowAir 本体以 **Apache License 2.0** 开源；运行依赖定制版 Ling（含未公开实现），该分支不随仓库发布，因此**不提供从源码直接构建**。
+ScreenShut 本体以 **Apache License 2.0** 开源；运行依赖定制版 Ling（含未公开实现），该分支不随仓库发布，因此**不提供从源码直接构建**。
 
-需要直接使用请从 [SnowAir Releases](https://github.com/CM-idea/SnowAir/releases) 下载 `SnowAir.exe`。
+需要直接使用请从 [ScreenShut Releases](https://github.com/CM-idea/SnowAir/releases) 下载 `ScreenShut.exe`。
 
 </details>
 
@@ -96,15 +96,15 @@ SnowAir 本体以 **Apache License 2.0** 开源；运行依赖定制版 Ling（�
 不带参数启动时**只挂托盘图标待命**，不会自动进入截图模式：
 
 ```text
-SnowAir.exe                     # 托盘待命，默认
-SnowAir.exe --auto-quit=true    # 截完即退出
-SnowAir.exe --enter=pin         # 贴图
-SnowAir.exe --enter=long        # 长截图
-SnowAir.exe --enter=video       # 录屏
-SnowAir.exe --enter=ocr         # 文字识别
-SnowAir.exe --enter=demo        # 演示画布
-SnowAir.exe --enter=edit        # 图片编辑
-SnowAir.exe --enter=tray        # 仅托盘，等同于默认行为
+ScreenShut.exe                     # 托盘待命，默认
+ScreenShut.exe --auto-quit=true    # 截完即退出
+ScreenShut.exe --enter=pin         # 贴图
+ScreenShut.exe --enter=long        # 长截图
+ScreenShut.exe --enter=video       # 录屏
+ScreenShut.exe --enter=ocr         # 文字识别
+ScreenShut.exe --enter=demo        # 演示画布
+ScreenShut.exe --enter=edit        # 图片编辑
+ScreenShut.exe --enter=tray        # 仅托盘，等同于默认行为
 ```
 
 截图入口：托盘图标单击，按「功能设置 → 单击托盘执行」选择截图 / 打开设置 / 无操作；
@@ -120,13 +120,13 @@ SnowAir.exe --enter=tray        # 仅托盘，等同于默认行为
 
 持续打磨标注与录屏能力，完善 OCR / 翻译服务集成，并推进设置中心与工具栏外观编辑器。
 
-## ❤️ SnowAir 社区
+## ❤️ ScreenShut 社区
 
-SnowAir 由 [Liuyiran](https://github.com/CM-idea) 维护，欢迎通过 [Issue](https://github.com/CM-idea/SnowAir/issues) 反馈问题或提出建议。
+ScreenShut 由 [Liuyiran](https://github.com/CM-idea) 维护，欢迎通过 [Issue](https://github.com/CM-idea/SnowAir/issues) 反馈问题或提出建议。
 
 ## 🔒 隐私声明
 
-SnowAir 是本地工具，默认不上传任何截图或文本；联网仅用于检查更新、在线 OCR / 翻译服务与插件下载。
+ScreenShut 是本地工具，默认不上传任何截图或文本；联网仅用于检查更新、在线 OCR / 翻译服务与插件下载。
 
 ## 🙏 鸣谢
 
@@ -138,7 +138,7 @@ SnowAir 是本地工具，默认不上传任何截图或文本；联网仅用于
 
 本项目以 **Apache License 2.0** 协议开源，全文见 [`LICENSE`](LICENSE)；第三方组件与上游署名见 [`NOTICE`](NOTICE)。
 
-本仓库的开源范围是 SnowAir 本体；所依赖的定制版 Ling 不在开源范围内。
+本仓库的开源范围是 ScreenShut 本体；所依赖的定制版 Ling 不在开源范围内。
 
 [releases-link]: https://github.com/CM-idea/SnowAir/releases
 [issues-link]: https://github.com/CM-idea/SnowAir/issues

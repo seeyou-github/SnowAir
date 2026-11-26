@@ -1,14 +1,14 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: light)" srcset="./images/banner.png" />
-    <img src="./images/banner.png" alt="SnowAir" />
+    <img src="./images/banner.png" alt="ScreenShut" />
   </picture>
 </p>
 <h1 align="center">
-  <span>SnowAir</span>
+  <span>ScreenShut</span>
 </h1>
 <p align="center">
-  <span align="center">SnowAir is a lightweight Windows screenshot and annotation tool covering screenshots, scrolling capture, screen recording, OCR, annotation, and pinning, available as the Lite edition and a more complete professional edition.</span>
+  <span align="center">ScreenShut is a lightweight Windows screenshot and annotation tool covering screenshots, scrolling capture, screen recording, OCR, annotation, and pinning, available as the Lite edition and a more complete professional edition.</span>
 </p>
 <h3 align="center">
   <a href="#-editions">Editions</a>
@@ -27,7 +27,7 @@
 
 ## 🔨 Features
 
-From region capture, screen recording, and presentation canvas to pinning, scrolling capture, and text recognition, SnowAir ships an entire toolkit for everyday screenshots:
+From region capture, screen recording, and presentation canvas to pinning, scrolling capture, and text recognition, ScreenShut ships an entire toolkit for everyday screenshots:
 
 |   |   |   |
 | --- | --- | --- |
@@ -52,7 +52,7 @@ Light and dark themes, switchable automatically with the system or set manually.
 
 ## 🧩 Editions
 
-SnowAir comes in two editions that share the same experience and feature layout:
+ScreenShut comes in two editions that share the same experience and feature layout:
 
 | E&#8288;d&#8288;i&#8288;t&#8288;i&#8288;o&#8288;n | Description | H&#8288;o&#8288;w&#8288; t&#8288;o&#8288; G&#8288;e&#8288;t |
 | --- | --- | --- |
@@ -67,9 +67,9 @@ The following covers how to obtain, run and extend the software; see [`Native/RE
 <summary><strong>Software Download</strong></summary>
 <br/>
 
-Go to [SnowAir Releases](https://github.com/CM-idea/SnowAir/releases), expand **Assets**, download `SnowAir.exe`, and double-click to run — no installation required.
+Go to [ScreenShut Releases](https://github.com/CM-idea/SnowAir/releases), expand **Assets**, download `ScreenShut.exe`, and double-click to run — no installation required.
 
-Configuration, language and plugins live in `%AppData%\SnowAir\` by default; to keep them next to the program instead (so you can move the whole folder to a USB drive and keep your settings), place an empty file named `config.json` next to `SnowAir.exe` — delete the file to restore the default. Clipboard history, capture history and the last selection are machine-local: they always stay in `%AppData%\SnowAir\local.json`, and are not carried by the portable config.
+All data lives under `AppData\` next to the executable: `AppData\config\` holds configuration, language packs, plugins and machine-local state (`local.json`), screenshots and recordings default to `AppData\save\`, and runtime temporary files go to `AppData\temp\`. Copying the whole folder moves your settings with it; the screenshot/record directories can still be changed in Settings.
 
 </details>
 
@@ -77,9 +77,9 @@ Configuration, language and plugins live in `%AppData%\SnowAir\` by default; to 
 <summary><strong>Open-Source Scope</strong></summary>
 <br/>
 
-SnowAir itself is open source under the **Apache License 2.0**. It depends on a customized Ling branch with unpublished implementation, which is not distributed here, so **building from this repository alone is not supported**.
+ScreenShut itself is open source under the **Apache License 2.0**. It depends on a customized Ling branch with unpublished implementation, which is not distributed here, so **building from this repository alone is not supported**.
 
-To run SnowAir, download `SnowAir.exe` from [SnowAir Releases](https://github.com/CM-idea/SnowAir/releases).
+To run ScreenShut, download `ScreenShut.exe` from [ScreenShut Releases](https://github.com/CM-idea/SnowAir/releases).
 
 </details>
 
@@ -96,15 +96,15 @@ Includes offline OCR, offline translation and other components, downloaded on de
 When launched without arguments, it **only sits in the system tray on standby** and does not automatically enter capture mode:
 
 ```text
-SnowAir.exe                     # Tray standby, default
-SnowAir.exe --auto-quit=true    # Quit right after capturing
-SnowAir.exe --enter=pin         # Pin
-SnowAir.exe --enter=long        # Scrolling capture
-SnowAir.exe --enter=video       # Screen recording
-SnowAir.exe --enter=ocr         # Text recognition
-SnowAir.exe --enter=demo        # Presentation canvas
-SnowAir.exe --enter=edit        # Image editor
-SnowAir.exe --enter=tray        # Tray only, same as default behavior
+ScreenShut.exe                     # Tray standby, default
+ScreenShut.exe --auto-quit=true    # Quit right after capturing
+ScreenShut.exe --enter=pin         # Pin
+ScreenShut.exe --enter=long        # Scrolling capture
+ScreenShut.exe --enter=video       # Screen recording
+ScreenShut.exe --enter=ocr         # Text recognition
+ScreenShut.exe --enter=demo        # Presentation canvas
+ScreenShut.exe --enter=edit        # Image editor
+ScreenShut.exe --enter=tray        # Tray only, same as default behavior
 ```
 
 Capture entry points: click the tray icon, and choose capture / open settings / do nothing under "Feature Settings → Tray Single Click"; or use the global hotkey `F1`; running the exe again opens the settings center.
@@ -119,13 +119,13 @@ To learn about the latest changes, see the [Release Notes](https://github.com/CM
 
 Keep refining annotation and screen-recording capabilities, improve OCR / translation service integration, and advance the settings center and toolbar appearance editor.
 
-## ❤️ SnowAir Community
+## ❤️ ScreenShut Community
 
-SnowAir is maintained by [Liuyiran](https://github.com/CM-idea). Feel free to report issues or share suggestions via [Issues](https://github.com/CM-idea/SnowAir/issues).
+ScreenShut is maintained by [Liuyiran](https://github.com/CM-idea). Feel free to report issues or share suggestions via [Issues](https://github.com/CM-idea/SnowAir/issues).
 
 ## 🔒 Privacy Statement
 
-SnowAir is a local tool and does not upload any screenshots or text by default; network access is used only for checking updates, online OCR / translation services, and plugin downloads.
+ScreenShut is a local tool and does not upload any screenshots or text by default; network access is used only for checking updates, online OCR / translation services, and plugin downloads.
 
 ## 🙏 Acknowledgments
 
@@ -137,7 +137,7 @@ Thanks to [xland](https://github.com/xland) and [ScreenCapture](https://github.c
 
 This project is open-sourced under the **Apache License 2.0**; see [`LICENSE`](LICENSE) for the full text, and [`NOTICE`](NOTICE) for third-party components and upstream attributions.
 
-The open-source scope of this repository covers SnowAir itself; the customized Ling it depends on is not part of it.
+The open-source scope of this repository covers ScreenShut itself; the customized Ling it depends on is not part of it.
 
 [releases-link]: https://github.com/CM-idea/SnowAir/releases
 [issues-link]: https://github.com/CM-idea/SnowAir/issues

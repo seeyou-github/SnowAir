@@ -23,7 +23,7 @@
 
 // 关于页（逐项对齐 design/about-page.html 已确认的版本）：
 //   ① 配图 520×176，水平居中，顶部被卡片裁掉 14px，下沿压住标题 39px（图在字上面）
-//   ② SnowAir 大字 56px / 600
+//   ② ScreenShut 大字 56px / 600
 //   ③ 版本号 + Lite beta 胶囊（高 22 / 字号 11.5 / 间距 9）
 //   ④ 口号 13.5px 实色
 //   ⑤ 按钮组 margin-top:auto → 顶到卡片底部；按钮高 36 / 圆角 8 / 间距 10
@@ -46,17 +46,14 @@ constexpr float kArtTopClip{ 14.f };
 constexpr float kArtOverlap{ 62.f };
 
 // 内嵌的配图是 RCDATA，而 Ling::Image 只认文件路径（内部会整块读进内存再解码）。
-// 所以先落到 %TEMP%，加载完立刻删掉 —— 不在用户配置目录里留垃圾。
+// 所以先落到 AppData\temp，加载完立刻删掉 —— 不在用户配置目录里留垃圾。
 // 返回路径；调用方用完负责删除（loadImg 是同步的，返回后即可删）。
 std::wstring writeArtToTemp()
 {
 	auto [data, size] = Ling::Util::getRes(L"about");
 	if (data == nullptr || size == 0) return {};
 
-	wchar_t tmp[MAX_PATH]{};
-	if (GetTempPathW(MAX_PATH, tmp) == 0) return {};
-
-	auto file = std::filesystem::path{ tmp } / L"SnowAir-about-art.png";
+	auto file = Util::tempDir() / L"ScreenShut-about-art.png";
 	std::ofstream out(file, std::ios::binary | std::ios::trunc);
 	if (!out) return {};
 	out.write(static_cast<const char*>(data), static_cast<std::streamsize>(size));
@@ -248,7 +245,7 @@ winrt::fire_and_forget fetchLatestTag(std::weak_ptr<bool> weak, WinSettingAbout*
 		filter.CacheControl().ReadBehavior(HttpCacheReadBehavior::NoCache);
 		HttpClient client{ filter };
 		// GitHub API 必须带 User-Agent，否则直接 403
-		client.DefaultRequestHeaders().UserAgent().TryParseAdd(L"SnowAir");
+		client.DefaultRequestHeaders().UserAgent().TryParseAdd(L"ScreenShut");
 		auto op = client.GetStringAsync(
 			winrt::Windows::Foundation::Uri{ L"https://github.com/CM-idea/SnowAir/releases.atom" });
 		auto guard = winrt::Windows::System::Threading::ThreadPoolTimer::CreateTimer(
@@ -289,11 +286,11 @@ WinSettingAbout::WinSettingAbout(Ling::WinBase* parent) : Ling::Node(parent)
 	// ① 配图不参与排版：绝对定位、最后创建（后加的子节点画在上面），位置在 layout() 里算。
 	//    标题用 marginTop 让出图的高度，上沿落进图纸里 → 「图压字」。
 
-	// ② SnowAir 大字
+	// ② ScreenShut 大字
 	auto* titleRow = centerRow(this);
 	titleRow->setMarginTop(kArtH - kArtTopClip - kArtOverlap - SettingTheme::contentPadY);
 	auto* title = titleRow->makeChild<Ling::Label>();
-	title->setText(L"SnowAir");
+	title->setText(L"ScreenShut");
 	title->setFontFamily(L"Segoe UI");
 	title->setFontSize(56.f);
 	title->setFontWeight(600);
@@ -477,7 +474,7 @@ WinSettingAbout::WinSettingAbout(Ling::WinBase* parent) : Ling::Node(parent)
 	});
 
 	lightLink(Lang::get(L"about.exportConfig"), nullptr, false, [owner]() {
-		const auto path = Util::getSaveFilePath(owner, L"json", L"SnowAir-config.json", L"");
+		const auto path = Util::getSaveFilePath(owner, L"json", L"ScreenShut-config.json", L"");
 		if (path.empty()) return;   // 用户取消
 		if (!Setting::get()->exportConfigTo(path)) {
 			MessageBoxW(owner, Lang::get(L"about.exportFailed").c_str(),

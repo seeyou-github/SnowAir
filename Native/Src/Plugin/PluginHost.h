@@ -6,7 +6,7 @@
 #include "SnowAirPlugin.h"
 
 /*
- * Local test host for the standalone SnowAir rack plugin.
+ * Local test host for the standalone ScreenShut rack plugin.
  *
  * It loads the DLL built from SnowAir-Rack and supplies the small host surface
  * that the plugin needs: theme roles, config, history/clipboard counts and the

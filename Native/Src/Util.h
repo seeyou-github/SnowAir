@@ -61,7 +61,7 @@ public:
 	static void copyHistoryFileToClipboard(const std::wstring& historyId);
 	static void pinHistoryFile(const std::wstring& historyId);
 	// 把图存成缓存文件，再交给外部插件 ImageReader.exe 做文字识别。插件先在本 exe
-	// 同目录找，再找 %appdata%\SnowAir\plugin，都找不到就用默认浏览器打开它的
+	// 同目录找，再找 AppData\config\plugin，都找不到就用默认浏览器打开它的
 	// release 页面让用户自己下。缓存图由插件读完后自己删。
 	static bool openWithImageReader(const int w, const int h, BYTE* data);
 	// 只认二维码 + 常见零售/书本条码（EAN-13/8、UPC-A/E、Code128、Code39、ITF），
@@ -98,8 +98,17 @@ public:
 	// 用 runas 拉起一个提权的新实例（params 为附加命令行，不含 exe 路径）。用户取消 UAC 时返回 false。
 	static bool spawnElevated(const std::wstring& params);
 
+	// —— 应用数据目录（全部位于 exe 同目录的 AppData 下）——
+	// <exe>\AppData、<exe>\AppData\config、<exe>\AppData\save、<exe>\AppData\temp
+	static std::filesystem::path appDataDir();
+	static std::filesystem::path configDir();
+	static std::filesystem::path saveDir();
+	static std::filesystem::path tempDir();
+	// 启动时创建上述四个目录（已存在则跳过）
+	static void initAppDataDirs();
+
 	// —— 截图输出路径 ——
-	// 默认输出根目录：图片\SnowAir；取不到「图片」文件夹时退回空路径（不建目录）
+	// 默认输出根目录：<exe>\AppData\save（用户可在设置里改到任意目录）
 	static std::filesystem::path defaultOutputDir();
 	// 手动保存（工具栏「保存」）对话框的起始目录：桌面；取不到时退回空路径（对话框用系统默认位置）
 	static std::filesystem::path desktopDir();
@@ -117,7 +126,7 @@ public:
 		const std::wstring& focusAppName = L"");
 	// 「保存格式」设置（如 "JPEG (*.jpg)"）→ 扩展名；认不出来一律 png
 	static std::wstring extensionFromSaveFormat(const std::wstring& fmt);
-	// 录制收尾：把临时目录里的成片移到「录屏文件路径」（未设置时退回图片\SnowAir），
+	// 录制收尾：把临时目录里的成片移到「录屏文件路径」（未设置时退回 AppData\save），
 	// 按「视频录制文件名格式」命名、重名自动加序号。返回最终路径（空 = 失败，源文件原样保留）
 	static std::wstring commitRecordedFile(const std::wstring& tempPath);
 	// 当前前台窗口所属进程名（不含扩展名），本进程自己（截图覆盖窗等）返回空。

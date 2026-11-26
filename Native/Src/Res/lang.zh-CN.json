@@ -1,6 +1,6 @@
 {
   "instance": {
-    "takeOver": "检测到旧版本的 SnowAir 正在运行（可能正在截图或录屏）。\n关闭它并使用当前版本继续吗？\n\n若旧版本里有未保存的内容，请先取消、手动处理。"
+    "takeOver": "检测到旧版本的 ScreenShut 正在运行（可能正在截图或录屏）。\n关闭它并使用当前版本继续吗？\n\n若旧版本里有未保存的内容，请先取消、手动处理。"
   },
   "cap": {
     "mark": "标注图片",
@@ -28,7 +28,7 @@
     "openDir": "打开目录"
   },
   "imageEdit": {
-    "title": "SnowAir 图片编辑",
+    "title": "ScreenShut 图片编辑",
     "modeCollage": "创造拼图",
     "modeDoc": "合并文档",
     "cancel": "取消",
@@ -266,14 +266,14 @@
     "hevcUnavailable": "这台机器没有可用的 H.265 编码器（显卡不支持硬件编码，或未安装 HEVC 组件）。请把「编码模式」改为「H.264」或「自动」后重试。"
   },
   "setting": {
-    "title": "SnowAir 设置中心",
+    "title": "ScreenShut 设置中心",
     "common": "常规",
     "shortcut": "快捷键",
     "about": "关于",
     "autoStart": "开机自启",
     "runAsAdmin": "以管理员身份运行",
     "runAsAdminLockedTip": "当前为 Administrator 账户，已拥有管理员权限，暂无法关闭",
-    "runAsAdminConfirm": "开启后需以管理员身份重新启动 SnowAir，是否继续？",
+    "runAsAdminConfirm": "开启后需以管理员身份重新启动 ScreenShut，是否继续？",
     "language": "语言：",
     "getMoreLang": "获取更多语言",
     "hotkeys": "全局热键",
@@ -609,7 +609,7 @@
     "plugDelRackConfirm": "确定删除 SnowAir 晾衣架？删除后可在本页重新下载。",
     "pluginsOpenDir": "打开组件目录",
     "pluginsCustomDir": "自定义插件目录",
-    "pluginsCustomDirTip": "自定义插件目录：选一个放插件的文件夹，程序会在其中新建 SnowAir\\plugin",
+    "pluginsCustomDirTip": "自定义插件目录：选一个放插件的文件夹，程序会在其中新建 ScreenShut\\plugin",
     "pluginsDirNested": "不能选择当前插件目录的子目录。",
     "pluginsDirCreateFailed": "无法在这个位置创建插件目录，请换一个有写入权限的文件夹。",
     "pluginsDirBusy": "组件正在下载，请等下载完成后再修改插件目录。",
@@ -705,7 +705,7 @@
     "wechat": "微信：liulun_007",
     "copySuccess": "复制成功",
     "sysTip": "提示",
-    "appName": "SnowAir 轻雪",
+    "appName": "ScreenShut 轻雪",
     "versionFmt": "版本 %1",
     "checkUpdate": "检查更新",
     "feedback": "反馈问题",

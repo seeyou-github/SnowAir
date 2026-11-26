@@ -284,7 +284,7 @@ private:
 Tray::Tray()
 {
 	auto lingApp = Ling::App::get();
-	lingApp->initTray(100, L"SnowAir 轻雪");
+	lingApp->initTray(100, L"ScreenShut 轻雪");
 	// 按用户设置应用托盘图标样式（内置=Logo 字形上色 / 自定义=图片文件）+ 显隐
 	TrayIcon::apply();
 	Setting::get()->initShortcutKeys();

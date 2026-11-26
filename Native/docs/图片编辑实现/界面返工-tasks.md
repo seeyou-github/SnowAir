@@ -1,7 +1,7 @@
 # 图片编辑 · 界面返工任务清单
 
 > 依据：`界面返工-spec.md`（以 `.figma/image` 两张截图为准）。
-> 约束：不新增源文件、不改 `SnowAir.vcxproj`；控件复用 `Ling::Button/TextBox/Slider/Label/Node`、
+> 约束：不新增源文件、不改 `ScreenShut.vcxproj`；控件复用 `Ling::Button/TextBox/Slider/Label/Node`、
 > `SettingUi::Popup/HoverTip/ConfirmDialog`、`Src/Tool/ToolCap.cpp` 的槽位建钮模式；图标只取字库。
 
 - [x] T0 对照清单与参考图核对（截图识别：15 工具 + 3 分隔线、右栏 7 色板、3 布局卡、顶部 4 图标）

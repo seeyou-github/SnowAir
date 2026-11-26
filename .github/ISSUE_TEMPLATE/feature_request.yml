@@ -7,7 +7,7 @@ body:
     attributes:
       label: 针对
       options:
-        - SnowAir 轻雪
+        - ScreenShut 轻雪
         - SnowAir 晾衣架
     validations:
       required: true

@@ -16,9 +16,9 @@
 - [x] T1.9 `Setting.cpp`：`kHotkeys` 追加 `{ L"make_collage", 113 }`；`runHotkeyAction` 派发到 `WinImageEdit::init()`。
 - [x] T1.10 `Tray.cpp`：`MenuCmd` 增 `kCmdMakeCollage`；`kMenuRows` 在快捷翻译后插入；`runTrayCommand` 派发。
 - [x] T1.11 `IconCodes.h` 增 `Split` / `Layout` / `Dimension01`。
-- [x] T1.12 用新 `iconfont.ttf` 覆盖 `Native/Src/Res/SnowAirIcons.ttf`。
+- [x] T1.12 用新 `iconfont.ttf` 覆盖 `Native/Src/Res/ScreenShutIcons.ttf`。
 - [x] T1.13 `lang.zh-CN.json` / `lang.en-US.json` 增加 spec 3.5 的键。
-- [x] T1.14 `SnowAir.vcxproj` 登记 `Win\WinImageEdit.cpp` 与 `.h`。
+- [x] T1.14 `ScreenShut.vcxproj` 登记 `Win\WinImageEdit.cpp` 与 `.h`。
 - [x] T1.15 构建 Release x64；按 spec 7 M1 验收；单独汇报。
 
 ## M2 拼图模式

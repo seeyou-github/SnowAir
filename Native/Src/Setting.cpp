@@ -139,8 +139,8 @@ namespace {
     // 下次启动解析失败 —— 用户看到的「配置文件读取错误」就是这么来的。
     bool writeConfigAtomic(const std::filesystem::path& dst, const std::wstring& text)
     {
-        // 数据目录是「用到才建」的（见 initDataPath）：配置落到 %AppData%\SnowAir 时这里补建，
-        // 免得便携模式之外的用户第一次保存因为目录不存在而写不进去。
+        // 数据目录虽在启动时由 Util::initAppDataDirs() 创建，这里仍补建父目录，
+        // 以免用户删掉目录后第一次保存失败。
         if (!dst.parent_path().empty()) {
             std::error_code ec;
             std::filesystem::create_directories(dst.parent_path(), ec);
@@ -199,7 +199,7 @@ Setting::Setting() :dataPath{ initDataPath() }, configPath{ initConfigPath() }
                 L"config.json 读取失败（文件被占用或没有权限）。\n"
                 L"本次使用默认设置，原文件已保留、不会被覆盖。\n\n"
                 L"Could not read config.json. The file was left untouched.",
-                L"SnowAir", MB_OK | MB_ICONWARNING);
+                L"ScreenShut", MB_OK | MB_ICONWARNING);
             return;
         }
         if (isBlankConfig(content)) {
@@ -227,7 +227,7 @@ Setting::Setting() :dataPath{ initDataPath() }, configPath{ initConfigPath() }
         MessageBox(nullptr,
             L"config.json 格式错误，已备份为 config.json.bad，本次使用默认设置。\n\n"
             L"config.json is malformed; a backup was kept as config.json.bad.",
-            L"SnowAir", MB_OK | MB_ICONWARNING);
+            L"ScreenShut", MB_OK | MB_ICONWARNING);
         return;
     }
     // 没有 config.json：真正的首次运行（或用户主动删掉想恢复默认），按默认值初始化。
@@ -284,7 +284,7 @@ void Setting::adoptNewerConflictCopy()
     // 仅接受包含 common 节的文件，避免将同目录其他 JSON 或不完整文件当作配置，导致设置被清空
     if (!obj.HasKey(L"common")) return;
 
-    OutputDebugStringW((L"[SnowAir] adopted newer config conflict copy: " + best.wstring() + L"\n").c_str());
+    OutputDebugStringW((L"[ScreenShut] adopted newer config conflict copy: " + best.wstring() + L"\n").c_str());
     configObj = obj;
     lastSavedConfig.clear();   // 清除已保存记录，确保采用的配置写回 config.json
     save();
@@ -321,7 +321,7 @@ Setting::~Setting()
 // —— 剪切板监听：记录文本与位图（剪切板历史数据的来源）——
 namespace {
     HWND g_clipWnd{ nullptr };
-    constexpr const wchar_t* kClipWndClass{ L"SnowAirClipboardWatch" };
+    constexpr const wchar_t* kClipWndClass{ L"ScreenShutClipboardWatch" };
 
     // CF_DIB → BGRA（只处理最常见的 BI_RGB 24/32 位，其余格式不记录）
     bool dibToBgra(HGLOBAL handle, int& outW, int& outH, std::vector<BYTE>& out)
@@ -945,7 +945,7 @@ void Setting::setAutoStart(bool autoStart)
     // 和 TrafficMonitor 一致：只登记当前用户的 Run 键，值是带引号的 exe 全路径，
     // 不带任何命令行参数；关闭时删掉值，并删掉 Run 键本身。
     constexpr const wchar_t* runKey = L"Software\\Microsoft\\Windows\\CurrentVersion\\Run";
-    constexpr const wchar_t* runValue = L"SnowAir";
+    constexpr const wchar_t* runValue = L"ScreenShut";
     HKEY hKey{};
     if (RegCreateKeyExW(HKEY_CURRENT_USER, runKey, 0, nullptr, 0, KEY_SET_VALUE,
         nullptr, &hKey, nullptr) == ERROR_SUCCESS) {
@@ -1011,32 +1011,14 @@ void Setting::setRunAsAdmin(bool on)
 
 std::filesystem::path Setting::initDataPath()
 {
-    PWSTR pathTmp;
-    auto hr = SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, nullptr, &pathTmp);
-    if (FAILED(hr)) {
-        _ASSERT_EXPR(FALSE, L"get roaming path，error");
-        return L"";
-    }
-    auto dataPath = std::filesystem::path{ pathTmp };
-    CoTaskMemFree(pathTmp);
-    dataPath.append("SnowAir");
-    // 这里**只算路径、不建目录**：配置可以放在 exe 旁（便携模式），插件目录也可能被指到
-    // 别处，此时用户根本没用到 %AppData%\SnowAir 里的东西，启动就凭空建一个空文件夹只是
-    // 留下垃圾。谁真要往里写（配置、剪贴板历史、缩略图缓存、插件），谁自己按需创建。
-    return dataPath;
+    // 全部数据固定在 exe 同目录的 AppData\config 下（不再使用系统 %APPDATA%，
+    // 也不再支持 exe 旁的便携 config.json）。目录由 Util::initAppDataDirs() 在启动时创建。
+    return Util::configDir();
 }
 
 std::filesystem::path Setting::initConfigPath()
 {
-    // 与插件的查找顺序一致（见 Util.cpp 里的 findImageReader）：先看 exe 同目录。
-    // 只有那份文件本来就存在时才认它 —— 不存在就不要在程序目录里新建，
-    // 装在 Program Files 下时那儿通常没有写权限，况且默认位置该是 appdata
-    wchar_t buffer[MAX_PATH]{};
-    GetModuleFileName(nullptr, buffer, MAX_PATH);
-    auto path = std::filesystem::path{ buffer }.parent_path().append(L"config.json");
-    if (std::filesystem::exists(path)) return path;
-    auto fallback = this->dataPath; //复制一份路径对象，append 会就地改
-    return fallback.append(L"config.json");
+    return this->dataPath / L"config.json";
 }
 
 void Setting::save()
@@ -1104,7 +1086,7 @@ void Setting::save()
             L"配置未能写入 config.json（可能被 OneDrive / 杀毒软件临时占用）。\n"
             L"本次修改可能没有保存，稍后再改任意设置会重新尝试。\n\n"
             L"Could not write config.json (it may be temporarily locked by OneDrive or antivirus).",
-            L"SnowAir", MB_OK | MB_ICONWARNING);
+            L"ScreenShut", MB_OK | MB_ICONWARNING);
     }
 }
 
@@ -1773,9 +1755,9 @@ void Setting::setMouseHighlightColor(UINT32 rgba)
 	save();
 }
 
-std::wstring Setting::defaultManualSaveFormat() { return L"SnowAir_{{YYYY-MM-DD_HH-mm-ss}}"; }
-std::wstring Setting::defaultAutoSaveFormat() { return L"SnowAir_auto_{{YYYY-MM-DD_HH-mm-ss}}"; }
-std::wstring Setting::defaultVideoRecordFormat() { return L"SnowAir_Video_{{YYYY-MM-DD_HH-mm-ss}}"; }
+std::wstring Setting::defaultManualSaveFormat() { return L"ScreenShut_{{YYYY-MM-DD_HH-mm-ss}}"; }
+std::wstring Setting::defaultAutoSaveFormat() { return L"ScreenShut_auto_{{YYYY-MM-DD_HH-mm-ss}}"; }
+std::wstring Setting::defaultVideoRecordFormat() { return L"ScreenShut_Video_{{YYYY-MM-DD_HH-mm-ss}}"; }
 
 std::wstring Setting::getManualSaveFormat() { return featStr(L"manualSaveFormat", L""); }
 void Setting::setManualSaveFormat(const std::wstring& v) { setFeatStr(L"manualSaveFormat", v); }
@@ -3330,7 +3312,7 @@ bool Setting::writeClipboardItemsToFile(const std::vector<ClipboardItem>& items)
 void Setting::writeClipboardItems(std::vector<ClipboardItem>& items)
 {
     if (!writeClipboardItemsToFile(items)) {
-        OutputDebugStringW(L"[SnowAir] failed to write local.json (clipboard)\n");
+        OutputDebugStringW(L"[ScreenShut] failed to write local.json (clipboard)\n");
         return;   // 写入失败时不通知界面刷新，避免显示未持久化的内容
     }
     if (clipboardChanged) clipboardChanged();

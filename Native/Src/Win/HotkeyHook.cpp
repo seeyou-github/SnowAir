@@ -4,7 +4,7 @@
 
 namespace
 {
-	constexpr const wchar_t* kHookClass{ L"SnowAirHotkeyHook" };
+	constexpr const wchar_t* kHookClass{ L"ScreenShutHotkeyHook" };
 	constexpr UINT kMsgFire{ WM_APP + 0x422 };
 	constexpr UINT kMsgCapture{ WM_APP + 0x423 };
 

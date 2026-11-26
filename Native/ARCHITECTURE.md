@@ -1,4 +1,4 @@
-# SnowAir Native — 架构速查（ARCHITECTURE）
+# ScreenShut Native — 架构速查（ARCHITECTURE）
 
 > 本文档用于快速建立对项目结构的认知，涵盖核心机制与关键文件位置。改动代码前先读本节，再读具体文件。
 
@@ -210,11 +210,11 @@ inputArea->setPadding(0.f, 8.f, 0.f, 0.f);
 
 ### 开机自启（`Setting::setAutoStart()`）
 
-只使用一种方式：**当前用户** `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` 的 `SnowAir` 值，
-类型 `REG_SZ`，数据是带引号的 exe 全路径（如 `"D:\...\SnowAir.exe"`），不带任何命令行参数。
+只使用一种方式：**当前用户** `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` 的 `ScreenShut` 值，
+类型 `REG_SZ`，数据是带引号的 exe 全路径（如 `"D:\...\ScreenShut.exe"`），不带任何命令行参数。
 
 - 默认**关闭**：配置缺 `common.autoStart` 时按 `false` 处理；出厂配置也写 `false`
-- 开启：用当前 exe 全路径写入 / 覆盖该值；关闭：先删 `SnowAir` 值，再删 `Run` 键本身（键里若还有别的程序的值，删键会失败，不会影响其他自启项）
+- 开启：用当前 exe 全路径写入 / 覆盖该值；关闭：先删 `ScreenShut` 值，再删 `Run` 键本身（键里若还有别的程序的值，删键会失败，不会影响其他自启项）
 - 每次启动调用 `syncAutoStart()` 按配置重新同步一次，换目录 / 升级后旧值会被当前路径覆盖，关闭状态则会清掉残留
 - 不使用计划任务、启动文件夹快捷方式、服务，也不调用 `reg.exe`
 - 「以管理员身份运行」是独立的提权设置，与开机自启登记无关
@@ -226,21 +226,21 @@ inputArea->setPadding(0.f, 8.f, 0.f, 0.f);
 | 菜单项 | 行为 | 入口 |
 |---|---|---|
 | 截图 | 进截图态（悬停找元素 → 框选 → 截图工具栏） | `WinCap::init()` |
-| 截取全屏 | 静默整屏抓图：存 `图片\SnowAir\<全屏模板>.png` → 剪贴板（勾选「以文件形式复制」则复制文件）→ 记录一条历史 | `App::captureFullScreenSilent()` |
+| 截取全屏 | 静默整屏抓图：存 `AppData\save\<全屏模板>.png` → 剪贴板（勾选「以文件形式复制」则复制文件）→ 记录一条历史 | `App::captureFullScreenSilent()` |
 | 屏幕录制 | 进入截图态（找元素 → 框选），框完直接切换为录屏工具栏 | `WinCap::beginRecordPick()`（内部 `pendingRecord`，在 `WinCap::onUp` 的 Select→Adjust 分支生效） |
 | 演示画布 | 整屏作为画布：选区自动铺满，并按「功能设置 → 演示 → 默认工具」选好画笔（0 渐隐画笔 / 1 画笔 / 2 无） | `WinCap::beginDemoCanvas()`（`selectFullScreenRect()` + `startAnnotate(L"pen")`） |
 | 快捷翻译 / 截图历史 / 设置 | 打开设置中心并切到对应页（1 / 2 / 0） | `WinSetting::init(pageIndex)` / `WinSetting::showPage()` |
-| 打开目录 | 打开 `图片\SnowAir` | `Util::outputDir()` + `ShellExecute` |
+| 打开目录 | 打开 `AppData\save` | `Util::outputDir()` + `ShellExecute` |
 | 退出 | 退出程序 | `Ling::App::quit(0)` |
 
 实现要点：
 
 - 观感完全跟随系统菜单：自绘（`MF_OWNERDRAW` + `WM_MEASUREITEM` / `WM_DRAWITEM`）只控制整体宽度 180（`kMenuW`，itemWidth = 180 − 系统菜单窗自带的 20）与文字左内缩（`kItemPadX` 10）。行高取 `GetSystemMetrics(SM_CYMENU)`，配色取 `GetSysColor(COLOR_MENU / MENUTEXT / HIGHLIGHT / HIGHLIGHTTEXT / 3DSHADOW)`，高亮为整行实心，分割线为 1px 系统色线
-- 菜单宿主是自己的隐藏顶层窗口（类名 `SnowAirTrayMenuOwner`，`ensureMenuOwner()`）：Ling 的消息窗口是 message-only，跨进程不可枚举，不适合作为菜单宿主；`WM_MEASUREITEM` / `WM_DRAWITEM` 都由它接收
+- 菜单宿主是自己的隐藏顶层窗口（类名 `ScreenShutTrayMenuOwner`，`ensureMenuOwner()`）：Ling 的消息窗口是 message-only，跨进程不可枚举，不适合作为菜单宿主；`WM_MEASUREITEM` / `WM_DRAWITEM` 都由它接收
 - 尺寸通过 `AppendMenu(..., (LPCWSTR)&MEASUREITEMSTRUCT)` 直接给出，`WM_MEASUREITEM` 分支仅作兜底。`g_measures` 必须先 `reserve`，指针需存活到菜单销毁。勾选列用 `MNS_NOCHECK` 去掉，底色用 `SetMenuInfo(MIM_BACKGROUND)`
 - 右键在抬起时弹出菜单，按下即弹会被同一次抬键点掉
 - 不使用 `AttachThreadInput` 抢前台：把本进程输入队列挂到光标下窗口（如 explorer）所在线程后，菜单开启期间任务栏无法点击。当前只做 `SetForegroundWindow`（失败不处理），代价是键盘（Esc / 方向键）不保证可操作菜单，鼠标点击与点菜单外关闭由系统菜单自身保证
-- 静默整屏截图：`App::captureFullScreenSilent()` 使用 `Util::captureScreen()` + `Util::buildSavePath()`（支持 `{{YYYY}}` 等时间标记展开，根目录 `图片\SnowAir`）+ `Setting::addHistoryItem()`；`Util::saveToFile()` 目前只做 PNG 编码，因此固定 `.png`
+- 静默整屏截图：`App::captureFullScreenSilent()` 使用 `Util::captureScreen()` + `Util::buildSavePath()`（支持 `{{YYYY}}` 等时间标记展开，根目录 `AppData\save`）+ `Setting::addHistoryItem()`；`Util::saveToFile()` 目前只做 PNG 编码，因此固定 `.png`
 
 ## 10. 演示模式 / 全屏画布（源：Src\Win\WinCap.cpp + Src\Tool\ToolCap.cpp）
 
@@ -264,7 +264,7 @@ inputArea->setPadding(0.f, 8.f, 0.f, 0.f);
 - 「穿透」= `WinCap::toggleDemoThrough()` → `setMouseTransparent()`（`WS_EX_TRANSPARENT`，鼠标交给桌面，标注保留在屏幕上；工具条是独立顶层窗口，穿透时仍可点击）
 - 「重置画布」= 清空 `history->shapes`；「取消」= 清空并关闭窗口
 
-图标字体：`Src/Res/SnowAirIcons.ttf`，字码表与 `Src/Tool/IconCodes.h` 一致。
+图标字体：`Src/Res/ScreenShutIcons.ttf`，字码表与 `Src/Tool/IconCodes.h` 一致。
 
 ## 11. 构建输出编码
 

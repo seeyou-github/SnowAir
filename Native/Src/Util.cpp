@@ -251,7 +251,7 @@ namespace {
 	}
 
 	// 插件的查找顺序：先本 exe 同目录（绿色包一起解压的情况），
-	// 再 %appdata%\SnowAir\plugin（后来单独下载的情况）
+	// 再 AppData\config\plugin（后来单独下载的情况）
 	std::filesystem::path findImageReader()
 	{
 		wchar_t buffer[MAX_PATH]{};
@@ -475,7 +475,7 @@ std::wstring Util::lastSaveDir(bool video)
 	const wchar_t* value = video ? L"LastVideoDir" : L"LastShotDir";
 	wchar_t buf[MAX_PATH * 2]{};
 	DWORD cb = (DWORD)sizeof(buf);
-	if (RegGetValueW(HKEY_CURRENT_USER, L"Software\\SnowAir\\SaveDir", value,
+	if (RegGetValueW(HKEY_CURRENT_USER, L"Software\\ScreenShut\\SaveDir", value,
 		RRF_RT_REG_SZ, nullptr, buf, &cb) == ERROR_SUCCESS && buf[0]) {
 		return buf;
 	}
@@ -488,7 +488,7 @@ void Util::rememberSaveDir(bool video, const std::wstring& filePath)
 	if (slash == std::wstring::npos || slash == 0) return;
 	const std::wstring dir = filePath.substr(0, slash);
 	HKEY key{};
-	if (RegCreateKeyExW(HKEY_CURRENT_USER, L"Software\\SnowAir\\SaveDir", 0, nullptr,
+	if (RegCreateKeyExW(HKEY_CURRENT_USER, L"Software\\ScreenShut\\SaveDir", 0, nullptr,
 		0, KEY_SET_VALUE, nullptr, &key, nullptr) != ERROR_SUCCESS) return;
 	const wchar_t* value = video ? L"LastVideoDir" : L"LastShotDir";
 	RegSetValueExW(key, value, 0, REG_SZ, reinterpret_cast<const BYTE*>(dir.c_str()),
@@ -1119,19 +1119,34 @@ void Util::pinHistoryFile(const std::wstring& historyId)
 	WinPin::initFromData(x, y, w, h, data);
 }
 
+// ============ 应用数据目录（exe 同目录的 AppData）============
+
+std::filesystem::path Util::appDataDir()
+{
+	wchar_t buffer[MAX_PATH]{};
+	GetModuleFileNameW(nullptr, buffer, MAX_PATH);
+	return std::filesystem::path{ buffer }.parent_path() / L"AppData";
+}
+
+std::filesystem::path Util::configDir() { return appDataDir() / L"config"; }
+std::filesystem::path Util::saveDir()   { return appDataDir() / L"save"; }
+std::filesystem::path Util::tempDir()   { return appDataDir() / L"temp"; }
+
+void Util::initAppDataDirs()
+{
+	std::error_code ec;
+	std::filesystem::create_directories(appDataDir(), ec);
+	std::filesystem::create_directories(configDir(), ec);
+	std::filesystem::create_directories(saveDir(), ec);
+	std::filesystem::create_directories(tempDir(), ec);
+}
+
 // ============ 截图输出路径 ============
 
 std::filesystem::path Util::defaultOutputDir()
 {
-	PWSTR pictures{ nullptr };
-	if (FAILED(SHGetKnownFolderPath(FOLDERID_Pictures, 0, nullptr, &pictures)) || !pictures) {
-		if (pictures) CoTaskMemFree(pictures);
-		return {};
-	}
-	std::filesystem::path dir{ pictures };
-	CoTaskMemFree(pictures);
-	dir.append(L"SnowAir");
-	return dir;
+	// 默认输出根目录：<exe>\AppData\save（用户可在「文件输出」里改到任意目录）
+	return saveDir();
 }
 
 // 手动保存（工具栏「保存」）对话框的起始目录：桌面。用户仍可在对话框里改到别处
@@ -1149,9 +1164,9 @@ std::filesystem::path Util::desktopDir()
 
 std::filesystem::path Util::outputDir()
 {
-	// 「文件输出」里自定义了截图目录就用它；否则用系统「图片」下的 SnowAir。
+	// 「文件输出」里自定义了截图目录就用它；否则用 exe 目录下的 AppData\save。
 	// 这里**只算路径、不建目录**：历史扫描 / 过期清理 / 打开菜单都会调用它，
-	// 顺手建目录会让用户删掉的默认空文件夹（图片\SnowAir）每次启动又被重新生成。
+	// 顺手建目录会让用户删掉的默认空文件夹（AppData\save）每次启动又被重新生成。
 	// 真正落盘时由 buildSavePath / commitRecordedFile 负责建目录。
 	auto* setting = Setting::get();
 	auto custom = setting ? setting->getScreenshotDir() : std::wstring{};
@@ -1253,7 +1268,7 @@ std::wstring Util::buildSavePath(const std::wstring& format, const std::wstring&
 		if (slash == std::wstring::npos) break;
 		pos = slash + 1;
 	}
-	if (parts.empty()) parts.push_back(L"SnowAir");
+	if (parts.empty()) parts.push_back(L"ScreenShut");
 
 	std::wstring fileName = sanitizeSegment(parts.back());
 	parts.pop_back();
@@ -1292,7 +1307,7 @@ std::wstring Util::commitRecordedFile(const std::wstring& tempPath)
 	std::wstring ext = src.extension().wstring();
 	if (!ext.empty() && ext[0] == L'.') ext.erase(0, 1);
 
-	// 目标目录：「录屏文件路径」；没设置过就用图片\SnowAir（与设置页显示的默认值一致）
+	// 目标目录：「录屏文件路径」；没设置过就用 AppData\save（与设置页显示的默认值一致）
 	std::filesystem::path dir;
 	if (st) {
 		const auto rec = st->getRecordDir();
@@ -1309,7 +1324,7 @@ std::wstring Util::commitRecordedFile(const std::wstring& tempPath)
 	stem = sanitizeSegment(stem);
 	// 模板里可能自己写了扩展名，实际扩展名以录制文件为准
 	if (auto dot = stem.find_last_of(L'.'); dot != std::wstring::npos) stem.erase(dot);
-	if (stem.empty()) stem = L"SnowAir";
+	if (stem.empty()) stem = L"ScreenShut";
 
 	auto makeName = [&](int n) {
 		std::wstring name = stem;

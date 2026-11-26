@@ -34,14 +34,9 @@ namespace {
                 || c == L'<' || c == L'>' || c == L'|' || c < 0x20) c = L'_';
         }
         while (!name.empty() && (name.back() == L' ' || name.back() == L'.')) name.pop_back();
-        if (name.empty()) name = L"SnowAir";
-        // 录制中的半成品放系统临时目录：它不该出现在用户的配置/数据目录里，
-        // 只有按 ✓ 存文件或复制时才复制到「录屏文件路径」
-        std::filesystem::path dir;
-        wchar_t tmp[MAX_PATH]{};
-        if (GetTempPathW(MAX_PATH, tmp) > 0) dir = tmp;
-        else dir = st->getDataPath();
-        return (dir / (name + L"." + ext)).wstring();
+        if (name.empty()) name = L"ScreenShut";
+        // 录制中的半成品放 AppData\temp：只有按 ✓ 存文件或复制时才复制到「录屏文件路径」
+        return (Util::tempDir() / (name + L"." + ext)).wstring();
     }
 
     // MP4 录制失败以前是静默 return，用户那边就是"录完什么都没有"，连缓存文件都不生成。

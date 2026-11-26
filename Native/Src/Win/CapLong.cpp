@@ -104,7 +104,7 @@ namespace {
 			WNDCLASSEXW wc{ sizeof(wc) };
 			wc.lpfnWndProc = magHostProc;
 			wc.hInstance = inst;
-			wc.lpszClassName = L"SnowAirMagnifierHost";
+			wc.lpszClassName = L"ScreenShutMagnifierHost";
 			RegisterClassExW(&wc); // 已注册时失败是正常的
 			host_ = CreateWindowExW(WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW,
 				wc.lpszClassName, L"", WS_POPUP, 0, 0, 0, 0, nullptr, nullptr, inst, nullptr);

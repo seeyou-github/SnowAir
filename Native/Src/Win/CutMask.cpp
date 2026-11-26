@@ -1171,12 +1171,12 @@ namespace {
 				WNDCLASSEXW wc{ sizeof(wc) };
 				wc.lpfnWndProc = resultProc;
 				wc.hInstance = GetModuleHandleW(nullptr);
-				wc.lpszClassName = L"SnowAirHoverQuery";
+				wc.lpszClassName = L"ScreenShutHoverQuery";
 				registered = RegisterClassExW(&wc) != 0 || GetLastError() == ERROR_CLASS_ALREADY_EXISTS;
 			}
 			if (registered) {
 				// 结果回传用的隐藏窗口必须建在 UI 线程上（此处就是）
-				g_ui = CreateWindowExW(0, L"SnowAirHoverQuery", L"", 0, 0, 0, 0, 0,
+				g_ui = CreateWindowExW(0, L"ScreenShutHoverQuery", L"", 0, 0, 0, 0, 0,
 					HWND_MESSAGE, nullptr, GetModuleHandleW(nullptr), nullptr);
 			}
 			g_thread = CreateThread(nullptr, 0,

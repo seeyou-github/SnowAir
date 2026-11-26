@@ -72,7 +72,7 @@ namespace {
     constexpr uint32_t kBgNone{ 0x00000000u };
     const uint32_t kBgPresets[5]{ 0xFFFFFFFF, 0x0F0F0FFF, 0x00FF40FF, 0x1677FFFF, 0xFFCC00FF };
 
-    // 保存对话框的默认文件名：与截图手动保存同一套模板（默认 SnowAir_2026-10-25_16-48-59），
+    // 保存对话框的默认文件名：与截图手动保存同一套模板（默认 ScreenShut_2026-10-25_16-48-59），
     // 只取「手动保存文件名格式」的末段，不再用纯数字时间戳
     std::wstring saveDefaultName()
     {

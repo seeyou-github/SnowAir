@@ -68,7 +68,7 @@ namespace {
 			filter.CacheControl().ReadBehavior(
 				winrt::Windows::Web::Http::Filters::HttpCacheReadBehavior::NoCache);
 			winrt::Windows::Web::Http::HttpClient client{ filter };
-			client.DefaultRequestHeaders().UserAgent().TryParseAdd(L"SnowAir");
+			client.DefaultRequestHeaders().UserAgent().TryParseAdd(L"ScreenShut");
 			auto op = client.GetStringAsync(Uri{
 				L"https://github.com/CM-idea/SnowAir-Rack/releases.atom" });
 			auto guard = ThreadPoolTimer::CreateTimer(
@@ -108,7 +108,7 @@ namespace {
 			filter.CacheControl().ReadBehavior(
 				winrt::Windows::Web::Http::Filters::HttpCacheReadBehavior::NoCache);
 			winrt::Windows::Web::Http::HttpClient client{ filter };
-			client.DefaultRequestHeaders().UserAgent().TryParseAdd(L"SnowAir");
+			client.DefaultRequestHeaders().UserAgent().TryParseAdd(L"ScreenShut");
 			auto op = client.GetStringAsync(Uri{
 				L"https://github.com/CM-idea/SnowAir/releases.atom" });
 			auto guard = ThreadPoolTimer::CreateTimer(

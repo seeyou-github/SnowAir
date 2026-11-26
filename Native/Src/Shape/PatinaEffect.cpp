@@ -280,7 +280,7 @@ bool apply(std::vector<BYTE>& bgra, UINT32 width, UINT32 height, UINT32 pitch, c
 	std::vector<BYTE> canvas((size_t)tp * th);
 	scaleBilinear(bgra.data(), width, height, pitch, canvas.data(), tw, th, tp);
 
-	SeedRand rand(s.seed.empty() ? L"SnowAir" : s.seed);
+	SeedRand rand(s.seed.empty() ? L"ScreenShut" : s.seed);
 	auto stampAndGreen = [&](std::vector<BYTE>& img) {
 		if (s.watermark) {
 			drawStamp(img.data(), tp, tw, th, s.plan, s.wmSize > 0 ? s.wmSize : 20, rand,

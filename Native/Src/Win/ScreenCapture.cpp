@@ -121,24 +121,22 @@ bool sameRect(const RECT& a, const RECT& b)
 }
 
 // ---------------------------------------------------------------- 诊断
-// 只在异常路径写，正常运行一行不打。要看现场数据就设环境变量 SNOWAIR_HDR_LOG=1，
-// 日志落到 %TEMP%\SnowAir-hdr.log（UTF-8）。
+// 只在异常路径写，正常运行一行不打。要看现场数据就设环境变量 SCREENSHUT_HDR_LOG=1，
+// 日志落到 AppData\temp\ScreenShut-hdr.log（UTF-8）。
 void trace(const std::wstring& text)
 {
 	static auto* count = new std::atomic<int>(0);
 	if (count->fetch_add(1) >= 80) return;
-	const std::wstring line = L"[SnowAir/HDR] " + text + L"\n";
+	const std::wstring line = L"[ScreenShut/HDR] " + text + L"\n";
 	OutputDebugStringW(line.c_str());
 
 	static const bool toFile = [] {
 		wchar_t value[8]{};
-		return GetEnvironmentVariableW(L"SNOWAIR_HDR_LOG", value, _countof(value)) > 0;
+		return GetEnvironmentVariableW(L"SCREENSHUT_HDR_LOG", value, _countof(value)) > 0;
 	}();
 	if (!toFile) return;
 
-	wchar_t dir[MAX_PATH]{};
-	if (!GetTempPathW(MAX_PATH, dir)) return;
-	const std::wstring path = std::wstring(dir) + L"SnowAir-hdr.log";
+	const std::wstring path = (Util::tempDir() / L"ScreenShut-hdr.log").wstring();
 	FILE* file = nullptr;
 	if (_wfopen_s(&file, path.c_str(), L"ab") != 0 || !file) return;
 	const int size = WideCharToMultiByte(CP_UTF8, 0, line.c_str(), (int)line.size(), nullptr, 0, nullptr, nullptr);

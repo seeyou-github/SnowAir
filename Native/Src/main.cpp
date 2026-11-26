@@ -1,9 +1,12 @@
 #include "pch.h"
 #include "App.h"
 #include "SelfTest.h"
+#include "Util.h"
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPTSTR lpCmdLine, _In_ int nCmdShow)
 {
+    // 所有数据 / 输出 / 临时文件都落在 exe 同目录的 AppData 下，先确保四个目录存在
+    Util::initAppDataDirs();
     // 无窗口自检：不初始化 App / 图形设备
     if (std::wstring(GetCommandLineW()).find(L"--selftest") != std::wstring::npos)
         return RunSelfTest();

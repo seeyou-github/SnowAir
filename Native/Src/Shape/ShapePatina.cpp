@@ -109,7 +109,7 @@ void ShapePatina::rebuild()
 	st.watermark = showWm;
 	st.plan = wmPlan;
 	st.wmSize = wmSize;
-	st.seed = L"SnowAir-patina";
+	st.seed = L"ScreenShut-patina";
 	PatinaEffect::apply(pixels, bw, bh, mapped.pitch, st);
 
 	auto props = D2D1::BitmapProperties(

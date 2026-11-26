@@ -1,7 +1,7 @@
 /*
- * SnowAir plugin ABI
+ * ScreenShut plugin ABI
  * ------------------
- * This header is the contract between SnowAir.exe (the host) and a plugin DLL.
+ * This header is the contract between ScreenShut.exe (the host) and a plugin DLL.
  * Keep a synced copy in the host repository:
  *   Native/Src/Plugin/SnowAirPlugin.h
  *
@@ -78,7 +78,7 @@ enum {
     SNOWAIR_MENU_DISABLED = 4
 };
 
-/* Unified entries for the envelope panel: SnowAir's own history (screenshots,
+/* Unified entries for the envelope panel: ScreenShut's own history (screenshots,
  * screen recordings and user files found in the history folders) merged with
  * the clipboard history, newest first. */
 enum SnowAirEntryKind {
@@ -90,8 +90,8 @@ enum SnowAirEntryKind {
 
 enum SnowAirEntrySource {
     SNOWAIR_SOURCE_CLIPBOARD = 0,
-    SNOWAIR_SOURCE_CAPTURE = 1,  /* produced by SnowAir's screenshot flow */
-    SNOWAIR_SOURCE_RECORD = 2,   /* produced by SnowAir's recorder */
+    SNOWAIR_SOURCE_CAPTURE = 1,  /* produced by ScreenShut's screenshot flow */
+    SNOWAIR_SOURCE_RECORD = 2,   /* produced by ScreenShut's recorder */
     SNOWAIR_SOURCE_OTHER = 3,    /* user files already in the history folders */
     /* 截图的细分来源（UI 标签用，都属于截图分类） */
     SNOWAIR_SOURCE_FULLSCREEN = 4,  /* 截取全屏（静默） */
@@ -126,7 +126,7 @@ typedef struct SnowAirHost {
     int      (*is_dark)(void* user);
 
     /*
-     * Config. Values live in SnowAir's config.json under features.<key>.
+     * Config. Values live in ScreenShut's config.json under features.<key>.
      * Keys use the "rack." prefix, e.g. "rack.enabled".
      */
     bool (*config_get_bool)(void* user, const wchar_t* key, bool def);
@@ -134,7 +134,7 @@ typedef struct SnowAirHost {
     int  (*config_get_int)(void* user, const wchar_t* key, int def);
     void (*config_set_int)(void* user, const wchar_t* key, int value);
 
-    /* Open SnowAir settings at Appearance -> Other appearance. */
+    /* Open ScreenShut settings at Appearance -> Other appearance. */
     void (*open_settings)(void* user);
 
     /* Optional debug log. The host owns the destination. */
@@ -154,13 +154,13 @@ typedef struct SnowAirHost {
     /* True while the appearance page is previewing the rack live. */
     int  (*rack_preview_pinned)(void* user);
 
-    /* Show SnowAir's native popup menu (same PinMenu used by pin windows).
+    /* Show ScreenShut's native popup menu (same PinMenu used by pin windows).
        Nested submenus are supported; `on_select` is called with plugin_user. */
     void (*show_menu)(void* user, const SnowAirMenuItem* items, int count,
                       int screen_x, int screen_y, void* plugin_user,
                       SnowAirMenuSelect on_select);
 
-    /* True while a SnowAir popup menu (including one opened for the rack) is up. */
+    /* True while a ScreenShut popup menu (including one opened for the rack) is up. */
     int (*menu_open)(void* user);
 
     /* Close any host popup menu (and remove its low-level mouse hook). */
@@ -169,7 +169,7 @@ typedef struct SnowAirHost {
     /* Screen rectangle of the last screenshot region, if known. */
     int (*capture_rect)(void* user, int* x, int* y, int* w, int* h);
 
-    /* Open SnowAir's standalone clipboard-history popup at a screen point. */
+    /* Open ScreenShut's standalone clipboard-history popup at a screen point. */
     void (*open_clipboard_panel)(void* user, int screen_x, int screen_y);
 
     /* Clipboard history exposed to the rack's envelope bubble.
@@ -220,7 +220,7 @@ typedef struct SnowAirHost {
     int  (*entry_delete_id)(void* user, const wchar_t* id);
 
     /*
-     * v5 — 本地数据（SnowAir 的 local.json）。
+     * v5 — 本地数据（ScreenShut 的 local.json）。
      * key 用点分路径，例如 "rack.items"；值必须是 JSON 对象。
      * get 返回所需 wchar 数（含结尾 0），没有返回 0；set 成功返回 1。
      * 旧宿主没有这两个字段，插件按 api_version 回退到自己的文件。
@@ -228,7 +228,7 @@ typedef struct SnowAirHost {
     int  (*local_data_get)(void* user, const wchar_t* key, wchar_t* out, int capacity);
     int  (*local_data_set)(void* user, const wchar_t* key, const wchar_t* json);
 
-    /* v5 — 用 SnowAir 的图片编辑打开指定图片。 */
+    /* v5 — 用 ScreenShut 的图片编辑打开指定图片。 */
     int  (*open_image_editor)(void* user, const wchar_t* path);
 } SnowAirHost;
 
@@ -261,7 +261,7 @@ typedef struct SnowAirPlugin {
     bool (*init)(const SnowAirHost* host);
     void (*shutdown)(void);
 
-    /* Called after SnowAir has written a capture to disk.
+    /* Called after ScreenShut has written a capture to disk.
      * `png_path` is only valid for the duration of this call. */
     void (*on_capture)(const wchar_t* png_path);
 

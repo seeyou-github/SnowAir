@@ -1,6 +1,6 @@
 {
   "instance": {
-    "takeOver": "An older SnowAir version is still running (possibly capturing or recording).\nClose it and continue with this version?\n\nIf it has unsaved work, cancel and handle it there first."
+    "takeOver": "An older ScreenShut version is still running (possibly capturing or recording).\nClose it and continue with this version?\n\nIf it has unsaved work, cancel and handle it there first."
   },
   "cap": {
     "mark": "Annotate Image",
@@ -28,7 +28,7 @@
     "openDir": "Open Folder"
   },
   "imageEdit": {
-    "title": "SnowAir Image Editor",
+    "title": "ScreenShut Image Editor",
     "modeCollage": "Make Collage",
     "modeDoc": "Merge Document",
     "cancel": "Cancel",
@@ -266,14 +266,14 @@
     "hevcUnavailable": "No usable H.265 encoder on this machine (the GPU has no hardware encoder, or the HEVC component is not installed). Set Encoding Mode to H.264 or Auto and try again."
   },
   "setting": {
-    "title": "SnowAir Settings",
+    "title": "ScreenShut Settings",
     "common": "General",
     "shortcut": "Shortcuts",
     "about": "About",
     "autoStart": "Launch at startup",
     "runAsAdmin": "Run as administrator",
     "runAsAdminLockedTip": "You are signed in as the built-in Administrator, which already has full administrator rights. This cannot be turned off for now",
-    "runAsAdminConfirm": "SnowAir needs to restart with administrator privileges. Continue?",
+    "runAsAdminConfirm": "ScreenShut needs to restart with administrator privileges. Continue?",
     "language": "Language:",
     "getMoreLang": "Get more languages",
     "hotkeys": "Global Hotkeys",
@@ -609,7 +609,7 @@
     "plugDelRackConfirm": "Remove SnowAir Rack? You can download it again from this page.",
     "pluginsOpenDir": "Open components folder",
     "pluginsCustomDir": "Custom plugin folder",
-    "pluginsCustomDirTip": "Custom plugin folder: pick where to keep plugins; a SnowAir\\plugin folder is created inside it",
+    "pluginsCustomDirTip": "Custom plugin folder: pick where to keep plugins; a ScreenShut\\plugin folder is created inside it",
     "pluginsDirNested": "You cannot select a subfolder of the current plugin folder.",
     "pluginsDirCreateFailed": "Could not create the plugin folder here. Choose a folder you can write to.",
     "pluginsDirBusy": "Components are downloading. Wait for the download to finish before changing the plugin folder.",
@@ -705,18 +705,18 @@
     "wechat": "WeChat: liulun_007",
     "copySuccess": "Copied successfully",
     "sysTip": "Information",
-    "appName": "SnowAir",
+    "appName": "ScreenShut",
     "versionFmt": "Version %1",
     "checkUpdate": "Check for Updates",
     "feedback": "Report an Issue",
     "repo": "Repository",
-    "slogan": "Fast and free, all in SnowAir",
+    "slogan": "Fast and free, all in ScreenShut",
     "dataDir": "Data folder",
     "openDataDir": "Open config folder",
     "importConfig": "Import config",
     "exportConfig": "Export config",
     "importOk": "Import succeeded",
-    "importDone": "Config imported. Please restart SnowAir manually.",
+    "importDone": "Config imported. Please restart ScreenShut manually.",
     "importFailed": "Import failed: please choose a valid config file.",
     "exportFailed": "Export failed: cannot write to the selected location.",
     "changelog": "Changelog",

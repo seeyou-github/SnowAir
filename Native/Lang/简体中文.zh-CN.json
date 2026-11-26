@@ -168,7 +168,7 @@
     "recordFailedOther": "录屏失败，请重试；若一直失败，请把下面的错误码反馈给开发者。"
   },
   "setting": {
-    "title": "SnowAir 设置中心",
+    "title": "ScreenShut 设置中心",
     "common": "常规",
     "shortcut": "快捷键",
     "about": "关于",
@@ -493,7 +493,7 @@
     "wechat": "微信：liulun_007",
     "copySuccess": "复制成功",
     "sysTip": "提示",
-    "appName": "SnowAir 轻雪",
+    "appName": "ScreenShut 轻雪",
     "versionFmt": "版本 %1",
     "checkUpdate": "检查更新",
     "feedback": "反馈问题"

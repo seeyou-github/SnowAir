@@ -1,4 +1,4 @@
-# SnowAir
+# ScreenShut
 
 轻雪 — Windows 原生截图工具（C++20 / Ling / D2D）。
 
@@ -27,39 +27,39 @@
 
 ## 构建说明
 
-SnowAir 本体以 **Apache License 2.0** 开源；运行依赖定制版 Ling（含未公开实现），该分支不随仓库发布，因此不提供从源码直接构建。
+ScreenShut 本体以 **Apache License 2.0** 开源；运行依赖定制版 Ling（含未公开实现），该分支不随仓库发布，因此不提供从源码直接构建。
 
-需要运行请使用 [Releases](https://github.com/CM-idea/SnowAir/releases) 中的 `SnowAir.exe`。
+需要运行请使用 [Releases](https://github.com/CM-idea/SnowAir/releases) 中的 `ScreenShut.exe`。
 
 ## 命令行
 
 不带参数启动时**只挂托盘图标待命**，不会自动进入截图模式：
 
 ```text
-SnowAir.exe                     # 托盘待命（默认）
-SnowAir.exe --auto-quit=true          # 截完即退出
-SnowAir.exe --enter=pin               # 贴图
-SnowAir.exe --enter=long              # 长截图
-SnowAir.exe --enter=video             # 录屏
-SnowAir.exe --enter=ocr               # 文字识别
-SnowAir.exe --enter=demo              # 演示画布
-SnowAir.exe --enter=edit              # 图片编辑
-SnowAir.exe --enter=tray              # 仅托盘（等同于默认行为）
+ScreenShut.exe                     # 托盘待命（默认）
+ScreenShut.exe --auto-quit=true          # 截完即退出
+ScreenShut.exe --enter=pin               # 贴图
+ScreenShut.exe --enter=long              # 长截图
+ScreenShut.exe --enter=video             # 录屏
+ScreenShut.exe --enter=ocr               # 文字识别
+ScreenShut.exe --enter=demo              # 演示画布
+ScreenShut.exe --enter=edit              # 图片编辑
+ScreenShut.exe --enter=tray              # 仅托盘（等同于默认行为）
 ```
 
 截图入口：托盘图标单击（按「功能设置 → 单击托盘执行」：截图 / 打开设置 / 无操作）、
 全局热键 `F1`、或再次运行 exe（打开设置中心）。
 
-便携模式：在 exe 同目录放置空文件 `config.json`，配置与语言改从 exe 目录读取。
+所有数据固定放在 exe 同目录的 `AppData\config\`，不再支持 exe 旁的便携 `config.json`。
 
 ## 数据目录
 
-默认：`%AppData%\SnowAir\`（配置、语言、插件、本机数据）
+默认：`AppData\config\`（配置、语言、插件、本机数据）
 
-用户设置在 `config.json`；本机数据（剪贴板历史、截图/录屏历史、上次选区）在 `local.json`，图片缓存在 `Clipboard\`。本机数据即使配置放在便携目录 / 同步盘，也不会跟着同步。
+用户设置在 `config.json`；本机数据（剪贴板历史、截图/录屏历史、上次选区）在 `local.json`，图片缓存在 `Clipboard\`。截图/录像默认输出到 `AppData\save\`，临时文件在 `AppData\temp\`。
 
 ## OCR 插件
 
-将 [ImageReader.exe](https://github.com/xland/ImageReader/releases) 放到 `%AppData%\SnowAir\plugin` 或 exe 同目录。
+将 [ImageReader.exe](https://github.com/xland/ImageReader/releases) 放到 `AppData\config\plugin` 或 exe 同目录。
 
 由 [CM-idea](https://github.com/CM-idea) 维护。

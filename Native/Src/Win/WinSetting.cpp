@@ -236,7 +236,7 @@ void WinSetting::onCreated()
 	sideNav->setPadding(SettingTheme::sidePadX, SettingTheme::sidePadY,
 		SettingTheme::sidePadX, SettingTheme::sidePadY);
 
-	// ① 顶部：LOGO（深色方块 + 雪花标） + SnowAir + 设置中心
+	// ① 顶部：LOGO（深色方块 + 雪花标） + ScreenShut + 设置中心
 	{
 		auto brandTop = sideNav->makeChild<Ling::Node>();
 		brandTop->setFlexDirection(Ling::FlexDirection::Row);
@@ -264,7 +264,7 @@ void WinSetting::onCreated()
 		brandText->setFlexGrow(1.0);
 
 		auto appLabel = brandText->makeChild<Ling::Label>();
-		appLabel->setText(L"SnowAir");
+		appLabel->setText(L"ScreenShut");
 		appLabel->setFontSize(SettingTheme::fontXl);
 		appLabel->setColor(SettingTheme::textPrimary);
 

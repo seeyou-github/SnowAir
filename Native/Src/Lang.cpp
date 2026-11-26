@@ -7,19 +7,13 @@
 std::unique_ptr<Lang> lang;
 
 namespace {
-	// 语言文件优先从 exe 同目录的 Lang 子目录加载（绿色部署 / 调试方便），
-	// 那个目录不存在才退回 %appdata%\SnowAir\Lang。
+	// 语言文件统一从 AppData\config\Lang 加载。
 	// directory_iterator 碰到不存在的目录会抛 filesystem_error，
 	// 所以用带 error_code 的重载，目录不在就当没有额外语言。
 	std::vector<std::filesystem::path> getLangFiles()
 	{
 		std::vector<std::filesystem::path> result;
-		wchar_t buffer[MAX_PATH]{};
-		GetModuleFileName(nullptr, buffer, MAX_PATH);
-		auto langPath = std::filesystem::path{ buffer }.parent_path().append(L"Lang");
-		if (!std::filesystem::is_directory(langPath)) {
-			langPath = Setting::get()->getDataPath().append(L"Lang");
-		}
+		auto langPath = Setting::get()->getDataPath().append(L"Lang");
 		std::error_code ec;
 		std::filesystem::directory_iterator it{ langPath, ec }, end{};
 		for (; !ec && it != end; it.increment(ec)) {
@@ -131,7 +125,7 @@ void Lang::initLang(const std::wstring& langCode)
 		}
 		else {
 			auto msg = L"lang pare error：" + pathStr + L"\n use English";
-			MessageBox(nullptr, msg.data(), L"SnowAir", MB_OK | MB_ICONWARNING);
+			MessageBox(nullptr, msg.data(), L"ScreenShut", MB_OK | MB_ICONWARNING);
 		}
 		break;
 	}

@@ -288,7 +288,7 @@ LRESULT CALLBACK flashWndProc(HWND h, UINT msg, WPARAM w, LPARAM l)
 void ensureFlashWnd()
 {
 	if (g_flashWnd) return;
-	constexpr const wchar_t* kCls = L"SnowAirTrayFlash";
+	constexpr const wchar_t* kCls = L"ScreenShutTrayFlash";
 	static bool registered = false;
 	if (!registered) {
 		WNDCLASSEXW wc{ sizeof(WNDCLASSEXW) };

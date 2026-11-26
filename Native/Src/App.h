@@ -37,11 +37,11 @@ class App
 		// 取消 excludeFromCapture（长截图结束后恢复）
 		static void clearCaptureExclusion(HWND hwnd);
 		// 静默整屏截图（托盘「截取全屏」）：不建任何窗口，抓整个虚拟桌面 →
-		// 按「全屏截图文件名格式」存到 图片\SnowAir → 复制到剪贴板（勾了"以文件形式复制"就复制文件）
+		// 按「全屏截图文件名格式」存到 AppData\save → 复制到剪贴板（勾了"以文件形式复制"就复制文件）
 		// → 记一条截图历史。全程无 UI，失败时什么也不做。
 		void captureFullScreenSilent();
 	// 静默截取「当前前台窗口」（全局热键「截取焦点窗口」）：取前台窗口的扩展边框抓图 →
-	// 按「手动保存文件名格式」存到 图片\SnowAir → 复制到剪贴板 → 记一条截图历史。全程无 UI。
+	// 按「手动保存文件名格式」存到 AppData\save → 复制到剪贴板 → 记一条截图历史。全程无 UI。
 	void captureFocusedWindowSilent();
 	// 静默「重复截图」（全局热键）：按上次记住的选区（屏幕坐标）再抓一次 →
 	// 复制到剪贴板 + 记一条历史。没有记录时什么都不做。

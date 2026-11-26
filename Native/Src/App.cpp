@@ -69,7 +69,7 @@ void App::init()
     });
     // 首次截图慢的大头是 Tip/comctl32 首次初始化（约 150ms）。启动 2s 后（1.5s 的 D2D dispose
     // 之后）用一个隐藏小窗 + Tip 预热一次，代价约 0.2MB；首次截图从 ~256ms 降到 ~101ms。
-    // SNOWAIR_WARMUP=off 可关闭；=tipd2d 可切到极速档（常驻 D2D 设备，~15.8MB，~48ms）。
+    // SCREENSHUT_WARMUP=off 可关闭；=tipd2d 可切到极速档（常驻 D2D 设备，~15.8MB，~48ms）。
     SetTimer(nullptr, 0x5A1A, 2000, +[](HWND, UINT, UINT_PTR id, DWORD) {
         KillTimer(nullptr, id);
         auto* lapp = Ling::App::get();
@@ -220,8 +220,8 @@ void App::captureFullScreenSilent()
 	auto pixels = ScreenCapture::captureOrGdi(sx, sy, sw, sh);
 	if (pixels.empty()) return;
 
-	// 文件名与「功能设置 → 文件输出 → 手动保存文件名格式」同一套模板（默认 SnowAir_{{YYYY-MM-DD_HH-mm-ss}}），
-	// 落到 图片\SnowAir 下；扩展名与编码取「保存格式」（PNG/JPEG/WebP/BMP）。
+	// 文件名与「功能设置 → 文件输出 → 手动保存文件名格式」同一套模板（默认 ScreenShut_{{YYYY-MM-DD_HH-mm-ss}}），
+	// 落到 AppData\save 下；扩展名与编码取「保存格式」（PNG/JPEG/WebP/BMP）。
 	// 「仅复制图片」档不落盘
 	auto* st = Setting::get();
 	const int action = st->getCaptureFinishAction();
@@ -282,7 +282,7 @@ void App::captureFocusedWindowSilent()
 	// 应用名要在覆盖/任何窗口出现前取（此刻前台仍是目标窗口）
 	std::wstring appName = Util::foregroundAppName();
 	// 截自己的窗口时 foregroundAppName 会返回空（同进程不取名字），文件名占位符补一个
-	if (appName.empty() && ownWindow) appName = L"SnowAir";
+	if (appName.empty() && ownWindow) appName = L"ScreenShut";
 	auto pixels = ScreenCapture::captureOrGdi(rc.left, rc.top, w, h);
 	if (pixels.empty()) return;
 

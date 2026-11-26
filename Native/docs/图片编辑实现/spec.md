@@ -2,7 +2,7 @@
 
 > 依据：`Native/docs/图片编辑-需求存档.md`（用户确认稿 + 两份 SVG 布局）。
 > 范围：按里程碑实现独立「图片编辑」窗口，含拼图、合并文档两个模式与两处入口。
-> 约束：不改可执行文件名（SnowAir.exe）；不破坏截图、标注、热键、托盘等现有功能；不执行 git 操作。
+> 约束：不改可执行文件名（ScreenShut.exe）；不破坏截图、标注、热键、托盘等现有功能；不执行 git 操作。
 
 ---
 
@@ -42,9 +42,9 @@
 | `Native/Src/Setting.cpp` | 修改 | `kHotkeys` 追加 `{ L"make_collage", 113 }`；`runHotkeyAction` 增加分支调用 `WinImageEdit::init()` |
 | `Native/Src/Tray.cpp` | 修改 | `MenuCmd` 增加 `kCmdMakeCollage`（紧随 `kCmdQuickTranslate`）；`kMenuRows` 在 `kCmdQuickTranslate` 之后、分隔行之前插入该行；`runTrayCommand` 增加分支 |
 | `Native/Src/Tool/IconCodes.h` | 修改 | 新增 `Split = L"\ue68b"`、`Layout = L"\ue689"`、`Dimension01 = L"\ue68a"` |
-| `Native/Src/Res/SnowAirIcons.ttf` | 替换 | 用 `font_5228143_0xa8f7ae9okk/iconfont.ttf` 覆盖（新字库为原字库超集，已核对 `iconfont.json` 含全部旧码位） |
+| `Native/Src/Res/ScreenShutIcons.ttf` | 替换 | 用 `font_5228143_0xa8f7ae9okk/iconfont.ttf` 覆盖（新字库为原字库超集，已核对 `iconfont.json` 含全部旧码位） |
 | `Native/Src/Res/lang.zh-CN.json` / `lang.en-US.json` | 修改 | 新增托盘文案、热键文案、窗口标题、模式名、取消/保存、空态提示 |
-| `Native/Src/SnowAir.vcxproj` | 修改 | 登记 `Win\WinImageEdit.cpp` 与 `.h` |
+| `Native/Src/ScreenShut.vcxproj` | 修改 | 登记 `Win\WinImageEdit.cpp` 与 `.h` |
 
 ### 3.2 窗口与布局
 
@@ -166,7 +166,7 @@
 ## 7. 验证步骤
 
 ### M1
-1. `MSBuild Native/Src/SnowAir.vcxproj /p:Configuration=Release /p:Platform=x64` 通过。
+1. `MSBuild Native/Src/ScreenShut.vcxproj /p:Configuration=Release /p:Platform=x64` 通过。
 2. 托盘右键：快捷翻译下方出现「制作拼图」，点击打开窗口且默认拼图模式。
 3. 设置中心 → 全局热键 → 其他：出现「制作拼图」且位于「开关设置」之后；录制键位后按热键可打开窗口。
 4. 窗口为 1159×807、深色原生标题栏；模式胶囊切换后工具栏与素材条显隐正确。

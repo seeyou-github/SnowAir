@@ -4,7 +4,7 @@
 
 namespace
 {
-	constexpr const wchar_t* kShieldClass{ L"SnowAirCaptureShield" };
+	constexpr const wchar_t* kShieldClass{ L"ScreenShutCaptureShield" };
 	constexpr UINT_PTR kTimeoutTimerId{ 0x5A17 };
 	constexpr UINT kMsgDrain{ WM_APP + 0x421 };
 	// 兜底：若覆盖窗未能创建（抓屏失败或窗口创建失败），避免一层不可见窗口持续拦截鼠标输入

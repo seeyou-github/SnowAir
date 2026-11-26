@@ -59,27 +59,27 @@ namespace {
 		return _wcsicmp(a.c_str(), b) == 0;
 	}
 
-	// 用户选的是「放插件的父目录」，真正的插件根目录统一收在 <父目录>\SnowAir\plugin：
+	// 用户选的是「放插件的父目录」，真正的插件根目录统一收在 <父目录>\ScreenShut\plugin：
 	// 只在自己新建的这一层里读写组件，父目录（哪怕就是桌面、文档）里用户自己的文件
-	// 永远不会被当成插件组件搬走或删掉。默认位置 %AppData%\SnowAir\plugin 也是这个形状。
+	// 永远不会被当成插件组件搬走或删掉。默认位置 AppData\config\plugin 也是这个形状。
 	std::filesystem::path pluginRootUnder(const std::filesystem::path& picked)
 	{
 		const std::wstring name = picked.filename().wstring();
 		const std::wstring parentName = picked.parent_path().filename().wstring();
-		// 已经指到 SnowAir\plugin 这一层：就用它自己
-		if (sameName(name, L"plugin") && sameName(parentName, L"SnowAir")) return picked;
-		// 指到 SnowAir 这一层：在它下面建 plugin，别出现 SnowAir\SnowAir\plugin
-		if (sameName(name, L"SnowAir")) return picked / L"plugin";
-		return picked / L"SnowAir" / L"plugin";
+		// 已经指到 ScreenShut\plugin 这一层：就用它自己
+		if (sameName(name, L"plugin") && sameName(parentName, L"ScreenShut")) return picked;
+		// 指到 ScreenShut 这一层：在它下面建 plugin，别出现 ScreenShut\ScreenShut\plugin
+		if (sameName(name, L"ScreenShut")) return picked / L"plugin";
+		return picked / L"ScreenShut" / L"plugin";
 	}
 
-	// 目录选择框的起始位置：当前根目录是 <父目录>\SnowAir\plugin 时回到那个父目录，
+	// 目录选择框的起始位置：当前根目录是 <父目录>\ScreenShut\plugin 时回到那个父目录，
 	// 老配置（根目录记在别处）就用根目录自己。
 	std::filesystem::path pluginParentFor(const std::filesystem::path& root)
 	{
 		const std::wstring name = root.filename().wstring();
 		const std::wstring parentName = root.parent_path().filename().wstring();
-		if (sameName(name, L"plugin") && sameName(parentName, L"SnowAir")) {
+		if (sameName(name, L"plugin") && sameName(parentName, L"ScreenShut")) {
 			const auto up = root.parent_path().parent_path();
 			if (!up.empty()) return up;
 		}
@@ -715,7 +715,7 @@ namespace {
 	}
 }
 
-// 选一个父目录作为插件的存放位置：真正的根目录固定收在 <所选目录>\SnowAir\plugin，
+// 选一个父目录作为插件的存放位置：真正的根目录固定收在 <所选目录>\ScreenShut\plugin，
 // 先把已下载的组件复制过去，成功了再切换配置并清理旧目录。
 // 复制失败时旧目录保持原样、配置不变，不会出现"组件只搬了一半"的坏状态。
 // 复制动辄几百 MB，必须放到后台线程：同步做会把 UI 线程堵死（窗口「未响应」，用户只能
@@ -744,7 +744,7 @@ void WinSettingPlugins::choosePluginDir()
 	const std::wstring picked = pickFolder(win->hwnd, initial);
 	if (picked.empty()) return;   // 取消
 
-	// 用户选的是「放插件的父目录」，真正的根目录统一收进 <父目录>\SnowAir\plugin：
+	// 用户选的是「放插件的父目录」，真正的根目录统一收进 <父目录>\ScreenShut\plugin：
 	// 只在自己这一层里建目录、搬组件，父目录（哪怕就是桌面、文档）里用户自己的文件
 	// 永远不会被当成插件组件搬走或删掉。
 	const fs::path pickedPath{ picked };

@@ -6,9 +6,7 @@
 namespace PluginPaths {
 	// 解析插件根目录的优先级：
 	//   1) config.json 的 common.pluginDir 显式指定（想放哪就放哪）
-	//   2) exe 同目录下已有 plugin 文件夹 → 用它（绿色包 / 不希望占用 C 盘）
-	//   3) 退回 %AppData%\SnowAir\plugin（旧行为，兼容已在此下载过插件的用户）
-	// 第 2 条与 config.json / ImageReader 的定位口径一致（见 Setting::initConfigPath）。
+	//   2) 退回 AppData\config\plugin（默认位置）
 	inline std::filesystem::path root()
 	{
 		auto* s = Setting::get();
@@ -21,11 +19,6 @@ namespace PluginPaths {
 			// 配置被外部改坏）就不能死认 —— 否则组件明明装在标准位置，也会报
 			// 「PP-OCRv6 运行时未安装」、已安装组件计数变成 0。
 			if (std::filesystem::is_directory(customPath, ec)) return customPath;
-		}
-		wchar_t buf[MAX_PATH]{};
-		if (GetModuleFileNameW(nullptr, buf, MAX_PATH) > 0) {
-			auto portable = std::filesystem::path{ buf }.parent_path() / L"plugin";
-			if (std::filesystem::is_directory(portable, ec)) return portable;
 		}
 		return s->getDataPath() / L"plugin";
 	}

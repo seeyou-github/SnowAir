@@ -16,11 +16,11 @@ namespace {
 	constexpr UINT kYieldHotkeysMsg = WM_APP + 13; // 请把全局热键交出来
 	constexpr UINT kResumeHotkeysMsg = WM_APP + 14; // 对方退出，可以取回全局热键
 
-	constexpr wchar_t kInstanceClass[] = L"SnowAirInstance";
+	constexpr wchar_t kInstanceClass[] = L"ScreenShutInstance";
 	HWND g_instanceWnd{ nullptr };
 
 	// 代号 → 互斥体名 / 实例窗口标题 / AUMID；两个代号互相独立，可以并存
-	std::wstring editionKey(bool lite) { return lite ? L"SnowAir.Lite" : L"SnowAir"; }
+	std::wstring editionKey(bool lite) { return lite ? L"ScreenShut.Lite" : L"ScreenShut"; }
 
 	// 这些消息由主循环派发，跑在 UI 线程上
 	LRESULT CALLBACK instanceWndProc(HWND wnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -86,7 +86,7 @@ namespace {
 		return std::filesystem::path{ buf };
 	}
 
-	// 进程名小写；兄弟按前缀 snowair 认，老版本可能叫 SnowAir-Lite-v0.1.25.exe
+	// 进程名小写；兄弟按前缀 screenshut 认，Lite 版可能叫 ScreenShut-Lite-v0.1.25.exe
 	std::wstring exeNameLower(const std::filesystem::path& exe)
 	{
 		std::wstring name = exe.filename().wstring();
@@ -94,11 +94,11 @@ namespace {
 		return name;
 	}
 
-	bool isSnowAirName(const std::wstring& lowerName)
+	bool isScreenShutName(const std::wstring& lowerName)
 	{
 		const std::wstring suffix = L".exe";
 		return lowerName.size() > suffix.size()
-			&& lowerName.compare(0, 7, L"snowair") == 0
+			&& lowerName.compare(0, 10, L"screenshut") == 0
 			&& lowerName.compare(lowerName.size() - suffix.size(), suffix.size(), suffix) == 0;
 	}
 
@@ -154,7 +154,7 @@ namespace {
 			do {
 				std::wstring name = pe.szExeFile;
 				for (auto& c : name) c = (wchar_t)towlower(c);
-				if (isSnowAirName(name) && pe.th32ProcessID != self) out.push_back(pe.th32ProcessID);
+				if (isScreenShutName(name) && pe.th32ProcessID != self) out.push_back(pe.th32ProcessID);
 			} while (Process32NextW(snap, &pe));
 		}
 		CloseHandle(snap);
@@ -172,7 +172,7 @@ namespace {
 		if (!ok) return false;
 		std::filesystem::path exe{ std::wstring(path, size) };
 		const std::wstring name = exeNameLower(exe);
-		if (!isSnowAirName(name)) return false;
+		if (!isScreenShutName(name)) return false;
 		out.pid = pid;
 		out.exe = exe;
 		out.lite = isLiteName(name);
