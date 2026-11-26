@@ -177,7 +177,12 @@ namespace Ling {
 	{
 		auto hIns = GetModuleHandle(nullptr);
 		auto cls = getWinClsName(hIns);
-		hwnd = CreateWindowEx(WS_EX_NOREDIRECTIONBITMAP | exStyle, cls.data(), title.data(), style, x, y, (float)w, (float)h, NULL, NULL, hIns, NULL);
+		// 自绘的 WS_POPUP 窗口用 NOREDIRECTIONBITMAP 承载 DirectComposition；
+		// 原生窗口（WS_CAPTION）必须让 DWM 绘制非客户区，否则原生边框会透明、
+		// 标题栏文字/图标不显示，且标题栏会被当成客户区无法拖动。
+		DWORD ex = exStyle;
+		if ((style & WS_CAPTION) == 0) ex |= WS_EX_NOREDIRECTIONBITMAP;
+		hwnd = CreateWindowEx(ex, cls.data(), title.data(), style, x, y, (float)w, (float)h, NULL, NULL, hIns, NULL);
 		SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
 		auto interop = compositor.as<ABI::Windows::UI::Composition::Desktop::ICompositorDesktopInterop>();
 		auto r = reinterpret_cast<ABI::Windows::UI::Composition::Desktop::IDesktopWindowTarget**>(winrt::put_abi(winTarget));
@@ -261,7 +266,20 @@ namespace Ling {
 			}
 		}
 		else if (msg == WM_NCHITTEST) {
-			return self->onHitTest({ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) });
+			POINT pt{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+			// 原生标题栏/系统按钮/边框缩放区必须走 DefWindowProc，
+			// 否则 onHitTest 一律返回 HTCLIENT，标题栏无法拖动、按钮也点不到。
+			LRESULT nc = DefWindowProc(hwnd, msg, wParam, lParam);
+			switch (nc) {
+			case HTCAPTION: case HTSYSMENU: case HTCLOSE: case HTMINBUTTON:
+			case HTMAXBUTTON: case HTHELP: case HTBORDER:
+			case HTTOP: case HTTOPLEFT: case HTTOPRIGHT:
+			case HTBOTTOM: case HTBOTTOMLEFT: case HTBOTTOMRIGHT:
+			case HTLEFT: case HTRIGHT:
+				return nc;
+			default:
+				return self->onHitTest(pt);
+			}
 		}
 		else if (msg == WM_SETCURSOR) {
 			if (LOWORD(lParam) == HTCLIENT) return self->setCursor();
