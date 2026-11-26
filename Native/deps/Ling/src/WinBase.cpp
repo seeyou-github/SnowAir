@@ -5,6 +5,10 @@
 #include "../include/App.h"
 #include "../include/D2D.h"
 
+#ifndef DWMWA_USE_IMMERSIVE_DARK_MODE
+#define DWMWA_USE_IMMERSIVE_DARK_MODE 20
+#endif
+
 namespace Ling {
 	WinBase::WinBase() :compositor{ Composition::Compositor() }
 	{
@@ -181,9 +185,18 @@ namespace Ling {
 		// 原生窗口（WS_CAPTION）必须让 DWM 绘制非客户区，否则原生边框会透明、
 		// 标题栏文字/图标不显示，且标题栏会被当成客户区无法拖动。
 		DWORD ex = exStyle;
-		if ((style & WS_CAPTION) == 0) ex |= WS_EX_NOREDIRECTIONBITMAP;
+		bool nativeFrame = (style & WS_CAPTION) != 0;
+		if (!nativeFrame) ex |= WS_EX_NOREDIRECTIONBITMAP;
+		// 原生标题栏保留，但去掉 WS_THICKFRAME：左右/下方不需要系统 sizing border，
+		// 边缘缩放由各窗口的 onHitTest + borderHitTest 自己处理。
+		if (nativeFrame) style &= ~WS_THICKFRAME;
 		hwnd = CreateWindowEx(ex, cls.data(), title.data(), style, x, y, (float)w, (float)h, NULL, NULL, hIns, NULL);
 		SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+		if (nativeFrame) {
+			// 非客户区跟随系统深色主题，避免出现白色边框、标题栏按钮不可见
+			BOOL dark = TRUE;
+			DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, sizeof(dark));
+		}
 		auto interop = compositor.as<ABI::Windows::UI::Composition::Desktop::ICompositorDesktopInterop>();
 		auto r = reinterpret_cast<ABI::Windows::UI::Composition::Desktop::IDesktopWindowTarget**>(winrt::put_abi(winTarget));
 		interop->CreateDesktopWindowTarget(hwnd, false, r);
