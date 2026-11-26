@@ -1,0 +1,54 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-2025
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Fetch libwebp v1.4.0
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force Native\deps | Out-Null
+          if (-not (Test-Path Native\deps\libwebp\src\webp\encode.h)) {
+            Invoke-WebRequest -Uri "https://codeload.github.com/webmproject/libwebp/zip/refs/tags/v1.4.0" -OutFile libwebp.zip
+            Expand-Archive -Path libwebp.zip -DestinationPath . -Force
+            Move-Item -Path libwebp-1.4.0 -Destination Native\deps\libwebp -Force
+          }
+          Copy-Item -Path Native\build\libwebp.vcxproj -Destination Native\deps\libwebp\libwebp.vcxproj -Force
+
+      - name: Fetch zxing-cpp v3.1.1
+        shell: pwsh
+        run: |
+          if (-not (Test-Path Native\deps\zxing-cpp-311\core\src\ReadBarcode.h)) {
+            Invoke-WebRequest -Uri "https://codeload.github.com/zxing-cpp/zxing-cpp/zip/refs/tags/v3.1.1" -OutFile zxing.zip
+            Expand-Archive -Path zxing.zip -DestinationPath . -Force
+            Move-Item -Path zxing-cpp-3.1.1 -Destination Native\deps\zxing-cpp-311 -Force
+          }
+
+      - name: Build ZXing static library
+        shell: pwsh
+        run: |
+          cmake -S Native/deps/zxing-cpp-311 -B Native/deps/zxing-cpp-311/build -G "Visual Studio 17 2022" -A x64 -DBUILD_SHARED_LIBS=OFF -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DZXING_BUILD_TEST=OFF -DZXING_BUILD_EXAMPLES=OFF
+          cmake --build Native/deps/zxing-cpp-311/build --config Release --target ZXing --parallel
+
+      - name: Build SnowAir
+        shell: pwsh
+        run: |
+          msbuild Native/Src/SnowAir.vcxproj /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /m
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SnowAir
+          path: Native/x64/Release/SnowAir.exe
+          if-no-files-found: error

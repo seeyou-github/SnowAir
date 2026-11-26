@@ -1,5 +1,7 @@
 # Native C++ deps (clone separately, see Native/README.md)
-Native/deps/
+# Ling 已改为随仓库发布（上游 MIT + 本机补丁），其余依赖仍按需下载。
+Native/deps/*
+!Native/deps/Ling/
 Native/x64/
 Native/x86/
 Native/Release/
@@ -21,6 +23,7 @@ hotkey_test*.log
 *.suo
 *.ntvs*
 *.njsproj
+*.vcxproj.user
 *.sln
 *.sw?
 
