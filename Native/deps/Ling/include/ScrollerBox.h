@@ -30,9 +30,14 @@ namespace Ling {
 		float getScrollBarWidth() const;
 		// pos 是否落在可视内容区内（排除右侧滚动条竖带）。
 		bool isPosInContent(POINT pos) const;
+		// 是否隐藏滚动条（滚轮滚动仍然有效）。
+		void setScrollBarVisible(bool visible) { scrollBarVisible = visible; }
+		// 滚轮是否作用于本滚动容器（内容重叠时由宿主按命中结果开关）。
+		void setWheelEnabled(bool enabled) { wheelEnabled = enabled; }
 	public:
 		Node* content;
 	private:
+		bool scrollBarVisible{ true }, wheelEnabled{ true };
 		void setScroll(float y);
 		void layout() override;
 		void onDpiChanged() override;

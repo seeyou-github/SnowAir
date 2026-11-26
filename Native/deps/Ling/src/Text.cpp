@@ -37,6 +37,7 @@ namespace Ling {
         d2d->dwriteFactory->CreateTextLayout(text.data(), (UINT32)text.length(), format, FLT_MAX, FLT_MAX, textLayout.ReleaseAndGetAddressOf());
         if (!textLayout) return;
         textLayout->SetFontSize(fontSize * win->dpi, { 0, INT_MAX });
+        textLayout->SetFontWeight((DWRITE_FONT_WEIGHT)fontWeight, { 0, INT_MAX });
         if (!fontFamily.empty()) {
             // format 已经是对应集合的了，这句是为了在同一集合内指定具体族名
             // （比如系统集合里从默认的雅黑换成别的）
@@ -48,6 +49,14 @@ namespace Ling {
     {
         this->text = text;
         rangeColors.clear();
+        makeLayout();
+        YGNodeMarkDirty(node);
+        win->refresh();
+    }
+
+    void Text::setFontWeight(int weight)
+    {
+        fontWeight = weight;
         makeLayout();
         YGNodeMarkDirty(node);
         win->refresh();

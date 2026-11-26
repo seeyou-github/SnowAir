@@ -22,7 +22,20 @@ namespace Ling {
         void setColor(Color color);
         // 局部文字着色；start/end 都为 0 时清除。
         void setTextRangeColor(int start, int end, Color color);
+        void setFontWeight(int weight);
+        // 定制版 Ling 兼容接口
+        void setSelectable(bool val) { selectable = val; }
+        void setHandCursor(bool val) { handCursor = val; }
+    public:
+        // 文本被点击时触发；idx 为点击处的字符下标（简单命中时返回 0）
+        winrt::event<winrt::delegate<Label*, int>> onTextClick;
+    private:
+        void onDown(POINT pos, bool isRight);
+        void onMove(POINT pos);
+        void onCursorEvent(bool* handled);
     private:
         Text* text{ nullptr };
+        bool selectable{ false }, handCursor{ false }, isHover{ false };
+        winrt::event_token downTok{}, moveTok{}, cursorTok{};
     };
 }

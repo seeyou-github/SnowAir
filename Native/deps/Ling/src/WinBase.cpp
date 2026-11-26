@@ -282,6 +282,17 @@ namespace Ling {
 			self->onMouseUp(POINT{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) }, false);
 			return 0;
 		}
+		else if (msg == WM_MBUTTONDOWN) {
+			self->onMouseMiddleDown(POINT{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) });
+			return 0;
+		}
+		else if (msg == WM_MBUTTONUP) {
+			self->onMouseMiddleUp(POINT{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) });
+			return 0;
+		}
+		else if (msg == WM_CAPTURECHANGED) {
+			self->onCaptureLost();
+		}
 		else if (msg == WM_MOUSEMOVE) {
 			self->mouseMove({ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) });
 		}
@@ -376,10 +387,12 @@ namespace Ling {
 		dpi = newDPI / 96.f;
 		body->applyDpiChange();
 		onDpiChanged();
-		RECT* prcNewWindow = reinterpret_cast<RECT*>(lParam);
-		const int newW = prcNewWindow->right - prcNewWindow->left;
-		const int newH = prcNewWindow->bottom - prcNewWindow->top;
-		SetWindowPos(hwnd, nullptr, prcNewWindow->left, prcNewWindow->top, newW, newH, SWP_NOZORDER | SWP_NOACTIVATE);
+		if (!keepGeometryOnDpiChange()) {
+			RECT* prcNewWindow = reinterpret_cast<RECT*>(lParam);
+			const int newW = prcNewWindow->right - prcNewWindow->left;
+			const int newH = prcNewWindow->bottom - prcNewWindow->top;
+			SetWindowPos(hwnd, nullptr, prcNewWindow->left, prcNewWindow->top, newW, newH, SWP_NOZORDER | SWP_NOACTIVATE);
+		}
 	}
 
 	void WinBase::sizeChange(WPARAM wParam, LPARAM lParam)

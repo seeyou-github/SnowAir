@@ -52,6 +52,10 @@ namespace Ling {
 		winrt::event<winrt::delegate<POINT>> onMouseMove;
 		winrt::event<winrt::delegate<POINT, bool>> onMouseDown; 
 		winrt::event<winrt::delegate<POINT, bool>> onMouseUp;
+		winrt::event<winrt::delegate<POINT>> onMouseMiddleDown;
+		winrt::event<winrt::delegate<POINT>> onMouseMiddleUp;
+		// 鼠标捕获被系统/其他窗口抢走时触发（WM_CAPTURECHANGED）
+		winrt::event<winrt::delegate<>> onCaptureLost;
 		winrt::event<winrt::delegate<POINT, float>> onMouseWheel; 
 		winrt::event<winrt::delegate<bool*>> onCursor; 
 		winrt::event<winrt::delegate<UINT>> onKeyDown;
@@ -77,6 +81,8 @@ namespace Ling {
 		std::unique_ptr<Node> body;   // 必须在事件字段之后声明，先于事件字段析构
 	protected:
 		virtual void onCreated() {};
+		// 返回 true 表示 DPI 变化时窗口几何由子类自己负责，基类不套系统建议矩形
+		virtual bool keepGeometryOnDpiChange() const { return false; }
 		virtual LRESULT onHitTest(const POINT pos) { return HTCLIENT; };
 		LRESULT borderHitTest(const POINT pt);
 		virtual void onMinMaxInfo(MINMAXINFO* mmi);

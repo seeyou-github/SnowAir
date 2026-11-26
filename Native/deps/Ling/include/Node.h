@@ -10,11 +10,14 @@
 #include "Position.h"
 #include "Edge.h"
 #include "Color.h"
+namespace SettingUi { struct NodeFriendAccess; }
+
 namespace Ling {
 	class WinBase;
 	class Node: public std::enable_shared_from_this<Node>
 	{
 		friend class WinBase;
+		friend struct ::SettingUi::NodeFriendAccess;
 		public:
 			Node(WinBase* parent);
 			virtual ~Node();
@@ -94,6 +97,10 @@ namespace Ling {
 			/// 设置主轴的方向
 			/// </summary>
 			void setFlexDirection(const FlexDirection flexDirection);
+			// 把已有子节点提到最上层（Composition z 序与 yoga 子节点顺序同步）
+			void bringToFront(Node* child);
+			// 与 this 同生死的哨兵，供异步回调判断节点是否还活着
+			std::weak_ptr<bool> getWeakThis();
 
 			// dpi 变化时由 WinBase 递归调用：
 			//   1) 用缓存的逻辑值 × 新 dpi 重推 yoga 样式；
@@ -114,11 +121,6 @@ namespace Ling {
 			virtual void setChild(Node* child);
 			// 根据当前 w/h/dpi 同步圆角 clip 与边框几何；layout() 末尾调用。
 			void syncChrome();
-			/// <summary>
-			/// 事件回调 lock() 非空即代表 this 还活。
-			/// </summary>
-			/// <returns></returns>
-			std::weak_ptr<bool> getWeakThis();
 		protected:
 			Color bgColor{0};
 		private:

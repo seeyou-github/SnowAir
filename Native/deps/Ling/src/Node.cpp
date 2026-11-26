@@ -407,6 +407,27 @@ namespace Ling {
 			borderShape.StrokeThickness(bw);
 		}
 	}
+	void Node::bringToFront(Node* child)
+	{
+		if (!child) return;
+		auto it = std::find_if(children.begin(), children.end(),
+			[child](const std::unique_ptr<Node>& p) { return p.get() == child; });
+		if (it == children.end()) return;
+		auto owned = std::move(*it);
+		children.erase(it);
+		YGNodeRemoveChild(node, child->node);
+		visual.Children().Remove(child->visual);
+		YGNodeInsertChild(node, child->node, YGNodeGetChildCount(node));
+		visual.Children().InsertAtTop(child->visual);
+		// 边框永远压在最上层
+		if (borderVisual) {
+			visual.Children().Remove(borderVisual);
+			visual.Children().InsertAtTop(borderVisual);
+		}
+		children.push_back(std::move(owned));
+		win->refresh();
+	}
+
 	std::weak_ptr<bool> Node::getWeakThis()
 	{
 		return std::weak_ptr<bool>(alive);

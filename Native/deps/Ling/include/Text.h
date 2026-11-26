@@ -23,6 +23,8 @@ namespace Ling {
         void setFontSize(float val);
         void setFontFamily(const std::wstring& val);
         void setColor(Color color);
+        // 字重（DWRITE_FONT_WEIGHT，如 400 / 600 / 700）
+        void setFontWeight(int weight);
         // 局部文字着色；start/end 都为 0 时清除。
         void setTextRangeColor(int start, int end, Color color);
     private:
@@ -62,6 +64,7 @@ namespace Ling {
         std::wstring text;
         std::wstring fontFamily;
         float fontSize{ 12.f };
+        int fontWeight{ 400 };
         struct RangeColor { int start{ 0 }, end{ 0 }; Color color; };
         std::vector<RangeColor> rangeColors;
     };

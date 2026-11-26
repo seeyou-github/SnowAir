@@ -27,6 +27,9 @@ namespace Ling {
 		void setFillColor(const Color& color);
 		void setThumbColor(const Color& color);
 		void setHoverThumbColor(const Color& color);
+		// 定制版 Ling 兼容接口
+		void setThumbRadius(float r) { thumbRadius = r; syncVisual(); }
+		void setTrackFullWidth(bool val) { trackFullWidth = val; syncVisual(); }
 	public:
 		// 值发生变化时触发（拖动 / 滚轮 / setValue 都会触发）。值未变则不触发。
 		winrt::event<winrt::delegate<Slider*, float>> onValueChanged;
@@ -69,6 +72,8 @@ namespace Ling {
 		winrt::Windows::UI::Composition::CompositionColorBrush hoverThumbBrush{ nullptr };
 		winrt::event_token downTok{}, moveTok{}, upTok{}, wheelTok{};
 		float minVal{ 0.f }, maxVal{ 100.f }, value{ 0.f }, step{ 0.f };
+		float thumbRadius{ 3.f };
+		bool trackFullWidth{ false };
 		bool dragging{ false }, isHover{ false };
 	};
 }

@@ -14,6 +14,7 @@ namespace Ling {
 		void setFontSize(float val);
 		void setFontFamily(const std::wstring& val);
 		void setColor(Color color);
+		void setFontWeight(int weight);
 		void setBg(const Color& color) override;
 		void setBorderColor(const Color& color) override;
 		void setHoverColor(Color color);

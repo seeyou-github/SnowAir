@@ -52,7 +52,8 @@ namespace Ling {
 
 	void ScrollerBox::onWheel(POINT pos, float space)
 	{
-		if (!visualScroller.IsVisible()) return;
+		if (!wheelEnabled) return;
+		if (getMaxScrollY() <= 0.f) return;
 		if (!isPosIn(pos)) return;
 		setScroll(scrollY - space);
 	}
@@ -60,7 +61,7 @@ namespace Ling {
 	void ScrollerBox::onDown(POINT pos, bool isRight)
 	{
 		if (!visual.IsVisible()) return;
-		if (isRight) return;
+		if (isRight || !scrollBarVisible) return;
 		auto sbW{ sliderW * win->dpi };
 		// 只在点击滚动条条形区域内才启动拖动
 		if (pos.y >= y && pos.y <= y + h && pos.x >= x + w - sbW && pos.x <= x + w) {
@@ -158,7 +159,7 @@ namespace Ling {
 
 	float ScrollerBox::getScrollBarWidth() const
 	{
-		return visualScroller && visualScroller.IsVisible() ? sliderW * win->dpi : 0.f;
+		return scrollBarVisible && visualScroller && visualScroller.IsVisible() ? sliderW * win->dpi : 0.f;
 	}
 
 	bool ScrollerBox::isPosInContent(POINT pos) const
@@ -188,7 +189,7 @@ namespace Ling {
 			auto sbW{ sliderW * win->dpi };
 			visualScroller.Offset({ w - sbW, 0.f, 0.f });
 			visualScroller.Size({ sbW, h });
-			visualScroller.IsVisible(true);
+			visualScroller.IsVisible(scrollBarVisible);
 			setScroll(scrollY);
 		}
 		else {

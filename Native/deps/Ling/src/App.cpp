@@ -115,6 +115,25 @@ namespace Ling {
         }
     }
 
+    void App::setTrayVisible(bool visible)
+    {
+        if (!tray) return;
+        NOTIFYICONDATA nid = *tray;
+        nid.uFlags = NIF_STATE;
+        nid.dwStateMask = NIS_HIDDEN;
+        nid.dwState = visible ? 0 : NIS_HIDDEN;
+        Shell_NotifyIcon(NIM_MODIFY, &nid);
+    }
+
+    void App::setTrayIcon(HICON icon)
+    {
+        if (!tray) return;
+        tray->hIcon = icon;
+        NOTIFYICONDATA nid = *tray;
+        nid.uFlags = NIF_ICON;
+        Shell_NotifyIcon(NIM_MODIFY, &nid);
+    }
+
     void App::initArgs()
     {
         LPWSTR* argv;

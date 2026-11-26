@@ -6,7 +6,6 @@ namespace Ling {
 
 	// 逻辑像素常量（内部乘 dpi），风格同 ScrollerBox 的 sliderW/sliderMinH。
 	constexpr float trackH{ 1.f };     // 轨道粗细
-	constexpr float thumbR{ 3.f };     // 滑块半径
 	// 滚轮一格改变值域的 1/20（无 step 时）。
 	constexpr float wheelNotches{ 20.f };
 
@@ -138,9 +137,9 @@ namespace Ling {
 	{
 		if (w <= 0.f || h <= 0.f) return;
 		const float d = win->dpi;
-		const float r = thumbR * d;
+		const float r = thumbRadius * d;
 		const float th = trackH * d;
-		const float len = w - 2.f * r;      // 滑块中心的可行程 = 底轨长度
+		const float len = w - 2.f * r;      // 滑块中心的可行程
 		if (len <= 0.f) return;             // 太窄，画不出来，别写脏属性
 
 		shapeVisual.Size({ w, h });
@@ -150,9 +149,10 @@ namespace Ling {
 		const float ratio = maxVal > minVal ? (value - minVal) / (maxVal - minVal) : 0.f;
 		const float cx = r + ratio * len;
 
-		trackGeo.Size({ len, th });
+		// 底轨默认与滑块行程等长；trackFullWidth 时铺满整宽，滑块两端内缩。
+		trackGeo.Size({ trackFullWidth ? w : len, th });
 		trackGeo.CornerRadius({ th * 0.5f, th * 0.5f });
-		trackShape.Offset({ r, trackTop });
+		trackShape.Offset({ trackFullWidth ? 0.f : r, trackTop });
 
 		// 已选段与底轨同起点同高，只是长度到滑块中心为止。
 		fillGeo.Size({ ratio * len, th });
@@ -172,7 +172,7 @@ namespace Ling {
 
 	float Slider::posToValue(float px) const
 	{
-		const float r = thumbR * win->dpi;
+		const float r = thumbRadius * win->dpi;
 		const float len = w - 2.f * r;
 		if (len <= 0.f || maxVal <= minVal) return minVal;
 		// x 已被 Node::layout 累加成窗口绝对坐标，和传入的 px 同一坐标系。

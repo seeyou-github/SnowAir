@@ -47,6 +47,10 @@ namespace Ling {
 		text->setColor(color);
 		this->color = color;
 	}
+	void Button::setFontWeight(int weight)
+	{
+		text->setFontWeight(weight);
+	}
 	void Button::setBg(const Color& color)
 	{
 		bgColor = color;

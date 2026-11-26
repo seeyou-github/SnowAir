@@ -56,7 +56,7 @@ namespace Ling {
         cursorTok = win->onCursor    .add([this, weakThis](bool* handled)           { if (!weakThis.lock()) return; onCursorEvent(handled); });
         tickTok   = win->onTimer     .add([this, weakThis](UINT id)                 { if (!weakThis.lock()) return; onTick(id); });
         // 宿主窗口失焦时控件一并失焦，否则光标会在没焦点的窗口里继续闪。
-        blurTok   = win->onBlur      .add([this, weakThis]()                        { if (!weakThis.lock()) return; blur(); });
+        blurTok   = win->onBlur      .add([this, weakThis]()                        { if (!weakThis.lock()) return; if (!keepFocusOnWindowBlur) blur(); });
     }
 
     TextBox::~TextBox()
@@ -167,6 +167,16 @@ namespace Ling {
         win->refresh();
     }
 
+    void TextBox::setSelectionRange(int start, int end)
+    {
+        const int len = (int)text.length();
+        selAnchor = std::clamp(start, 0, len);
+        caretIndex = std::clamp(end, 0, len);
+        resetCaretPos(caretIndex);
+        scrollCaretIntoView();
+        win->refresh();
+    }
+
     void TextBox::setPlaceholder(const std::wstring& val)
     {
         placeholder = val;
@@ -234,6 +244,11 @@ namespace Ling {
             if (!fontFamily.empty()) textLayout->SetFontFamilyName(fontFamily.data(), { 0, INT_MAX });
             textLayout->SetFontWeight(isBold ? DWRITE_FONT_WEIGHT_BOLD : DWRITE_FONT_WEIGHT_NORMAL, { 0, INT_MAX });
             textLayout->SetFontStyle(isItalic ? DWRITE_FONT_STYLE_ITALIC : DWRITE_FONT_STYLE_NORMAL, { 0, INT_MAX });
+            if (textAlignCenter) textLayout->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
+            if (lineSpacing > 0.f) {
+                const float lh = lineSpacing * win->dpi;
+                textLayout->SetLineSpacing(DWRITE_LINE_SPACING_METHOD_UNIFORM, lh, lh * 0.8f);
+            }
         }
 
         if (!placeholder.empty()) {
@@ -351,8 +366,9 @@ namespace Ling {
         const float d = win->dpi;
         auto [pl, pt, pr, pb] = const_cast<TextBox*>(this)->getPadding();
         // 窗口坐标 -> 内容坐标：减掉控件原点与内边距，再加回滚动量。
-        const float lx = pos.x - (x + pl * d);
-        const float ly = pos.y - (y + pt * d) + scrollY - vCenterOffset();
+        const float s = hitTestScale();
+        const float lx = (pos.x - (x + pl * d)) / s;
+        const float ly = (pos.y - (y + pt * d)) / s + scrollY - vCenterOffset();
         BOOL isTrailingHit{ FALSE }, isInside{ FALSE };
         DWRITE_HIT_TEST_METRICS hm{};
         textLayout->HitTestPoint(lx, ly, &isTrailingHit, &isInside, &hm);
@@ -454,7 +470,7 @@ namespace Ling {
 
     bool TextBox::isPosInScrollBar(POINT pos) const
     {
-        if (!needScrollBar()) return false;
+        if (!scrollBarVisible || !needScrollBar()) return false;
         const float d = win->dpi;
         // 滑轨紧贴控件右边框、纵向占满整个控件高度，四边都不留内边距。
         return pos.x >= x + w - scrollBarW * d && pos.x < x + w && pos.y >= y && pos.y < y + h;
@@ -606,7 +622,7 @@ namespace Ling {
 
         // 滚动条：只在内容溢出时画。四边都不留内边距 —— 横向紧贴右边框，
         // 滑轨纵向占满整个控件高度，所以没滚动时滑块贴顶边、滚到底时贴底边。
-        if (maxScrollY() > 0.f) {
+        if (scrollBarVisible && maxScrollY() > 0.f) {
             const float barW = scrollBarW * d;
             const float left = w - barW;
             ComPtr<ID2D1SolidColorBrush> sbBrush;
@@ -671,6 +687,7 @@ namespace Ling {
             return;
         }
         focus();
+        if (!mouseSelectionEnabled) return;
         // 捕获鼠标：拖选过程中光标移出控件甚至移出窗口，仍能收到 WM_MOUSEMOVE。
         SetCapture(win->hwnd);
         dragging = true;
@@ -694,7 +711,12 @@ namespace Ling {
         }
         if (!visual.IsVisible()) return;
         // mouseLeave 会广播 {INT_MAX, INT_MAX}，isPosIn 自然返回 false，hover 正确复位。
-        isHover = isPosIn(pos);
+        const bool nowHover = isPosIn(pos);
+        if (nowHover != isHover) {
+            isHover = nowHover;
+            if (isHover) onEnter(this);
+            else onLeave(this);
+        }
         const bool onBar = isHover && isPosInScrollBar(pos);
         if (onBar != isHoverScrollBar) {
             isHoverScrollBar = onBar;
@@ -731,7 +753,7 @@ namespace Ling {
 
     void TextBox::onCharInput(UINT code)
     {
-        if (!focused) return;
+        if (!focused || readOnly) return;
         // 控制字符与退格交给 onKey 处理（Tab 也在那边统一转成空格）。
         if (code < 0x20 || code == 0x7F) return;
         wchar_t chars[2]{ (wchar_t)code, 0 };
@@ -780,8 +802,10 @@ namespace Ling {
             return;
         }
 
+        if (readOnly) return;
+
         if (key == VK_RETURN) {
-            insertText(L"\n");
+            if (!singleLine) insertText(L"\n");
         }
         else if (key == VK_TAB) {
             insertText(std::wstring(tabSpaces, L' '));
@@ -892,7 +916,7 @@ namespace Ling {
         if (!visual.IsVisible()) return;
         if (!isHover && !scrollBarDragging) return;
         // 滚动条不是文本区，要用箭头而不是 I 形光标。
-        SetCursor(LoadCursor(nullptr, (isHoverScrollBar || scrollBarDragging) ? IDC_ARROW : IDC_IBEAM));
+        SetCursor(LoadCursor(nullptr, (isHoverScrollBar || scrollBarDragging || !textHoverCursor) ? IDC_ARROW : IDC_IBEAM));
         *handled = true;
     }
 

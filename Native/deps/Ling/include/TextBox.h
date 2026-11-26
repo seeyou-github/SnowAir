@@ -61,13 +61,30 @@ namespace Ling {
         // 主动聚焦 / 结束编辑。控件自己也会在点击、ESC、宿主窗口失焦时调它们。
         void focus();
         void blur();
+
+        // ---- 定制版 Ling 兼容接口 ----
+        void setReadOnly(bool val) { readOnly = val; win->refresh(); }
+        void setMouseSelectionEnabled(bool val) { mouseSelectionEnabled = val; win->refresh(); }
+        void setTextHoverCursor(bool val) { textHoverCursor = val; }
+        void setScrollBarVisible(bool val) { scrollBarVisible = val; win->refresh(); }
+        void setTextAlignCenter(bool val) { textAlignCenter = val; buildLayout(); win->refresh(); }
+        void setKeepFocusOnWindowBlur(bool val) { keepFocusOnWindowBlur = val; }
+        void setSelectionTextColor(Color val) { setSelectionBgColor(val); }
+        void setLineSpacing(float val) { lineSpacing = val; buildLayout(); win->refresh(); }
+        void setSingleLine(bool val) { singleLine = val; buildLayout(); win->refresh(); }
+        void setSelectionRange(int start, int end);
+        bool canScroll() const { return needScrollBar(); }
+        bool isPosInScrollBar(POINT pos) const;
     public:
         // 文本被编辑后触发（setText 也会触发）。
         winrt::event<winrt::delegate<TextBox*, const std::wstring&>> onTextChanged;
         // 焦点态变化后触发。宿主可以据此接管"编辑开始 / 结束"这件事，
         // 不必自己去判断点击落在哪、按的是不是 ESC。
         winrt::event<winrt::delegate<TextBox*, bool>> onFocusChanged;
-    private:
+        // 鼠标进入 / 离开文本区（供 tip / 悬停样式使用）
+        winrt::event<winrt::delegate<TextBox*>> onEnter;
+        winrt::event<winrt::delegate<TextBox*>> onLeave;
+    protected:
         // 内容与滚动都由自身绘制，屏蔽掉子节点与内部布局相关的 API（同 Text / Slider 的做法）。
         // setWidth/setHeight/setPadding/setBg/setBorder* 保持可用。
         using Node::makeChild;
@@ -78,6 +95,8 @@ namespace Ling {
 
         void layout() override;
         void onDpiChanged() override;
+        // 视觉被外部缩放时，命中测试要按同一比例换算回布局坐标
+        virtual float hitTestScale() const { return 1.f; }
 
         // ---- 文本布局 ----
         // 按当前内容区宽度重建 textLayout。文字、字号、字体、控件宽度变化后都要调。
@@ -116,8 +135,6 @@ namespace Ling {
         void scrollCaretIntoView();
         // 内容高度超出可视高度 —— 需要显示滚动条。
         bool needScrollBar() const;
-        // 鼠标（窗口坐标）是否落在滚动条那一竖条上。
-        bool isPosInScrollBar(POINT pos) const;
         // 鼠标（窗口坐标）是否落在滑块上（而不是滑轨的空白处）。
         bool isPosInThumb(POINT pos) const;
         // 滑块的高度与顶端位置（canvas 坐标，也就是相对控件原点）。
@@ -157,6 +174,11 @@ namespace Ling {
         Color selectionBgColor{ 0x99C9EF99 };
         Color placeholderColor{ 0xAAAAAAFF };
         bool hasCaretColor{ false };
+        // 定制版 Ling 扩展属性
+        bool readOnly{ false }, mouseSelectionEnabled{ true }, textHoverCursor{ true };
+        bool scrollBarVisible{ true }, textAlignCenter{ false }, keepFocusOnWindowBlur{ true };
+        bool singleLine{ false };
+        float lineSpacing{ 0.f };
         struct RangeColor { int start{ 0 }, end{ 0 }; Color color; };
         std::vector<RangeColor> rangeColors;
 

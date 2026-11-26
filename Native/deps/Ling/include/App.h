@@ -28,6 +28,9 @@ namespace Ling {
 			void unRegHotKey(const UINT msgId);
 			void initTray(const UINT msgId,const std::wstring& tip);
 			void disposeTray();
+			// 托盘图标显隐 / 换图标（需在 initTray 之后调用）
+			void setTrayVisible(bool visible);
+			void setTrayIcon(HICON icon);
 			void initArgs();
 			UINT popupMenu(HMENU menu);
 		public:
