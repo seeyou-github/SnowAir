@@ -65,6 +65,7 @@ namespace Ling {
         // ---- 定制版 Ling 兼容接口 ----
         void setReadOnly(bool val);
         void setMouseSelectionEnabled(bool val);
+        void setMouseSelectOverTextOnly(bool val);
         void setTextHoverCursor(bool val) { textHoverCursor = val; }
         void setScrollBarVisible(bool val);
         void setTextAlignCenter(bool val);
@@ -176,6 +177,7 @@ namespace Ling {
         bool hasCaretColor{ false };
         // 定制版 Ling 扩展属性
         bool readOnly{ false }, mouseSelectionEnabled{ true }, textHoverCursor{ true };
+        bool mouseSelectOverTextOnly{ false };
         bool scrollBarVisible{ true }, textAlignCenter{ false }, keepFocusOnWindowBlur{ true };
         bool singleLine{ false };
         float lineSpacing{ 0.f };

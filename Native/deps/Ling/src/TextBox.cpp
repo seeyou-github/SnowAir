@@ -179,6 +179,11 @@ namespace Ling {
         win->refresh();
     }
 
+    void TextBox::setMouseSelectOverTextOnly(bool val)
+    {
+        mouseSelectOverTextOnly = val;
+    }
+
     void TextBox::setScrollBarVisible(bool val)
     {
         scrollBarVisible = val;
@@ -725,6 +730,7 @@ namespace Ling {
             win->refresh();
             return;
         }
+        if (mouseSelectOverTextOnly && !isPosOverText(pos)) return;
         focus();
         if (!mouseSelectionEnabled) return;
         // 捕获鼠标：拖选过程中光标移出控件甚至移出窗口，仍能收到 WM_MOUSEMOVE。
