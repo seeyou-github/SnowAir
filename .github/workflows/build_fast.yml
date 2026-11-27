@@ -1,0 +1,43 @@
+name: build_fast
+
+# 快速构建：不编译 Native/deps（libwebp / Ling / yoga / ZXing），直接用 prebuilt-libs 里的 .lib；
+# 不打包任何 OCR 模型/运行时（AppData\Config\plugin）。产物仅 Exe，保留 1 天。
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Use prebuilt static libs
+        shell: pwsh
+        run: ./.github/scripts/prepare-fast-build.ps1
+
+      - name: Build ScreenShut
+        shell: pwsh
+        run: |
+          msbuild Native/Src/ScreenShut.vcxproj /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /m
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Stage release package
+        shell: pwsh
+        run: |
+          $pack = 'Native/x64/Release/pack'
+          Remove-Item -Recurse -Force $pack -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path $pack | Out-Null
+          Copy-Item 'Native/x64/Release/ScreenShut.exe' $pack -Force
+          Compress-Archive -Path (Join-Path $pack '*') -DestinationPath 'Native/x64/Release/ScreenShut-fast.zip' -Force
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ScreenShut-fast
+          path: Native/x64/Release/ScreenShut-fast.zip
+          if-no-files-found: error
+          retention-days: 1

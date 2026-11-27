@@ -1,0 +1,59 @@
+name: build_fast_copy_ocr_tiny
+
+# 快速构建（带 tiny OCR 模型）：lib 用 prebuilt-libs，AppData 整个打包，
+# 但排除标准模型目录 ocr-models/ppocr-v6（约 31M）。产物保留 1 天。
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Use prebuilt static libs
+        shell: pwsh
+        run: ./.github/scripts/prepare-fast-build.ps1
+
+      - name: Build ScreenShut
+        shell: pwsh
+        run: |
+          msbuild Native/Src/ScreenShut.vcxproj /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /m
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Stage release package
+        shell: pwsh
+        run: |
+          $pack = 'Native/x64/Release/pack'
+          Remove-Item -Recurse -Force $pack -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path $pack | Out-Null
+          Copy-Item 'Native/x64/Release/ScreenShut.exe' $pack -Force
+          Copy-Item 'AppData' $pack -Recurse -Force
+
+          # 排除标准模型，只留 tiny
+          $drop = Join-Path $pack 'AppData/Config/plugin/ocr-models/ppocr-v6'
+          if (Test-Path $drop) { Remove-Item -Recurse -Force $drop }
+
+          $keep = @(
+            'AppData/Config/plugin/ocr-models/ppocr-v6-tiny',
+            'AppData/Config/plugin/ocr-runtime/ppocr-v6'
+          )
+          foreach ($k in $keep) {
+            if (-not (Test-Path (Join-Path $pack $k))) { throw "expected in package: $k" }
+          }
+          Write-Host "--- package tree ---"
+          Get-ChildItem $pack -Recurse -File | ForEach-Object { $_.FullName.Substring((Resolve-Path $pack).Path.Length + 1) }
+
+          Compress-Archive -Path (Join-Path $pack '*') -DestinationPath 'Native/x64/Release/ScreenShut-fast-ocr-tiny.zip' -Force
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ScreenShut-fast-ocr-tiny
+          path: Native/x64/Release/ScreenShut-fast-ocr-tiny.zip
+          if-no-files-found: error
+          retention-days: 1
