@@ -1668,8 +1668,6 @@ void Setting::setHotkeyTip(bool on) { setFeatBool(L"hotkeyTip", on); }
 
 bool Setting::getFindWindowElements() { return featBool(L"findWindowElements", true); }
 void Setting::setFindWindowElements(bool on) { setFeatBool(L"findWindowElements", on); }
-int Setting::getTrayClickAction() { return featInt(L"trayClickAction", 0); }
-void Setting::setTrayClickAction(int v) { setFeatInt(L"trayClickAction", v); }
 int Setting::getPinWheelAction()
 {
 	// 老配置只有布尔 pinZoomAtCursor（true = 光标中心缩放，false = 对向边缘缩放）。
@@ -1880,7 +1878,6 @@ void Setting::restoreFunctionScreenshotDefaults()
 	setAutoSaveAfterCapture(false);
 	setCaptureFinishAction(0);
 	setSaveFormat(L"PNG (*.png)");
-	setTrayClickAction(0);
 	setDemoDefaultTool(0);
 	setDemoEdgeBehavior(0);
 	setPinWheelAction(0);
@@ -1959,7 +1956,6 @@ bool Setting::functionScreenshotAtDefaults()
 	return !getAutoStart() && runAsAdminDefault
 		&& getFindWindowElements() && !getCancelConfirmDialog() && !getAutoSaveAfterCapture()
 		&& getCaptureFinishAction() == 0 && getSaveFormat() == L"PNG (*.png)"
-		&& getTrayClickAction() == 0
 		&& getDemoDefaultTool() == 0 && getDemoEdgeBehavior() == 0
 		&& getPinWheelAction() == 0 && !getPinAutoOcr() && getPinAutoFit()
 		&& getPinDoubleClickAction() == 0 && getPinOpacity() == 100;

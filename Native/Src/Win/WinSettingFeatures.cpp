@@ -936,9 +936,6 @@ void WinSettingFeatures::buildBasic(Ling::Node* p)
 		auto* g = SettingUi::grid2(p);
 		SettingUi::toggleRow(g, Lang::get(L"setting.findWindowElements"), s->getFindWindowElements(),
 			[](bool on) { Setting::get()->setFindWindowElements(on); }, true);
-		SettingUi::selectRow(g, Lang::get(L"setting.trayClickAction"),
-			{ Lang::get(L"setting.trayClickCapture"), Lang::get(L"setting.trayClickSetting"), Lang::get(L"setting.trayClickNone") }, s->getTrayClickAction(),
-			[](int i, const std::wstring&) { Setting::get()->setTrayClickAction(i); }, true);
 		// 保存组已取消，其内容并入截图组
 		SettingUi::toggleRow(g, Lang::get(L"setting.autoSaveAfterCapture"), s->getAutoSaveAfterCapture(),
 			[](bool on) { Setting::get()->setAutoSaveAfterCapture(on); }, true);

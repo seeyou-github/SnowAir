@@ -98,8 +98,6 @@ public:
 
 	bool getFindWindowElements();
 	void setFindWindowElements(bool on);
-	int getTrayClickAction();
-	void setTrayClickAction(int v);
 	// 贴图上滚动中键（滚轮）执行的动作：0 光标中心缩放 / 1 对向边缘缩放 / 2 调整透明度（默认 0）
 	int getPinWheelAction();
 	void setPinWheelAction(int v);

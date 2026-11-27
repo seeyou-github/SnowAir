@@ -281,11 +281,8 @@ Tray::Tray()
 	mouseTok = lingApp->onTrayMouseEvent.add([this](bool isDown, bool isRight) {
 		if (isDown) return;
 		if (isRight) { this->onTrayRightClick(); return; }
-		switch (Setting::get()->getTrayClickAction()) {
-		case 1:  WinSetting::init(); break;
-		case 2:  break;
-		default: WinCap::init(); break;
-		}
+		// 单击托盘固定执行截图
+		WinCap::init();
 	});
 }
 
