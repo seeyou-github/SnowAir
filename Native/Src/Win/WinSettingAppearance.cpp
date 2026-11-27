@@ -159,6 +159,7 @@ WinSettingAppearance::WinSettingAppearance(Ling::WinBase* parent) :Ling::Node(pa
         if (!right) tbInitDragUp(pos);
         });
     // 显隐 / 拖拽排序：chip 命中检测（按下即检测，拖拽/点击在 move/up 阶段分流）
+    auto weakThis = getWeakThis();
     tbDownTok = win->onMouseDown.add([this, weakThis](POINT pos, bool right) {
         if (!weakThis.lock()) return;
         this->tbOnDown(pos, right);
