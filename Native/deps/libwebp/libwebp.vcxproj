@@ -70,6 +70,8 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\**\*.c" Exclude="src\dsp\*mips*.c;src\dsp\*neon*.c;src\dsp\*msa*.c" />
+    <!-- libwebp 1.4.0 的 RGB->YUV 转换依赖 sharpyuv，需一并编进静态库 -->
+    <ClCompile Include="sharpyuv\*.c" Exclude="sharpyuv\*neon*.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\**\*.h" />
