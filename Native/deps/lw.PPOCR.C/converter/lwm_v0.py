@@ -14,7 +14,11 @@ import numpy as np
 import onnx
 from onnx import numpy_helper
 
-from converter.ppocr_contracts import PP_OCRV6_TINY_CLS_SHA256
+from converter.ppocr_contracts import (
+    PP_OCRV6_SMALL_DET_SHA256,
+    PP_OCRV6_SMALL_REC_SHA256,
+    PP_OCRV6_TINY_CLS_SHA256,
+)
 
 MAGIC = b"LWM0"
 FORMAT_MAJOR = 0
@@ -27,9 +31,16 @@ MAX_DIMS = 8
 MAX_NODE_INPUTS = 8
 MAX_NODE_OUTPUTS = 4
 UINT64_MAX = (1 << 64) - 1
-SUPPORTED_REC_SHA256 = "9ef676d6ed3c88256a2d92c640c44f25b0c40947e111b14b8be8f594091563e6"
-SUPPORTED_CLS_SHA256 = PP_OCRV6_TINY_CLS_SHA256
-SUPPORTED_DET_SHA256 = "193bab7a04fca699a6c82e6abb5b81bdb28177f0abd4062552b04908dafb19f8"
+# 本项目同时分发轻量与标准档，转换器对两档官方资产都放行。
+SUPPORTED_REC_SHA256 = {
+    "9ef676d6ed3c88256a2d92c640c44f25b0c40947e111b14b8be8f594091563e6",
+    PP_OCRV6_SMALL_REC_SHA256,
+}
+SUPPORTED_CLS_SHA256 = PP_OCRV6_TINY_CLS_SHA256  # 两档共用同一份 CLS
+SUPPORTED_DET_SHA256 = {
+    "193bab7a04fca699a6c82e6abb5b81bdb28177f0abd4062552b04908dafb19f8",
+    PP_OCRV6_SMALL_DET_SHA256,
+}
 
 HEADER_FLAG_NO_MEMORY_PLAN = 1 << 0
 TENSOR_FLAG_CONSTANT = 1 << 0
@@ -639,10 +650,10 @@ def _materialize_slice_inputs(model: onnx.ModelProto) -> onnx.ModelProto:
 
 def convert_rec_model(input_path: Path, output_path: Path) -> ConversionInfo:
     digest = hashlib.sha256(input_path.read_bytes()).hexdigest()
-    if digest != SUPPORTED_REC_SHA256:
+    if digest not in SUPPORTED_REC_SHA256:
         raise ValueError(
-            "REC converter only supports the bundled PP-OCRv6 tiny REC model; "
-            f"expected SHA-256 {SUPPORTED_REC_SHA256}, got {digest}"
+            "REC converter only supports the bundled PP-OCRv6 tiny/small REC models; "
+            f"expected one of {sorted(SUPPORTED_REC_SHA256)}, got {digest}"
         )
     model = onnx.load(str(input_path), load_external_data=True)
     onnx.checker.check_model(model, full_check=True)
@@ -836,10 +847,10 @@ def _prepare_det_model(
 
 def convert_det_model(input_path: Path, output_path: Path) -> ConversionInfo:
     digest = hashlib.sha256(input_path.read_bytes()).hexdigest()
-    if digest != SUPPORTED_DET_SHA256 and "LW_ALLOW_ANY_DET" not in os.environ:
+    if digest not in SUPPORTED_DET_SHA256 and "LW_ALLOW_ANY_DET" not in os.environ:
         raise ValueError(
-            "DET converter only supports the bundled PP-OCRv6 tiny DET model; "
-            f"expected SHA-256 {SUPPORTED_DET_SHA256}, got {digest}"
+            "DET converter only supports the bundled PP-OCRv6 tiny/small DET models; "
+            f"expected one of {sorted(SUPPORTED_DET_SHA256)}, got {digest}"
         )
     model = onnx.load(str(input_path), load_external_data=True)
     onnx.checker.check_model(model, full_check=True)

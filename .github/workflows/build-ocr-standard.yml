@@ -1,0 +1,117 @@
+name: build-ocr-standard
+
+# 仅手动触发：构建带「PP-OCRv6 标准档」离线文字识别的完整 ScreenShut 包。
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    # windows-2022 提供 VS2022 / v143；windows-2025 已切到 VS2026。
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Fetch libwebp v1.4.0
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force Native\deps | Out-Null
+          if (-not (Test-Path Native\deps\libwebp\src\webp\encode.h)) {
+            Invoke-WebRequest -Uri "https://codeload.github.com/webmproject/libwebp/zip/refs/tags/v1.4.0" -OutFile libwebp.zip
+            Expand-Archive -Path libwebp.zip -DestinationPath . -Force
+            Move-Item -Path libwebp-1.4.0 -Destination Native\deps\libwebp -Force
+          }
+          Copy-Item -Path Native\build\libwebp.vcxproj -Destination Native\deps\libwebp\libwebp.vcxproj -Force
+
+      - name: Fetch zxing-cpp v3.1.1
+        shell: pwsh
+        run: |
+          if (-not (Test-Path Native\deps\zxing-cpp-311\core\src\ReadBarcode.h)) {
+            Invoke-WebRequest -Uri "https://codeload.github.com/zxing-cpp/zxing-cpp/zip/refs/tags/v3.1.1" -OutFile zxing.zip
+            Expand-Archive -Path zxing.zip -DestinationPath . -Force
+            Move-Item -Path zxing-cpp-3.1.1 -Destination Native\deps\zxing-cpp-311 -Force
+          }
+
+      - name: Build ZXing static library
+        shell: pwsh
+        run: |
+          $vsInstance = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
+          if (-not (Test-Path $vsInstance)) {
+            $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+            if (Test-Path $vswhere) {
+              $vsInstance = & $vswhere -latest -version "[17.0,18.0)" -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+            }
+          }
+          if (-not $vsInstance -or -not (Test-Path $vsInstance)) {
+            throw "Visual Studio 2022 with VC tools was not found."
+          }
+          $vsInstance = $vsInstance -replace '\\', '/'
+          $env:VS170COMNTOOLS = "$vsInstance/Common7/Tools"
+          $env:CMAKE_GENERATOR = "Visual Studio 17 2022"
+          $env:CMAKE_GENERATOR_INSTANCE = $vsInstance
+          $log = "Native/deps/zxing-cpp-311/cmake-zxing.log"
+          New-Item -ItemType Directory -Force (Split-Path $log) | Out-Null
+          cmake -S Native/deps/zxing-cpp-311 -B Native/deps/zxing-cpp-311/build -G "Visual Studio 17 2022" -A x64 "-DCMAKE_GENERATOR_INSTANCE=$vsInstance" -DBUILD_SHARED_LIBS=OFF -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DZXING_WRITERS=OFF -DZXING_EXAMPLES=OFF -DZXING_UNIT_TESTS=OFF -DZXING_BLACKBOX_TESTS=OFF 2>&1 | Tee-Object -FilePath $log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build Native/deps/zxing-cpp-311/build --config Release --target ZXing --parallel 2>&1 | Tee-Object -FilePath $log -Append
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build ScreenShut
+        shell: pwsh
+        run: |
+          msbuild Native/Src/ScreenShut.vcxproj /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /m
+
+      - name: Build OCR runtime (lw.PPOCR.C 1.2.2)
+        shell: pwsh
+        run: |
+          cmake -S Native/deps/lw.PPOCR.C -B Native/deps/lw.PPOCR.C/build -G "Visual Studio 17 2022" -A x64 -DBUILD_TESTING=OFF -DLW_BUILD_HTTP_DEMO=OFF -DLW_BUILD_CSHARP_DEMOS=OFF -DLW_RUNTIME_ONLY=ON -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build Native/deps/lw.PPOCR.C/build --config Release --target lw_ppocr_c_shared --parallel
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path 'Native/deps/lw.PPOCR.C/build/Release/lw_ppocr_c.dll')) { throw 'lw_ppocr_c.dll not found' }
+
+      # 标准档 det/rec 用官方 small 模型，cls 与轻量档共用；转换器已放开 small 哈希校验。
+      - name: Convert standard OCR models to LWM
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check numpy==1.26.4 onnx==1.22.0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Push-Location Native/deps/lw.PPOCR.C
+          New-Item -ItemType Directory -Force -Path build/models-standard | Out-Null
+          python -m converter.convert_det --input models/ppocrv6-small/det.onnx --output build/models-standard/det.lwm
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m converter.convert_cls --input models/ppocrv6-tiny/cls.onnx --output build/models-standard/cls.lwm
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m converter.convert_rec --input models/ppocrv6-small/rec.onnx --output build/models-standard/rec.lwm
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Pop-Location
+
+      - name: Stage standard package
+        shell: pwsh
+        run: |
+          $pack = 'Native/x64/Release/pack-standard'
+          Remove-Item -Recurse -Force $pack -ErrorAction SilentlyContinue
+          $runtime = Join-Path $pack 'AppData/config/plugin/ocr-runtime/ppocr-v6'
+          $models  = Join-Path $pack 'AppData/config/plugin/ocr-models/ppocr-v6'
+          New-Item -ItemType Directory -Force -Path $runtime, $models | Out-Null
+          Copy-Item 'Native/x64/Release/ScreenShut.exe' $pack -Force
+          Copy-Item 'Native/deps/lw.PPOCR.C/build/Release/lw_ppocr_c.dll' $runtime -Force
+          Set-Content -LiteralPath (Join-Path $runtime 'runtime.id') -Value '1.2.2' -NoNewline -Encoding ascii
+          foreach ($f in 'det.lwm','cls.lwm','rec.lwm') {
+            Copy-Item "Native/deps/lw.PPOCR.C/build/models-standard/$f" $models -Force
+          }
+          # 运行时固定读取 ppocr_keys.txt，标准档字典以该文件名放入。
+          Copy-Item 'Native/deps/lw.PPOCR.C/models/ppocrv6-shared/PP-OCRv6_small_rec_dict.txt' (Join-Path $models 'ppocr_keys.txt') -Force
+          Set-Content -LiteralPath (Join-Path $models 'pack.id') -Value 'ppocrv6-small-1.2.2' -NoNewline -Encoding ascii
+          Compress-Archive -Path (Join-Path $pack '*') -DestinationPath 'Native/x64/Release/ScreenShut-OCR-Standard.zip' -Force
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ScreenShut-OCR-Standard
+          path: Native/x64/Release/ScreenShut-OCR-Standard.zip
+          if-no-files-found: error
+          retention-days: 1
