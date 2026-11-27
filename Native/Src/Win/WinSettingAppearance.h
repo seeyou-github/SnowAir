@@ -18,7 +18,6 @@ class WinSettingAppearance:public Ling::Node
 public:
 	WinSettingAppearance(Ling::WinBase* parent);
 	~WinSettingAppearance();
-	void hideSelectBox(); // 保留：语言下拉浮层仍然挂在 body 下
 private:
 	void showTab(int index);
 	void buildTabActions(Ling::Node* row);
@@ -28,22 +27,15 @@ private:
 	void tbUpdateKindTitle();                  // 刷新 Tab0 标题（××工具栏外观）
 
 	void buildToolbarTab(Ling::Node* host);    // Tab 0
-	void buildAppTab(Ling::Node* host);        // Tab 1：自启+语言+主题+贴图边框
+	void buildAppTab(Ling::Node* host);        // Tab 1：自启+主题+贴图边框
 
 	// Tab 1 内部子组件
 	void initAutoStartCtrls(Ling::Node* p);
-	void initLangCtrls(Ling::Node* p);
 	void initThemeCtrls(Ling::Node* p);
 	void initPinBorderCtrls(Ling::Node* p);
-	void initTrayCtrls(Ling::Node* p);
 	void refreshPinPreview();      // 贴图边框预览：按当前颜色/粗细/圆角重绘
 	void pickPinColor();           // 贴图边框颜色：系统取色器
-	void refreshTrayRadios();      // 托盘样式单选：按当前样式刷新选中态
-	void refreshTrayPreviews();    // 托盘图标预览：自定义颜色/自定义图标两格的刷新
-	void pickTrayColor();          // 自定义颜色：系统取色器
-	void pickTrayIcon();           // 自定义图标：选文件
 	void setAutoStartBtn(Ling::Button* btn);
-	void showSelectBox(Ling::Button* btn);
 
 	// —— 工具栏外观 ——
 	void tbSetKind(int kind);
@@ -109,10 +101,6 @@ private:
 	Ling::Button* segBtn1{ nullptr };     // Tab1 胶囊
 	// 工具栏类型下拉浮层（挂在 Tab0 ▾ 上）
 	std::unique_ptr<SettingUi::Popup> tbKindPopup;
-
-	// 语言下拉浮层（独立 WS_POPUP 弹层窗口，不受宿主客户区裁剪 / 底部上拉规避）
-	Ling::Button* selectBtn{ nullptr };
-	std::unique_ptr<SettingUi::Popup> selectPopup;
 
 	// —— 工具栏外观状态 ——
 	Ling::Node* tbPreviewWrap{ nullptr };   // 预览条容器（默认展开，可用「预览效果」收起）
@@ -193,11 +181,4 @@ private:
 	Ling::Label* pinRadiusVal{ nullptr };
 	Ling::Slider* pinWidthSlider{ nullptr };
 	Ling::Slider* pinRadiusSlider{ nullptr };
-	// —— 软件外观 · 托盘图标 ——
-	Ling::Button* trayEnableSw{ nullptr };       // 「显示托盘图标」开关
-	std::array<Ling::Button*, 4> trayRadios{};   // 单选外圈（实心圆 → 叠白色内圆成圆环）
-	std::array<Ling::Node*, 4> trayDots{};       // 单选中心点（选中态绿色实心圆）
-	Ling::Button* trayColorGlyph{ nullptr };     // 「自定义颜色」格：可点字形（点开系统取色器）
-	Ling::ImageBox* trayCustomImg{ nullptr };    // 「自定义图标」格的图片预览
-	Ling::Button* trayUploadBtn{ nullptr };      // 「自定义图标」格的点击层（无图时显示「上传」）
 };

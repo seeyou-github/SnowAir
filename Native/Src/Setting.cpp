@@ -72,7 +72,7 @@ namespace {
     // 配置文件的默认内容。空文件、坏 JSON、缺键都拿它兜底，所以这里列出的每一项
     // 都是代码里会直接按名字取的（见 getLang / getAutoStart）。
     // 全局热键**不在这里**给默认值 —— 键位统一由 getShortcutKey 的内置默认表决定（defaultShortcutOf）
-    constexpr std::wstring_view defaultConfig{ LR"""({"common":{"autoStart":false,"language":"zh-CN","languageAuto":true}})""" };
+    constexpr std::wstring_view defaultConfig{ LR"""({"common":{"autoStart":false}})""" };
 
 }
 
@@ -1413,45 +1413,6 @@ void Setting::save()
     }
 }
 
-bool Setting::getLangAuto()
-{
-    auto common = configObj.GetNamedObject(L"common", nullptr);
-    if (!common) return false;
-    auto v = common.GetNamedValue(L"languageAuto", nullptr);
-    return v && v.ValueType() == JsonValueType::Boolean && v.GetBoolean();
-}
-
-void Setting::setLangAuto(bool on)
-{
-    auto common = configObj.GetNamedObject(L"common", nullptr);
-    if (!common) {
-        common = JsonObject();
-        configObj.SetNamedValue(L"common", common);
-    }
-    common.SetNamedValue(L"languageAuto", JsonValue::CreateBooleanValue(on));
-    save();
-}
-
-std::wstring Setting::getLang()
-{
-    if (getLangAuto()) return Lang::systemLangCode();
-    auto common = configObj.GetNamedObject(L"common", nullptr);
-    if (!common) return L"zh-CN";
-    return std::wstring{ common.GetNamedString(L"language", L"zh-CN") };
-}
-
-void Setting::setLang(const std::wstring& langCode)
-{
-    auto common = setting->configObj.GetNamedObject(L"common", nullptr);
-    if (!common) {
-        common = JsonObject();
-        setting->configObj.SetNamedValue(L"common", common);
-    }
-    common.SetNamedValue(L"language", JsonValue::CreateStringValue(langCode));
-    setting->save();
-	Lang::get()->initLang(langCode);
-}
-
 JsonObject Setting::getToolObj(const std::wstring& tool)
 {
     // 用带默认值的重载：这两层在旧配置文件里都不存在，直接 GetNamedObject 会抛异常，
@@ -1549,7 +1510,6 @@ void Setting::normalizeConfigSections()
     };
     if (auto common = configObj.GetNamedObject(L"common", nullptr)) {
         ensureType(common, L"autoStart", JsonValueType::Boolean);
-        ensureType(common, L"language", JsonValueType::String);
         ensureType(common, L"pluginDir", JsonValueType::String);
     }
     if (auto features = configObj.GetNamedObject(L"features", nullptr)) {

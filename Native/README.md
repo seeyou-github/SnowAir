@@ -14,7 +14,6 @@
 |------|------|
 | [`Src/`](Src/) | 主程序源码 |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | **架构速查**（Ling 框架 / SettingUi 浮层 / WinSetting 布局 / 待修 BUG），改代码前先读 |
-| [`Lang/`](Lang/) | 多语言 JSON |
 | `deps/Ling/` | 定制版 Ling GUI 框架（未随仓库发布） |
 
 ## 开发环境
@@ -54,7 +53,7 @@ ScreenShut.exe --enter=tray              # 仅托盘（等同于默认行为）
 
 ## 数据目录
 
-默认：`AppData\config\`（配置、语言、插件、本机数据）
+默认：`AppData\config\`（配置、插件、本机数据）
 
 用户设置在 `config.json`；本机数据（上次选区等）在 `local.json`。截图/录像默认输出到 `AppData\save\`，临时文件在 `AppData\temp\`。程序不保留截图/录像历史，也不记录剪贴板历史。
 

@@ -150,12 +150,6 @@ WinSettingAppearance::WinSettingAppearance(Ling::WinBase* parent) :Ling::Node(pa
     tbChipClose->onLeave.add([this](Ling::Button*) { this->tbHideChipClose(); });
     tbChipClose->hide();
 
-    auto weakThis = getWeakThis();
-    win->onDestroy.add([this, weakThis]() {
-        if (!weakThis.lock()) return;
-        this->hideSelectBox();
-        });
-
     // 初始属性：形态"拖拽替换"（按住右侧其他形态，拖到左侧选中项上松手）
     tbInitDownTok = win->onMouseDown.add([this](POINT pos, bool right) {
         if (!right) tbInitDragDown(pos);
@@ -173,7 +167,6 @@ WinSettingAppearance::WinSettingAppearance(Ling::WinBase* parent) :Ling::Node(pa
 
 WinSettingAppearance::~WinSettingAppearance()
 {
-    selectPopup.reset();
     tbKindPopup.reset();
     win->onMouseDown.remove(tbInitDownTok);
     win->onMouseMove.remove(tbInitMoveTok);
@@ -517,46 +510,15 @@ void WinSettingAppearance::buildAppTab(Ling::Node* host)
     sc->setWidthPercent(100.f);
     sc->setScrollBarVisible(false);
     {
-        // 软件主题 + 软件语言：双栏卡片（各自白底描边独立卡片）
+        // 软件主题：独立卡片
         auto* g = SettingUi::grid2(sc);
         initThemeCtrls(g);
-        initLangCtrls(g);
         SettingUi::grid2Cells(g);
         // grid2Cells 会把末行底部 margin 归零（给 trimTrailingGap 用的），但这里后面还有卡片，
-        // 所以要自己补一个块间距，否则「软件主题/语言」与下面的卡片贴死。
+        // 所以要自己补一个块间距，否则「软件主题」与下面的卡片贴死。
         g->setMarginBottom(SettingTheme::blockGap);
     }
     initPinBorderCtrls(sc);
-    initTrayCtrls(sc);
-}
-
-// ---- 软件语言下拉：与其他下拉选项样式一致（标准 selectRow） ----
-void WinSettingAppearance::initLangCtrls(Ling::Node* p)
-{
-    auto langs = Lang::get()->getSupportedLang();
-    std::vector<std::wstring> names{ Lang::get(L"setting.langFollowSystem") };
-    std::vector<std::wstring> codes{ L"auto" };
-    for (auto& pair : langs) {
-        names.push_back(pair.first);
-        codes.push_back(pair.second);
-    }
-    const bool autoOn = Setting::get()->getLangAuto();
-    int cur = autoOn ? 0 : 1;
-    if (!autoOn) {
-        for (int i = 1; i < (int)codes.size(); i++)
-            if (codes[i] == Setting::get()->getLang()) { cur = i; break; }
-    }
-    SettingUi::selectRow(p, Lang::get(L"setting.softwareLang"), names, cur,
-        [this, codes](int i, const std::wstring&) {
-            if (i < 0 || i >= (int)codes.size()) return;
-            std::wstring code = codes[i];
-            Ling::App::get()->dq.TryEnqueue([this, code]() {
-                Setting::get()->setLangAuto(code == L"auto");
-                Setting::get()->setLang(code == L"auto" ? Lang::systemLangCode() : code);
-                win->close();
-                Ling::App::get()->dq.TryEnqueue([]() { WinSetting::init(); });
-            });
-        }, true);
 }
 
 // ---- 软件主题下拉：跟随系统/浅色/深色 ----
@@ -582,7 +544,7 @@ void WinSettingAppearance::initThemeCtrls(Ling::Node* p)
 void WinSettingAppearance::initPinBorderCtrls(Ling::Node* p)
 {
     auto* card = SettingUi::card(p);
-    card->setBorderRadius(SettingTheme::radiusRow);   // 与本页「软件主题/软件语言」卡片同款大圆角(14)
+    card->setBorderRadius(SettingTheme::radiusRow);   // 与本页「软件主题」卡片同款大圆角(14)
 
     // 标题行：标题 + 右侧「默认启用」开关（开关只决定新建贴图是否带边框，下方样式/预览始终可改）
     auto* head = card->makeChild<Ling::Node>();
@@ -772,268 +734,8 @@ void WinSettingAppearance::pickPinColor()
     tbRefreshRestore();
 }
 
-// ---- 托盘图标卡（开关 + 5 样式预览 + 单选 + 上传） ----
-void WinSettingAppearance::initTrayCtrls(Ling::Node* p)
-{
-    auto* card = SettingUi::card(p);
-    card->setBorderRadius(SettingTheme::radiusRow);   // 与本页「软件主题/软件语言」卡片同款大圆角(14)
 
-    // 标题行：标题 + ? + 右侧开关（是否显示系统托盘）
-    auto* head = card->makeChild<Ling::Node>();
-    head->setFlexDirection(Ling::FlexDirection::Row);
-    head->setAlignItems(Ling::Align::Center);
-    head->setWidthPercent(100.f);
-    head->setMarginBottom(SettingTheme::blockGap);
-    auto* title = head->makeChild<Ling::Label>();
-    title->setText(Lang::get(L"setting.trayIcon"));
-    title->setFontSize(13.f);
-    title->setColor(SettingTheme::textPrimary);
-    SettingUi::helpTipButton(head, Lang::get(L"setting.trayTip"));
-    auto* headGrow = head->makeChild<Ling::Node>();
-    headGrow->setFlexGrow(1.f);
-    auto* sw = head->makeChild<Ling::Button>();
-    trayEnableSw = sw;
-    SettingUi::styleToggle(sw, Setting::get()->getTrayEnabled());
-    sw->onClick.add([this, sw](Ling::Button*) {
-        const bool on = !Setting::get()->getTrayEnabled();
-        Setting::get()->setTrayEnabled(on);
-        SettingUi::styleToggle(sw, on);
-        TrayIcon::apply();
-        this->tbRefreshRestore();
-        });
 
-    auto* grid = card->makeChild<Ling::Node>();
-    grid->setFlexDirection(Ling::FlexDirection::Column);
-    grid->setWidthPercent(100.f);
-
-    static const wchar_t* kKeys[4] = {
-        L"setting.trayFollow", L"setting.trayTheme",
-        L"setting.trayCustomColor", L"setting.trayCustomIcon"
-    };
-
-    // 单选外圈（实心圆）+ 白色内圆成环 + 中心绿点（与工具栏主题同一套做法，无描边噪点）
-    auto makeRadio = [this](Ling::Node* parent, int idx) {
-        auto* r = parent->makeChild<Ling::Button>();
-        r->setSize(16.f, 16.f);
-        r->setBorderRadius(SettingTheme::radiusFull);
-        r->setBg(SettingTheme::input);
-        r->setHoverBg(SettingTheme::input);
-        r->setAlignItems(Ling::Align::Center);
-        r->setJustifyContent(Ling::Justify::Center);
-        r->setFlexShrink(0.f);
-        auto* hole = r->makeChild<Ling::Node>();
-        hole->setSize(12.f, 12.f);
-        hole->setBorderRadius(SettingTheme::radiusFull);
-        hole->setBg(SettingTheme::card);
-        hole->setAlignItems(Ling::Align::Center);
-        hole->setJustifyContent(Ling::Justify::Center);
-        hole->setFlexShrink(0.f);
-        auto* dot = hole->makeChild<Ling::Node>();
-        dot->setSize(6.f, 6.f);
-        dot->setBorderRadius(SettingTheme::radiusFull);
-        dot->setBg(0);
-        dot->setFlexShrink(0.f);
-        r->onClick.add([this, idx](Ling::Button*) {
-            if (idx == 3 && Setting::get()->getTrayCustomIconPath().empty()) {
-                this->pickTrayIcon();   // 还没有图 → 直接弹选文件
-                return;
-            }
-            Setting::get()->setTrayIconStyle(idx);
-            TrayIcon::apply();
-            this->refreshTrayRadios();
-            this->refreshTrayPreviews();
-            this->tbRefreshRestore();
-            });
-        this->trayRadios[idx] = r;
-        this->trayDots[idx] = dot;
-        };
-
-    for (int rowIdx = 0; rowIdx < 2; rowIdx++) {
-        auto* row = grid->makeChild<Ling::Node>();
-        row->setFlexDirection(Ling::FlexDirection::Row);
-        row->setWidthPercent(100.f);
-        if (rowIdx < 1) row->setMarginBottom(8.f);
-        for (int colIdx = 0; colIdx < 2; colIdx++) {
-            const int i = rowIdx * 2 + colIdx;
-            if (i > 3) break;
-            auto* cell = row->makeChild<Ling::Node>();
-            cell->setFlexGrow(1.f);
-            cell->setFlexShrink(1.f);
-            cell->setWidthPercent(0.f);
-            if (colIdx == 1) cell->setMarginLeft(8.f);
-            cell->setFlexDirection(Ling::FlexDirection::Row);
-            cell->setAlignItems(Ling::Align::Center);
-            cell->setPadding(8.f, 8.f, 12.f, 8.f);          // 内边距 (8,8,12,8)
-            cell->setBorderRadius(SettingTheme::radiusCtl); // 8
-            cell->setBorder(1.f, SettingTheme::border);
-
-            // 图标槽：内置样式 = 上色 Logo 字形（字形本身自带方框，不再叠描边，免得显得又小又糊）
-            auto* iconBox = cell->makeChild<Ling::Node>();
-            iconBox->setSize(34.f, 34.f);
-            iconBox->setAlignItems(Ling::Align::Center);
-            iconBox->setJustifyContent(Ling::Justify::Center);
-            iconBox->setFlexShrink(0.f);
-            iconBox->setMarginRight(8.f);
-
-            if (i == 2) {
-                // 自定义颜色：图标本身可点 → 弹系统取色器
-                auto* cb = iconBox->makeChild<Ling::Button>();
-                cb->setSize(34.f, 34.f);
-                cb->setText(Icon::Logo);
-                cb->setFontFamily(Icon::Family);
-                cb->setFontSize(34.f);
-                cb->setColor(Setting::get()->getTrayCustomColor());
-                cb->setHoverColor(Setting::get()->getTrayCustomColor());
-                cb->setBg(0);
-                cb->setHoverBg(0);
-                cb->setFlexShrink(0.f);
-                cb->onClick.add([this](Ling::Button*) { this->pickTrayColor(); });
-                this->trayColorGlyph = cb;
-            }
-            else if (i == 3) {
-                auto* img = iconBox->makeChild<Ling::ImageBox>();
-                img->setSize(32.f, 32.f);
-                img->setBorderRadius(SettingTheme::radiusInner);
-                img->setFlexShrink(0.f);
-                img->hide();
-                this->trayCustomImg = img;
-                auto* up = iconBox->makeChild<Ling::Button>();
-                up->setSize(34.f, 34.f);
-                up->setPositionType(Ling::Position::Absolute);
-                up->setPosition(Ling::Edge::Left, 0.f);
-                up->setPosition(Ling::Edge::Top, 0.f);
-                up->setText(Lang::get(L"setting.trayUpload"));
-                up->setFontSize(10.f);
-                up->setColor(SettingTheme::textMuted);
-                up->setBg(SettingTheme::secondary);
-                up->setHoverBg(SettingTheme::secondary);
-                up->setBorderRadius(SettingTheme::radiusInner);
-                up->setBorder(1.f, SettingTheme::border);
-                up->setFlexShrink(0.f);
-                up->onClick.add([this](Ling::Button*) { this->pickTrayIcon(); });
-                this->trayUploadBtn = up;
-            }
-            else {
-                uint32_t tint = 0;
-                TrayIcon::tintFor(i, tint);
-                auto* g = iconBox->makeChild<Ling::Label>();
-                g->setText(Icon::Logo);
-                g->setFontFamily(Icon::Family);
-                g->setFontSize(34.f);   // 撑满 34px 槽（字形 em 盒留白，20 显得比系统图标小）
-                g->setColor(tint);
-                g->setFlexShrink(0.f);
-            }
-
-            auto* lab = cell->makeChild<Ling::Label>();
-            lab->setText(Lang::get(kKeys[i]));
-            lab->setFontSize(13.f);
-            lab->setColor(SettingTheme::textPrimary);
-            lab->setFlexShrink(1.f);
-            if (i == 3) SettingUi::helpTipButton(cell, Lang::get(L"setting.trayUploadTip"));
-            auto* grow = cell->makeChild<Ling::Node>();
-            grow->setFlexGrow(1.f);
-
-            makeRadio(cell, i);
-        }
-    }
-
-    refreshTrayRadios();
-    refreshTrayPreviews();
-}
-
-void WinSettingAppearance::refreshTrayRadios()
-{
-    constexpr uint32_t kGreen = 0x34C759FFu;
-    const int cur = Setting::get()->getTrayIconStyle();
-    for (int i = 0; i < 4; i++) {
-        if (!trayRadios[i]) continue;
-        const bool on = (i == cur);
-        const uint32_t ring = on ? kGreen : SettingTheme::input;
-        trayRadios[i]->setBg(ring);
-        trayRadios[i]->setHoverBg(ring);
-        if (trayDots[i]) trayDots[i]->setBg(on ? kGreen : 0u);
-    }
-}
-
-void WinSettingAppearance::refreshTrayPreviews()
-{
-    // 「自定义颜色」格：字形染成用户所选颜色
-    if (trayColorGlyph) {
-        const uint32_t c = Setting::get()->getTrayCustomColor();
-        trayColorGlyph->setColor(c);
-        trayColorGlyph->setHoverColor(c);
-    }
-    // 「自定义图标」格：有图直接显示图（预览本身可点，点了重新选图），没图显示「上传」
-    if (!trayCustomImg || !trayUploadBtn) return;
-    const std::wstring path = Setting::get()->getTrayCustomIconPath();
-    const bool has = !path.empty() && GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES;
-    if (has) {
-        trayCustomImg->loadImg(path);
-        trayCustomImg->show();
-        trayUploadBtn->setSize(32.f, 32.f);
-        trayUploadBtn->setPosition(Ling::Edge::Left, 1.f);
-        trayUploadBtn->setPosition(Ling::Edge::Top, 1.f);
-        trayUploadBtn->setText(Icon::Add);
-        trayUploadBtn->setFontFamily(Icon::Family);
-        trayUploadBtn->setFontSize(18.f);
-        trayUploadBtn->setColor(0);
-        trayUploadBtn->setHoverColor(0xFFFFFFFFu);
-        trayUploadBtn->setBg(0);
-        trayUploadBtn->setHoverBg(0x00000099u);
-        trayUploadBtn->setBorder(0.f, 0);
-    }
-    else {
-        trayCustomImg->hide();
-        trayUploadBtn->setSize(34.f, 34.f);
-        trayUploadBtn->setPosition(Ling::Edge::Left, 0.f);
-        trayUploadBtn->setPosition(Ling::Edge::Top, 0.f);
-        trayUploadBtn->setText(Lang::get(L"setting.trayUpload"));
-        trayUploadBtn->setFontFamily(L"");
-        trayUploadBtn->setFontSize(10.f);
-        trayUploadBtn->setColor(SettingTheme::textMuted);
-        trayUploadBtn->setHoverColor(SettingTheme::textMuted);
-        trayUploadBtn->setBg(SettingTheme::secondary);
-        trayUploadBtn->setHoverBg(SettingTheme::secondary);
-        trayUploadBtn->setBorder(1.f, SettingTheme::border);
-    }
-}
-
-void WinSettingAppearance::pickTrayColor()
-{
-    const uint32_t cur = Setting::get()->getTrayCustomColor();
-    static COLORREF cust[16] = {};
-    CHOOSECOLORW cc{};
-    cc.lStructSize = sizeof(cc);
-    cc.hwndOwner = win ? win->hwnd : nullptr;
-    cc.lpCustColors = cust;
-    cc.rgbResult = RGB((cur >> 24) & 0xFFu, (cur >> 16) & 0xFFu, (cur >> 8) & 0xFFu);
-    cc.Flags = CC_FULLOPEN | CC_RGBINIT | CC_ANYCOLOR;
-    if (!ChooseColorW(&cc)) return;
-    const uint32_t v = (static_cast<uint32_t>(GetRValue(cc.rgbResult)) << 24)
-        | (static_cast<uint32_t>(GetGValue(cc.rgbResult)) << 16)
-        | (static_cast<uint32_t>(GetBValue(cc.rgbResult)) << 8) | 0xFFu;
-    Setting::get()->setTrayCustomColor(v);
-    Setting::get()->setTrayIconStyle((int)TrayIcon::Style::CustomColor);   // 选色即切到「自定义颜色」
-    TrayIcon::apply();
-    refreshTrayRadios();
-    refreshTrayPreviews();
-    tbRefreshRestore();
-}
-
-void WinSettingAppearance::pickTrayIcon()
-{
-    static const COMDLG_FILTERSPEC kFilter[]{
-        { L"图片 (*.png;*.jpg;*.bmp;*.gif;*.ico)", L"*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.ico" }
-    };
-    std::wstring path = win->openFileDialog(kFilter);
-    if (path.empty()) return;
-    Setting::get()->setTrayCustomIconPath(path);
-    Setting::get()->setTrayIconStyle((int)TrayIcon::Style::CustomIcon);   // 上传即切到「自定义图标」
-    TrayIcon::apply();
-    refreshTrayRadios();
-    refreshTrayPreviews();
-    tbRefreshRestore();
-}
 
 void WinSettingAppearance::setAutoStartBtn(Ling::Button* btn)
 {
@@ -1051,91 +753,6 @@ void WinSettingAppearance::setAutoStartBtn(Ling::Button* btn)
     }
 }
 
-void WinSettingAppearance::hideSelectBox()
-{
-    if (!selectPopup) return;
-    deferPopupReset(selectPopup);   // 延迟销毁，避免在钩子/事件回调内重入析构
-}
-
-void WinSettingAppearance::showSelectBox(Ling::Button* btn)
-{
-    auto weakThis = getWeakThis();
-    if (selectPopup) selectPopup.reset();
-
-    auto langs = Lang::get()->getSupportedLang();
-    auto itemH{ 30.f };
-    const float itemGap = 4.f;   // 选项之间 4px 间距
-    const float itemN = (float)(langs.size() + 1);   // 语言项 + 末尾「获取更多语言」
-    auto totalH = std::min(320.f, itemH * itemN + itemGap * std::max(0.f, itemN - 1.f));
-
-    // 独立 WS_POPUP 弹层：宽度取锚定按钮宽度，不再被宿主客户区裁剪 / 底部上拉规避。
-    auto pw = btn->w / win->dpi;
-    selectPopup = std::make_unique<SettingUi::Popup>(win, pw, totalH);
-    auto* box = selectPopup->box();
-    box->setBg(SettingTheme::popover);
-    box->setBorder(1.f, SettingTheme::border);
-    box->setBorderRadius(SettingTheme::radius);
-    box->setPadding(4.f, 4.f, 4.f, 4.f);
-    auto curName = selectBtn->getText();
-    for (auto& pair : langs)
-    {
-        auto it = box->makeChild<Ling::Button>();
-        it->setText(pair.first);
-        it->setHeight(itemH);
-        it->setWidthPercent(100.f);
-        it->setFlexDirection(Ling::FlexDirection::Row);
-        it->setJustifyContent(Ling::Justify::Start);
-        it->setAlignItems(Ling::Align::Center);
-        it->setPadding(10.f, 0, 10.f, 0);
-        it->setBorderRadius(SettingTheme::radiusInner);   // 内层小框：与外框(10)同心
-        it->setMarginBottom(itemGap);   // 与后一项（含末尾「获取更多语言」）之间留 4px
-        bool isCurrent = (pair.first == curName);
-        // 当前项：底色取与其它项 hover 相同的浅灰，hover 底色/文字色取同值 → 悬停不产生任何变化。
-        it->setColor(SettingTheme::textPrimary);
-        it->setBg(isCurrent ? SettingTheme::accent : 0);
-        it->setHoverBg(SettingTheme::accent);
-        if (isCurrent) it->setHoverColor(SettingTheme::textPrimary);
-        it->onClick.add([this, weakThis](Ling::Button* b) {
-            if (!weakThis.lock()) return;
-            auto lang = Lang::get();
-            auto langName = b->getText();
-            auto langs = lang->getSupportedLang();
-            for (auto& pair : langs)
-            {
-                if (pair.first == langName) {
-                    Setting::get()->setLang(pair.second);
-                    this->hideSelectBox();
-                    win->close();
-                    Ling::App::get()->dq.TryEnqueue([this]() {
-                        WinSetting::init();
-                        });
-                    break;
-                }
-            }
-            });
-    }
-    auto lastItem = box->makeChild<Ling::Button>();
-    lastItem->setText(Lang::get(L"setting.getMoreLang"));
-    lastItem->setHeight(itemH);
-    lastItem->setWidthPercent(100.f);
-    lastItem->setFlexDirection(Ling::FlexDirection::Row);
-    lastItem->setJustifyContent(Ling::Justify::Start);
-    lastItem->setAlignItems(Ling::Align::Center);
-    lastItem->setPadding(10.f, 0, 10.f, 0);
-    lastItem->setBorderRadius(SettingTheme::radiusInner);   // 内层小框：与外框(10)同心
-    lastItem->setHoverBg(SettingTheme::accent);
-    lastItem->setHoverColor(SettingTheme::textPrimary);
-    lastItem->setColor(SettingTheme::textSecondary);
-    lastItem->onClick.add([this, weakThis](Ling::Button*) {
-        if (!weakThis.lock()) return;
-        this->hideSelectBox();
-        std::wstring downloadUrl{ L"https://github.com/CM-idea/SnowAir/tree/main/Native/Lang" };
-        ShellExecute(win->hwnd, L"open", downloadUrl.data(), nullptr, nullptr, SW_SHOWNORMAL);
-        });
-    selectPopup->setAnchor(btn);
-    selectPopup->onDismiss = [this]() { hideSelectBox(); };
-    selectPopup->open();
-}
 
 // ==================== 工具栏外观 ====================
 
@@ -1220,10 +837,7 @@ void WinSettingAppearance::tbRestoreDefaults()
         refreshPinPreview();
         WinPin::refreshBorderAppearance();
         ClipPin::refreshBorderAppearance();
-        if (trayEnableSw) SettingUi::styleToggle(trayEnableSw, true);
         TrayIcon::apply();
-        refreshTrayRadios();
-        refreshTrayPreviews();
         tbRefreshRestore();
         win->refresh();
         return;

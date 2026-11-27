@@ -7,10 +7,9 @@
 1 ICON "logo.ico"
 // 图标字体（font_family）：字库更新后必须让本 .rc 重新编译（MSBuild 不跟踪 RCDATA 源文件）
 icon.ttf RCDATA "ScreenShutIcons.ttf"
-// 语言文件内嵌为资源；MSBuild 不把 RCDATA 的数据文件当作输入依赖，
-// 所以改动 lang.*.json 后需要让本 .rc 重新编译才能生效。
+// 界面文案固定为内置简体中文；MSBuild 不把 RCDATA 数据文件当作输入依赖，
+// 所以改动 lang.zh-CN.json 后需要让本 .rc 重新编译才能生效。
 zh-CN RCDATA "lang.zh-CN.json"
-en-US RCDATA "lang.en-US.json"
 VS_VERSION_INFO VERSIONINFO
 FILEVERSION 0,1,27,0
 PRODUCTVERSION 0,1,27,0
