@@ -125,7 +125,7 @@ public:
 	static void initAppDataDirs();
 
 	// —— 截图输出路径 ——
-	// 默认输出根目录：<exe>\AppData\save（用户可在设置里改到任意目录）
+	// 默认输出根目录：桌面（用户可在「文件输出」里改到任意目录）
 	static std::filesystem::path defaultOutputDir();
 	// 手动保存（工具栏「保存」）对话框的起始目录：桌面；取不到时退回空路径（对话框用系统默认位置）
 	static std::filesystem::path desktopDir();
@@ -143,7 +143,7 @@ public:
 		const std::wstring& focusAppName = L"");
 	// 「保存格式」设置（如 "JPEG (*.jpg)"）→ 扩展名；认不出来一律 png
 	static std::wstring extensionFromSaveFormat(const std::wstring& fmt);
-	// 录制收尾：把临时目录里的成片移到「录屏文件路径」（未设置时退回 AppData\save），
+	// 录制收尾：把临时目录里的成片移到「录屏文件路径」（未设置时退回桌面），
 	// 按「视频录制文件名格式」命名、重名自动加序号。返回最终路径（空 = 失败，源文件原样保留）
 	static std::wstring commitRecordedFile(const std::wstring& tempPath);
 	// 当前前台窗口所属进程名（不含扩展名），本进程自己（截图覆盖窗等）返回空。

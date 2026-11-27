@@ -1880,9 +1880,6 @@ void Setting::restoreFunctionScreenshotDefaults()
 	setAutoSaveAfterCapture(false);
 	setCaptureFinishAction(0);
 	setSaveFormat(L"PNG (*.png)");
-	setManualSaveFormat(L"");
-	setAutoSaveFormat(L"");
-	setVideoRecordFormat(L"");
 	setTrayClickAction(0);
 	setDemoDefaultTool(0);
 	setDemoEdgeBehavior(0);
@@ -1918,13 +1915,10 @@ void Setting::restoreFunctionRecordDefaults()
 	save();
 }
 
-// 文件输出：文件名模板与目录清空即"没改过"，界面回到灰占位符（默认模板 / 默认目录）
+// 文件输出：目录清空即"没改过"，界面回到灰占位符（默认目录）
 void Setting::restoreFunctionOutputDefaults()
 {
-	setManualSaveFormat(L"");
-	setAutoSaveFormat(L"");
 	setScreenshotDir(L"");
-	setVideoRecordFormat(L"");
 	setRecordDir(L"");
 }
 
@@ -1965,8 +1959,7 @@ bool Setting::functionScreenshotAtDefaults()
 	return !getAutoStart() && runAsAdminDefault
 		&& getFindWindowElements() && !getCancelConfirmDialog() && !getAutoSaveAfterCapture()
 		&& getCaptureFinishAction() == 0 && getSaveFormat() == L"PNG (*.png)"
-		&& getManualSaveFormat().empty() && getAutoSaveFormat().empty()
-		&& getVideoRecordFormat().empty() && getTrayClickAction() == 0
+		&& getTrayClickAction() == 0
 		&& getDemoDefaultTool() == 0 && getDemoEdgeBehavior() == 0
 		&& getPinWheelAction() == 0 && !getPinAutoOcr() && getPinAutoFit()
 		&& getPinDoubleClickAction() == 0 && getPinOpacity() == 100;
@@ -1986,9 +1979,7 @@ bool Setting::functionRecordAtDefaults()
 
 bool Setting::functionOutputAtDefaults()
 {
-	return getManualSaveFormat().empty() && getAutoSaveFormat().empty()
-		&& getScreenshotDir().empty()
-		&& getVideoRecordFormat().empty() && getRecordDir().empty();
+	return getScreenshotDir().empty() && getRecordDir().empty();
 }
 
 bool Setting::functionOcrAtDefaults()
@@ -2106,12 +2097,10 @@ std::wstring Setting::defaultManualSaveFormat() { return L"ScreenShut_{{YYYY-MM-
 std::wstring Setting::defaultAutoSaveFormat() { return L"ScreenShut_auto_{{YYYY-MM-DD_HH-mm-ss}}"; }
 std::wstring Setting::defaultVideoRecordFormat() { return L"ScreenShut_Video_{{YYYY-MM-DD_HH-mm-ss}}"; }
 
-std::wstring Setting::getManualSaveFormat() { return featStr(L"manualSaveFormat", L""); }
-void Setting::setManualSaveFormat(const std::wstring& v) { setFeatStr(L"manualSaveFormat", v); }
-std::wstring Setting::getAutoSaveFormat() { return featStr(L"autoSaveFormat", L""); }
-void Setting::setAutoSaveFormat(const std::wstring& v) { setFeatStr(L"autoSaveFormat", v); }
-std::wstring Setting::getVideoRecordFormat() { return featStr(L"videoRecordFormat", L""); }
-void Setting::setVideoRecordFormat(const std::wstring& v) { setFeatStr(L"videoRecordFormat", v); }
+// 文件名格式固定使用内置默认模板，不再提供自定义入口。
+std::wstring Setting::getManualSaveFormat() { return defaultManualSaveFormat(); }
+std::wstring Setting::getAutoSaveFormat() { return defaultAutoSaveFormat(); }
+std::wstring Setting::getVideoRecordFormat() { return defaultVideoRecordFormat(); }
 
 std::wstring Setting::getScreenshotDir() { return featStr(L"screenshotDir", L""); }
 void Setting::setScreenshotDir(const std::wstring& v) { setFeatStr(L"screenshotDir", v); }

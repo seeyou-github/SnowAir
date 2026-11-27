@@ -1572,8 +1572,10 @@ void Util::initAppDataDirs()
 
 std::filesystem::path Util::defaultOutputDir()
 {
-	// 默认输出根目录：<exe>\AppData\save（用户可在「文件输出」里改到任意目录）
-	return saveDir();
+	// 截图 / 录屏默认保存到桌面；拿不到桌面目录时回退到 <exe>\AppData\save。
+	// 用户仍可在「文件输出」里改成其它路径。
+	auto desktop = desktopDir();
+	return desktop.empty() ? saveDir() : desktop;
 }
 
 // 手动保存（工具栏「保存」）对话框的起始目录：桌面。用户仍可在对话框里改到别处
@@ -1591,9 +1593,8 @@ std::filesystem::path Util::desktopDir()
 
 std::filesystem::path Util::outputDir()
 {
-	// 「文件输出」里自定义了截图目录就用它；否则用 exe 目录下的 AppData\save。
-	// 这里**只算路径、不建目录**：历史扫描 / 过期清理 / 打开菜单都会调用它，
-	// 顺手建目录会让用户删掉的默认空文件夹（AppData\save）每次启动又被重新生成。
+	// 「文件输出」里自定义了截图目录就用它；否则用桌面（见 defaultOutputDir）。
+	// 这里只算路径、不建目录；真正落盘时由 buildSavePath / commitRecordedFile 负责。
 	// 真正落盘时由 buildSavePath / commitRecordedFile 负责建目录。
 	auto* setting = Setting::get();
 	auto custom = setting ? setting->getScreenshotDir() : std::wstring{};
@@ -1734,7 +1735,7 @@ std::wstring Util::commitRecordedFile(const std::wstring& tempPath)
 	std::wstring ext = src.extension().wstring();
 	if (!ext.empty() && ext[0] == L'.') ext.erase(0, 1);
 
-	// 目标目录：「录屏文件路径」；没设置过就用 AppData\save（与设置页显示的默认值一致）
+	// 目标目录：「录屏文件路径」；没设置过就用桌面（与设置页显示的默认值一致）
 	std::filesystem::path dir;
 	if (st) {
 		const auto rec = st->getRecordDir();

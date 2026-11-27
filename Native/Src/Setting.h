@@ -236,13 +236,11 @@ public:
 	UINT32 getMouseHighlightColor();
 	void setMouseHighlightColor(UINT32 rgba);
 
+	// 文件名格式固定使用内置默认模板
 	std::wstring getManualSaveFormat();
-	void setManualSaveFormat(const std::wstring& v);
 	std::wstring getAutoSaveFormat();
-	void setAutoSaveFormat(const std::wstring& v);
 	std::wstring getVideoRecordFormat();
-	void setVideoRecordFormat(const std::wstring& v);
-	// 文件输出目录：空串表示用默认目录（AppData\save）
+	// 文件输出目录：空串表示用默认目录（桌面）
 	std::wstring getScreenshotDir();
 	void setScreenshotDir(const std::wstring& v);
 	std::wstring getRecordDir();

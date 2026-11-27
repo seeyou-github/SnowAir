@@ -1144,9 +1144,6 @@ void WinSettingFeatures::buildOutput(Ling::Node* p)
 					labelW = (std::max)(labelW, m.width / dpi);
 			}
 		};
-		measure(L"setting.manualSaveFmt");
-		measure(L"setting.autoSaveFmt");
-		measure(L"setting.videoRecordFmt");
 		measure(L"setting.fnScreenshotDir");
 		measure(L"setting.fnRecordDir");
 		measure(L"setting.cachePath");
@@ -1155,15 +1152,6 @@ void WinSettingFeatures::buildOutput(Ling::Node* p)
 
 	// 格式与路径合并成一组
 	SettingUi::groupLabel(p, Lang::get(L"setting.formatAndPath"), Lang::get(L"setting.outputSectionTip"));
-	outputRow(p, Lang::get(L"setting.manualSaveFmt"),
-		s->getManualSaveFormat(), Setting::defaultManualSaveFormat(), OutputRowKind::Format,
-		[](const std::wstring& v) { Setting::get()->setManualSaveFormat(v); });
-	outputRow(p, Lang::get(L"setting.autoSaveFmt"),
-		s->getAutoSaveFormat(), Setting::defaultAutoSaveFormat(), OutputRowKind::Format,
-		[](const std::wstring& v) { Setting::get()->setAutoSaveFormat(v); });
-	outputRow(p, Lang::get(L"setting.videoRecordFmt"),
-		s->getVideoRecordFormat(), Setting::defaultVideoRecordFormat(), OutputRowKind::Format,
-		[](const std::wstring& v) { Setting::get()->setVideoRecordFormat(v); });
 	outputRow(p, Lang::get(L"setting.fnScreenshotDir"), s->getScreenshotDir(), defDir,
 		OutputRowKind::Dir,
 		[](const std::wstring& v) { Setting::get()->setScreenshotDir(v); }, L"");

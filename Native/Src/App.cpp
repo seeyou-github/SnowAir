@@ -247,7 +247,7 @@ void App::captureFullScreenSilent()
 	if (pixels.empty()) return;
 
 	// 文件名与「功能设置 → 文件输出 → 手动保存文件名格式」同一套模板（默认 ScreenShut_{{YYYY-MM-DD_HH-mm-ss}}），
-	// 落到 AppData\save 下；扩展名与编码取「保存格式」（PNG/JPEG/WebP/BMP）。
+	// 落到默认输出目录（桌面）；扩展名与编码取「保存格式」（PNG/JPEG/WebP/BMP）。
 	// 「仅复制图片」档不落盘
 	auto* st = Setting::get();
 	const int action = st->getCaptureFinishAction();
