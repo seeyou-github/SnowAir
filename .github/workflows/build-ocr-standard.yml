@@ -2,6 +2,7 @@ name: build-ocr-standard
 
 # 仅手动触发：构建带「PP-OCRv6 标准档」离线文字识别的完整 ScreenShut 包。
 on:
+  push:
   workflow_dispatch:
 
 jobs:
