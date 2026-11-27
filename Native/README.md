@@ -64,7 +64,7 @@ ScreenShut.exe --enter=tray              # 仅托盘（等同于默认行为）
 连同轻量档官方 ONNX 模型一起打包到 `AppData\config\plugin\` 下：
 
 - `ocr-runtime\ppocr-v6\lw_ppocr_c.dll`
-- `ocr-models\ppocr-v6-tiny\{det,cls,rec}.onnx`、`ppocr_keys.txt`
+- `ocr-models\ppocr-v6-tiny\{det,cls,rec}.lwm`、`ppocr_keys.txt`（CI 由官方 ONNX 转换）
 
 旧版可选的 [ImageReader.exe](https://github.com/xland/ImageReader/releases) 仍可放到 `AppData\config\plugin` 或 exe 同目录。
 

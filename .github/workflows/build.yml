@@ -78,8 +78,8 @@ jobs:
         run: |
           msbuild Native/Src/ScreenShut.vcxproj /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /m
 
-      # lw.PPOCR.C 源码随仓库分发；runtime-only 模式不需要 Python/转换器，
-      # 本地打过补丁让共享库目标在该模式下仍然生成。
+      # lw.PPOCR.C 源码随仓库分发；CMake 用 runtime-only 模式（不需要 Python），
+      # 本地打过补丁让共享库目标在该模式下仍然生成。模型转换单独在下一步完成。
       - name: Build OCR runtime (lw.PPOCR.C 1.2.2)
         shell: pwsh
         run: |
@@ -88,6 +88,22 @@ jobs:
           cmake --build Native/deps/lw.PPOCR.C/build --config Release --target lw_ppocr_c_shared --parallel
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (-not (Test-Path 'Native/deps/lw.PPOCR.C/build/Release/lw_ppocr_c.dll')) { throw 'lw_ppocr_c.dll not found' }
+
+      # 把内置官方 ONNX 转成随程序分发的 LWM（只需 numpy + onnx，不用 onnxruntime）。
+      - name: Convert OCR models to LWM
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check numpy==1.26.4 onnx==1.22.0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Push-Location Native/deps/lw.PPOCR.C
+          New-Item -ItemType Directory -Force -Path build/models | Out-Null
+          python -m converter.convert_det --input models/ppocrv6-tiny/det.onnx --output build/models/det.lwm
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m converter.convert_cls --input models/ppocrv6-tiny/cls.onnx --output build/models/cls.lwm
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m converter.convert_rec --input models/ppocrv6-tiny/rec.onnx --output build/models/rec.lwm
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Pop-Location
 
       - name: Stage release package
         shell: pwsh
@@ -100,13 +116,11 @@ jobs:
           Copy-Item 'Native/x64/Release/ScreenShut.exe' $pack -Force
           Copy-Item 'Native/deps/lw.PPOCR.C/build/Release/lw_ppocr_c.dll' $runtime -Force
           Set-Content -LiteralPath (Join-Path $runtime 'runtime.id') -Value '1.2.2' -NoNewline -Encoding ascii
-          foreach ($f in 'det.onnx','cls.onnx','rec.onnx','ppocr_keys.txt') {
-            Copy-Item "Native/deps/lw.PPOCR.C/models/ppocrv6-tiny/$f" $models -Force
+          foreach ($f in 'det.lwm','cls.lwm','rec.lwm') {
+            Copy-Item "Native/deps/lw.PPOCR.C/build/models/$f" $models -Force
           }
+          Copy-Item 'Native/deps/lw.PPOCR.C/models/ppocrv6-tiny/ppocr_keys.txt' $models -Force
           Set-Content -LiteralPath (Join-Path $models 'pack.id') -Value 'ppocrv6-tiny-1.2.2' -NoNewline -Encoding ascii
-          Copy-Item 'Native/deps/lw.PPOCR.C/LICENSE' $pack -Force
-          Copy-Item 'Native/deps/lw.PPOCR.C/THIRD-PARTY-NOTICES.md' $pack -Force
-          Copy-Item 'Native/deps/lw.PPOCR.C/licenses/PaddleOCR-models-APACHE-2.0.txt' $pack -Force
           Compress-Archive -Path (Join-Path $pack '*') -DestinationPath 'Native/x64/Release/ScreenShut.zip' -Force
 
       - name: Upload artifact

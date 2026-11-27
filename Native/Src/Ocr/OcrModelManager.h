@@ -2,7 +2,7 @@
 #include "OcrPackVariant.h"
 #include <string>
 
-// 官方 ONNX 模型随程序分发，不再提供下载/安装流程。
+// LWM 模型随程序分发，不再提供下载/安装流程。
 class OcrModelManager {
 public:
 	static OcrModelManager& instance();

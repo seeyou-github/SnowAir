@@ -67,7 +67,7 @@ bool modelsReady(OcrPackVariant v)
 {
 	std::error_code ec;
 	const auto dir = PluginPaths::ocrModels() / OcrPack::folderName(v);
-	for (const wchar_t* name : { L"det.onnx", L"cls.onnx", L"rec.onnx", L"ppocr_keys.txt" }) {
+	for (const wchar_t* name : { L"det.lwm", L"cls.lwm", L"rec.lwm", L"ppocr_keys.txt" }) {
 		const auto p = dir / name;
 		if (!std::filesystem::is_regular_file(p, ec)) return false;
 		if (std::filesystem::file_size(p, ec) == 0) return false;
@@ -193,7 +193,7 @@ bool loadModule(std::wstring& err)
 	return true;
 }
 
-// 建引擎（已建则直接返回）。det/cls/rec 用官方 ONNX 模型，字典是 ppocr_keys.txt
+// 建引擎（已建则直接返回）。det/cls/rec 用随程序分发的 LWM 模型，字典是 ppocr_keys.txt
 bool ensureEngine(std::wstring& err)
 {
 	// 档位跟着设置走（设置里切了档位 → 放掉旧引擎重建）
@@ -205,9 +205,9 @@ bool ensureEngine(std::wstring& err)
 	if (!loadModule(err)) return false;
 
 	const auto dir = modelsDir();
-	const auto det = dir / L"det.onnx";
-	const auto cls = dir / L"cls.onnx";
-	const auto rec = dir / L"rec.onnx";
+	const auto det = dir / L"det.lwm";
+	const auto cls = dir / L"cls.lwm";
+	const auto rec = dir / L"rec.lwm";
 	const auto dict = dir / L"ppocr_keys.txt";
 	std::error_code ec;
 	for (const auto& p : { det, cls, rec, dict }) {

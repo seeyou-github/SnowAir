@@ -25,7 +25,7 @@
 4) PP-OCRv6 模型（DET / CLS / REC 与字典）
    来自 PaddlePaddle / PaddleOCR
    https://github.com/PaddlePaddle/PaddleOCR
-   Licensed under the Apache License, Version 2.0.（轻量档官方 ONNX 模型与字典随程序一起打包）
+   Licensed under the Apache License, Version 2.0.（轻量档 LWM 模型与字典随程序一起打包，由官方 ONNX 在 CI 转换）
 
 其余第三方组件（如 Yoga、zxing-cpp、libwebp、quirc、cgif 等）分别遵循各自的开源许可协议，
 其版权归各自作者所有。

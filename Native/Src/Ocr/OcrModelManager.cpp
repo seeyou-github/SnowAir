@@ -6,8 +6,8 @@
 #include <fstream>
 
 namespace {
-	// 官方 ONNX 模型直接由 lw.PPOCR.C 1.2.2 的纯 C 导入器加载，无需 Python 转换。
-	const wchar_t* const kFiles[] = { L"det.onnx", L"cls.onnx", L"rec.onnx", L"ppocr_keys.txt" };
+	// 随程序分发的 LWM 模型（CI 由官方 ONNX 转换而来）。
+	const wchar_t* const kFiles[] = { L"det.lwm", L"cls.lwm", L"rec.lwm", L"ppocr_keys.txt" };
 	const wchar_t* const kPackMarkerName = L"pack.id";
 }
 
