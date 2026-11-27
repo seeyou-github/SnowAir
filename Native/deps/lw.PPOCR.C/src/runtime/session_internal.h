@@ -1,0 +1,190 @@
+#ifndef LW_SESSION_INTERNAL_H
+#define LW_SESSION_INTERNAL_H
+
+/* Runtime tensor metadata shared by shape inference, planning and execution. */
+
+#include "model_internal.h"
+#include "parallel_internal.h"
+#include "atomic_internal.h"
+#include "../simd/cpu_features.h"
+#include "../kernels/packed_conv_internal.h"
+#include "../kernels/packed_conv3x3_internal.h"
+
+#include <stddef.h>
+#include <stdint.h>
+
+#define LW_WORKSPACE_ALIGNMENT 64u
+#define LW_SESSION_PLAN_CTC_GREEDY UINT32_C(1)
+#define LW_SESSION_PLAN_METADATA_ONLY UINT32_C(2)
+
+typedef enum lw_prepared_constant_kind {
+    LW_PREPARED_CONSTANT_NONE = 0,
+    LW_PREPARED_CONSTANT_CONV1X1_PACKED4 = 1,
+    LW_PREPARED_CONSTANT_MATMUL_PACKED16 = 2,
+    LW_PREPARED_CONSTANT_CONV3X3_STRIDE2_PACKED8 = 3,
+    LW_PREPARED_CONSTANT_NEON_SPATIAL_PACKED4 = 4
+} lw_prepared_constant_kind;
+
+typedef struct lw_prepared_constant {
+    uint32_t kind;
+    uint32_t reserved;
+    uint64_t packed_weight_offset;
+    uint64_t packed_weight_count;
+} lw_prepared_constant;
+
+typedef struct lw_shared_prepared_constants {
+    lw_atomic_u32 ref_count;
+    lw_prepared_constant* constants;
+    uint8_t* packed_weights;
+    size_t packed_weight_bytes;
+} lw_shared_prepared_constants;
+typedef enum lw_bound_execution_kind {
+    LW_BOUND_EXEC_GENERIC = 0,
+    LW_BOUND_EXEC_CONV1X1_PACKED = 1,
+    LW_BOUND_EXEC_CONV3X3_PACKED = 2
+} lw_bound_execution_kind;
+
+typedef enum lw_conv1x1_kernel_id {
+    LW_CONV1X1_KERNEL_NONE = 0,
+    LW_CONV1X1_KERNEL_SCALAR = 1,
+    LW_CONV1X1_KERNEL_SSE2 = 2,
+    LW_CONV1X1_KERNEL_AVX2 = 3,
+    LW_CONV1X1_KERNEL_NEON = 4,
+    LW_CONV1X1_KERNEL_LSX = 5
+} lw_conv1x1_kernel_id;
+
+typedef enum lw_conv3x3_kernel_id {
+    LW_CONV3X3_KERNEL_NONE = 0,
+    LW_CONV3X3_KERNEL_SCALAR = 1,
+    LW_CONV3X3_KERNEL_AVX2 = 2
+} lw_conv3x3_kernel_id;
+
+typedef struct lw_bound_conv3x3 {
+    lw_packed_conv3x3_kernel_fn kernel;
+    const float* packed_weights;
+    uint32_t input_index;
+    uint32_t bias_index;
+    uint32_t output_index;
+    uint16_t kernel_id;
+    uint16_t output_tile;
+} lw_bound_conv3x3;
+
+typedef struct lw_bound_conv1x1 {
+    lw_packed_conv1x1_kernel_fn kernel;
+    const float* packed_weights;
+    uint32_t input_index;
+    uint32_t bias_index;
+    uint32_t output_index;
+    uint16_t kernel_id;
+    uint16_t output_tile;
+} lw_bound_conv1x1;
+
+typedef struct lw_bound_node {
+    uint32_t node_index;
+    uint16_t operator_type;
+    uint16_t input_count;
+    uint32_t input_indices[LWM_V0_MAX_NODE_INPUTS];
+    uint32_t output_index;
+    uint32_t implementation;
+    uint16_t execution_kind;
+    uint16_t reserved_execution;
+    union {
+        lw_bound_conv1x1 conv1x1;
+        lw_bound_conv3x3 conv3x3;
+    } data;
+    const lw_prepared_constant* prepared_constant;
+} lw_bound_node;
+
+typedef struct lw_runtime_tensor {
+    uint32_t dtype;
+    uint32_t rank;
+    int32_t dimensions[LW_MAX_DIMS];
+    uint32_t flags;
+    uint64_t byte_size;
+    uint64_t workspace_offset;
+    int32_t birth_node;
+    int32_t last_use_node;
+    int workspace_live;
+} lw_runtime_tensor;
+
+/* Semantic match shared by the physical plan and the executor.  Keeping the
+ * graph pattern in one helper prevents the planner from dropping a temporary
+ * that the runtime would still materialize (or vice versa). */
+typedef struct lw_fused_gelu_match {
+    uint32_t inputs[5][2];
+    uint32_t outputs[5];
+} lw_fused_gelu_match;
+
+struct lw_session {
+    const lw_model* model;
+    lw_cpu_capabilities cpu;
+    lw_runtime_tensor* tensors;
+    uint8_t* workspace;
+    size_t workspace_bytes;
+    lw_prepared_constant* prepared_constants;
+    uint8_t* packed_weights;
+    size_t packed_weight_bytes;
+    lw_shared_prepared_constants* shared_prepared_constants;
+    lw_bound_node* execution_nodes;
+    uint32_t execution_node_count;
+    uint8_t* fused_gelu_start_nodes;
+    uint8_t* fused_gelu_skip_tensors;
+    uint8_t ctc_greedy_plan_enabled;
+    uint32_t ctc_greedy_skip_tensor;
+    float* ctc_logits_scratch;
+    uint32_t ctc_logits_scratch_rows;
+    uint64_t ctc_logits_scratch_elements;
+    lw_thread_pool* thread_pool;
+    uint32_t intra_op_thread_count;
+    /* Borrowed pool used only by the CTC head projection: lets the recognizer
+     * share one intra-op pool across its width-slot sessions instead of each
+     * session owning a full pool.  Never owned by the session. */
+    lw_thread_pool* external_thread_pool;
+    uint32_t external_worker_count;
+    lw_session_info info;
+};
+
+lw_status lw_resolve_shapes(lw_session* session, uint64_t max_tensor_size, lw_error* error);
+/* Importer-only shape bridge: validated indices, no numeric execution. */
+lw_status lw_resolve_import_node(lw_session* session, const uint8_t* node,
+                                uint64_t max_tensor_size, lw_error* error);
+lw_status lw_plan_workspace(lw_session* session, uint64_t max_workspace_size, lw_error* error);
+void lw_session_set_intra_op_thread_count(lw_session* session, uint32_t thread_count);
+/* Borrow an external pool for the CTC head projection (worker_count <= 1 or
+ * NULL pool detaches).  The pool must outlive the session and is never freed
+ * by the session. */
+void lw_session_set_external_thread_pool(lw_session* session, lw_thread_pool* pool,
+                                         uint32_t worker_count);
+/* Use the recognizer's borrowed pool when attached, otherwise the session's
+ * own intra-op pool. *out_workers receives the usable count (1 when serial). */
+lw_thread_pool* lw_session_execution_pool(const lw_session* session, uint32_t* out_workers);
+lw_status lw_session_share_prepared_constants(lw_session* destination,
+                                               const lw_session* source,
+                                               lw_error* error);
+int lw_session_prepared_constants_compatible(const lw_session* destination,
+                                             const lw_session* source);
+lw_status lw_prepare_execution_nodes(lw_session* session, lw_error* error);
+void lw_free_execution_nodes(lw_session* session);
+lw_status lw_prepare_execution_plan(lw_session* session, lw_error* error);
+void lw_free_execution_plan(lw_session* session);
+lw_status lw_session_create_ctc_greedy(const lw_model* model, const lw_tensor_desc* inputs,
+                                        uint32_t input_count, const lw_session_options* options,
+                                        lw_session** out_session, lw_error* error);
+/* Resolve shapes and the workspace plan without allocating execution buffers.
+ * A metadata-only session must never be passed to the canonical executor. */
+lw_status lw_session_create_metadata_only(const lw_model* model,
+                                          const lw_tensor_desc* inputs, uint32_t input_count,
+                                          const lw_session_options* options,
+                                          lw_session** out_session, lw_error* error);
+lw_status lw_session_create_with_prepared_source(
+    const lw_model* model, const lw_tensor_desc* inputs, uint32_t input_count,
+    const lw_session_options* options, uint32_t plan_flags, const lw_session* prepared_source,
+    lw_session** out_session, lw_error* error);
+int lw_match_fused_gelu(const lw_session* session, uint32_t node_index,
+                        lw_fused_gelu_match* match);
+int lw_execution_plan_is_fused_gelu_start(const lw_session* session, uint32_t node_index);
+int lw_execution_plan_is_fused_gelu_skip(const lw_session* session, uint32_t tensor_index);
+int lw_execution_plan_is_ctc_greedy_skip(const lw_session* session, uint32_t tensor_index);
+int lw_execution_plan_is_skipped_tensor(const lw_session* session, uint32_t tensor_index);
+
+#endif

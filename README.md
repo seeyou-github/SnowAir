@@ -20,12 +20,12 @@
    https://github.com/lxw112190/lw.PPOCR.C
    Copyright (c) lw.PPOCR.C contributors
    Licensed under the MIT License.
-   （离线文字识别 PP-OCRv6 的推理运行时，按需下载、不随安装包分发）
+   （离线文字识别 PP-OCRv6 的推理运行时，v1.2.2 源码随仓库分发，构建的 lw_ppocr_c.dll 随程序一起打包）
 
 4) PP-OCRv6 模型（DET / CLS / REC 与字典）
    来自 PaddlePaddle / PaddleOCR
    https://github.com/PaddlePaddle/PaddleOCR
-   Licensed under the Apache License, Version 2.0.（按需下载、不随安装包分发）
+   Licensed under the Apache License, Version 2.0.（轻量档官方 ONNX 模型与字典随程序一起打包）
 
 其余第三方组件（如 Yoga、zxing-cpp、libwebp、quirc、cgif 等）分别遵循各自的开源许可协议，
 其版权归各自作者所有。

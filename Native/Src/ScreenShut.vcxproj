@@ -346,7 +346,6 @@
     <ClInclude Include="Ocr\PluginPaths.h" />
     <ClInclude Include="Ocr\LwPpOcrEngine.h" />
     <ClInclude Include="Ocr\lw_infer.h" />
-    <ClInclude Include="Ocr\OcrPackFetch.h" />
     <ClInclude Include="Ocr\SystemOcr.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="Setting.h" />

@@ -544,7 +544,8 @@ void WinSettingPlugins::refreshStatus()
 				del->setHoverColor(0xFF383CFF);
 			}
 		}
-		cards[CardOcr].offer = !ocrOk && !ocrUpdate && !cards[CardOcr].busy;
+		// OCR 运行时与模型随程序分发，不提供下载入口
+		cards[CardOcr].offer = false;
 		cards[CardTr].offer = !trOk && !cards[CardTr].busy;
 		cards[CardGh].offer = true;      // 果核看图始终提供（外链）
 		for (auto& c : cards) {
@@ -611,11 +612,8 @@ void WinSettingPlugins::build()
 			}
 		}
 	}
-	ocr.dlBtn->onClick.add([this](Ling::Button*) { this->startOcrDownload(); });
 	ocr.delBtn->onClick.add([this](Ling::Button*) {
-		// 有更新时这个位置是绿色刷新钮：点击直接更新；否则仍是删除
-		if (cards.size() > CardOcr && cards[CardOcr].update) this->startOcrDownload();
-		else this->deleteCard(CardOcr);
+		this->deleteCard(CardOcr);
 	});
 	cards.push_back({ ocr.card, ocr.dlBtn, ocr.delBtn, false, false, false });
 
@@ -853,57 +851,6 @@ void WinSettingPlugins::updateHover(POINT pos)
 		if (c.dlBtn) { if (showDl) c.dlBtn->show(); else c.dlBtn->hide(); }
 		if (c.delBtn) { if (showDel) c.delBtn->show(); else c.delBtn->hide(); }
 	}
-}
-
-void WinSettingPlugins::startOcrDownload()
-{
-	if (cards.size() < 3) return;
-	if (migrating) return;            // 目录迁移中：别往即将被清掉的旧目录里写组件
-	if (cards[CardOcr].busy) return;   // 下载中再点不重开（按钮此时显示进度）
-	CardSlot& c = cards[CardOcr];
-	c.busy = true;
-	c.offer = false;
-	if (c.delBtn) c.delBtn->hide();
-	if (c.dlBtn) c.dlBtn->show();          // 下载中按钮常驻显示进度
-	if (ocrBadgeRow) ocrBadgeRow->hide();
-	setCardProgress(c, 0.f);
-	startDots(ocrProgress, Lang::get(L"setting.plugDownloading"));
-
-	auto weak = getWeakThis();
-	const OcrPackVariant ocrVariant = OcrPack::clampVariant(ocrVariantIdx);
-	// 两段式（串行）：运行时 0~50% → 模型 50~100%（并行时进度会互相覆盖，进度条没意义）
-	OcrRuntimeManager::instance().download(ocrVariant,
-		[this, weak](float p) {
-			onUi([this, weak, p]() {
-				if (!weak.lock() || cards.size() < 3) return;
-				setCardProgress(cards[CardOcr], 0.5f * p);
-			});
-		},
-		[this, weak, ocrVariant](bool ok, std::wstring err) {
-			onUi([this, weak, ok, err, ocrVariant]() {
-				if (!weak.lock() || cards.size() < 3) return;
-				if (!ok) { finishDownload(CardOcr, err); return; }
-				setCardProgress(cards[CardOcr], 0.5f);
-				OcrModelManager::instance().download(ocrVariant,
-					[this, weak](float p) {
-						onUi([this, weak, p]() {
-							if (!weak.lock() || cards.size() < 3) return;
-							setCardProgress(cards[CardOcr], 0.5f + 0.5f * p);
-						});
-					},
-					[this, weak](bool ok2, std::wstring err2) {
-						onUi([this, weak, ok2, err2]() {
-							if (!weak.lock()) return;
-							// 第一次装好离线文字识别：默认识别模型切到 PP-OCRv6。
-							// 以后若组件被删掉，运行时会自动回落到系统 OCR，不需要再改配置。
-							if (ok2) {
-								Setting::get()->setOcrEngine(0);
-							}
-							finishDownload(CardOcr, ok2 ? std::wstring{} : err2);
-						});
-					});
-			});
-		});
 }
 
 void WinSettingPlugins::startTrDownload()

@@ -51,7 +51,6 @@ private:
 	void updateHover(POINT pos);
 	// 选一个目录作为插件根目录：把已下载的组件搬过去，成功后切换并清掉旧目录（搬运在后台线程做）
 	void choosePluginDir();
-	void startOcrDownload();
 	void startTrDownload();
 	void startRackDownload();
 	void deleteCard(int idx);

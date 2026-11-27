@@ -78,10 +78,41 @@ jobs:
         run: |
           msbuild Native/Src/ScreenShut.vcxproj /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /m
 
+      # lw.PPOCR.C 源码随仓库分发；runtime-only 模式不需要 Python/转换器，
+      # 本地打过补丁让共享库目标在该模式下仍然生成。
+      - name: Build OCR runtime (lw.PPOCR.C 1.2.2)
+        shell: pwsh
+        run: |
+          cmake -S Native/deps/lw.PPOCR.C -B Native/deps/lw.PPOCR.C/build -G "Visual Studio 17 2022" -A x64 -DBUILD_TESTING=OFF -DLW_BUILD_HTTP_DEMO=OFF -DLW_BUILD_CSHARP_DEMOS=OFF -DLW_RUNTIME_ONLY=ON -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build Native/deps/lw.PPOCR.C/build --config Release --target lw_ppocr_c_shared --parallel
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path 'Native/deps/lw.PPOCR.C/build/Release/lw_ppocr_c.dll')) { throw 'lw_ppocr_c.dll not found' }
+
+      - name: Stage release package
+        shell: pwsh
+        run: |
+          $pack = 'Native/x64/Release/pack'
+          Remove-Item -Recurse -Force $pack -ErrorAction SilentlyContinue
+          $runtime = Join-Path $pack 'AppData/config/plugin/ocr-runtime/ppocr-v6'
+          $models  = Join-Path $pack 'AppData/config/plugin/ocr-models/ppocr-v6-tiny'
+          New-Item -ItemType Directory -Force -Path $runtime, $models | Out-Null
+          Copy-Item 'Native/x64/Release/ScreenShut.exe' $pack -Force
+          Copy-Item 'Native/deps/lw.PPOCR.C/build/Release/lw_ppocr_c.dll' $runtime -Force
+          Set-Content -LiteralPath (Join-Path $runtime 'runtime.id') -Value '1.2.2' -NoNewline -Encoding ascii
+          foreach ($f in 'det.onnx','cls.onnx','rec.onnx','ppocr_keys.txt') {
+            Copy-Item "Native/deps/lw.PPOCR.C/models/ppocrv6-tiny/$f" $models -Force
+          }
+          Set-Content -LiteralPath (Join-Path $models 'pack.id') -Value 'ppocrv6-tiny-1.2.2' -NoNewline -Encoding ascii
+          Copy-Item 'Native/deps/lw.PPOCR.C/LICENSE' $pack -Force
+          Copy-Item 'Native/deps/lw.PPOCR.C/THIRD-PARTY-NOTICES.md' $pack -Force
+          Copy-Item 'Native/deps/lw.PPOCR.C/licenses/PaddleOCR-models-APACHE-2.0.txt' $pack -Force
+          Compress-Archive -Path (Join-Path $pack '*') -DestinationPath 'Native/x64/Release/ScreenShut.zip' -Force
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ScreenShut
-          path: Native/x64/Release/ScreenShut.exe
+          path: Native/x64/Release/ScreenShut.zip
           if-no-files-found: error
           retention-days: 1

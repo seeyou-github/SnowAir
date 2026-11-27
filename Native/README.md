@@ -6,7 +6,7 @@
 
 - 区域截图、标注、长截图、录屏（GIF / MP4）、OCR、二维码识别
 - 托盘常驻、全局热键（默认 `F1`）
-- 单 exe、静态链接 CRT，无额外运行库依赖（OCR 插件除外）
+- 单 exe、静态链接 CRT；OCR 运行时 DLL 与模型随压缩包一起分发，无需运行时下载
 
 ## 目录
 
@@ -58,8 +58,14 @@ ScreenShut.exe --enter=tray              # 仅托盘（等同于默认行为）
 
 用户设置在 `config.json`；本机数据（剪贴板历史、截图/录屏历史、上次选区）在 `local.json`，图片缓存在 `Clipboard\`。截图/录像默认输出到 `AppData\save\`，临时文件在 `AppData\temp\`。
 
-## OCR 插件
+## OCR 运行时
 
-将 [ImageReader.exe](https://github.com/xland/ImageReader/releases) 放到 `AppData\config\plugin` 或 exe 同目录。
+`deps/lw.PPOCR.C` 内置 Pure-C OCR 运行时源码（v1.2.2），CI 用 CMake 构建 `lw_ppocr_c.dll`，
+连同轻量档官方 ONNX 模型一起打包到 `AppData\config\plugin\` 下：
+
+- `ocr-runtime\ppocr-v6\lw_ppocr_c.dll`
+- `ocr-models\ppocr-v6-tiny\{det,cls,rec}.onnx`、`ppocr_keys.txt`
+
+旧版可选的 [ImageReader.exe](https://github.com/xland/ImageReader/releases) 仍可放到 `AppData\config\plugin` 或 exe 同目录。
 
 由 [CM-idea](https://github.com/CM-idea) 维护。
