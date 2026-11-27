@@ -32,23 +32,29 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Fetch libwebp v1.4.0
+      # 所有第三方源码与模型都已签入仓库；CI 不再下载，缺文件直接失败。
+      - name: Verify vendored dependencies
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force Native\deps | Out-Null
-          if (-not (Test-Path Native\deps\libwebp\src\webp\encode.h)) {
-            Invoke-WebRequest -Uri "https://codeload.github.com/webmproject/libwebp/zip/refs/tags/v1.4.0" -OutFile libwebp.zip
-            Expand-Archive -Path libwebp.zip -DestinationPath . -Force
-            Move-Item -Path libwebp-1.4.0 -Destination Native\deps\libwebp -Force
-          }
-
-      - name: Fetch zxing-cpp v3.1.1
-        shell: pwsh
-        run: |
-          if (-not (Test-Path Native\deps\zxing-cpp-311\core\src\ReadBarcode.h)) {
-            Invoke-WebRequest -Uri "https://codeload.github.com/zxing-cpp/zxing-cpp/zip/refs/tags/v3.1.1" -OutFile zxing.zip
-            Expand-Archive -Path zxing.zip -DestinationPath . -Force
-            Move-Item -Path zxing-cpp-3.1.1 -Destination Native\deps\zxing-cpp-311 -Force
+          $required = @(
+            'Native/deps/libwebp/src/webp/encode.h',
+            'Native/deps/libwebp/libwebp.vcxproj',
+            'Native/deps/zxing-cpp-311/core/src/ReadBarcode.h',
+            'Native/deps/zxing-cpp-311/CMakeLists.txt',
+            'Native/deps/Ling/Ling.vcxproj',
+            'Native/deps/Ling/yoga/yoga.vcxproj',
+            'Native/deps/lw.PPOCR.C/CMakeLists.txt',
+            'Native/deps/lw.PPOCR.C/tools/convert_small_det.py',
+            'Native/deps/lw.PPOCR.C/tools/convert_small_rec.py',
+            'Native/deps/lw.PPOCR.C/converter/convert_cls.py',
+            'Native/deps/lw.PPOCR.C/models/ppocrv6-small/det.onnx',
+            'Native/deps/lw.PPOCR.C/models/ppocrv6-small/rec.onnx',
+            'Native/deps/lw.PPOCR.C/models/ppocrv6-tiny/cls.onnx',
+            'Native/deps/lw.PPOCR.C/models/ppocrv6-shared/PP-OCRv6_small_rec_dict.txt'
+          )
+          $missing = $required | Where-Object { -not (Test-Path $_) }
+          if ($missing) {
+            throw "Missing vendored dependency files:`n$($missing -join "`n")`nCI no longer downloads deps; commit them under Native/deps."
           }
 
       - name: Build ZXing static library
