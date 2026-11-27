@@ -8,7 +8,6 @@
 #include "Tray.h"
 #include "TrayIcon.h"
 #include "Lang.h"
-#include "Update.h"
 #include "Util.h"
 #include "./Win/WinCap.h"
 #include "./Win/WinPin.h"
@@ -471,6 +470,5 @@ App::App()
             WinCap::init();
             return;
         }
-        Update::checkLater();
     }
 }

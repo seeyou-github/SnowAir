@@ -10,7 +10,6 @@
 #include "../Lang.h"
 #include "../Setting.h"
 #include "../Plugin/PluginHost.h"
-#include "../Update.h"
 #include "../Util.h"
 #include "WinSetting.h"
 #include "SettingTheme.h"
@@ -353,10 +352,6 @@ void WinSetting::onCreated()
 	// 加载默认页（热键页 index=0）
 	loadPage(menuIndex);
 
-	// 每天一次的静默版本检查：应用长期不退出时，靠「打开设置」把这一天的检查补上
-	//（内部按 Setting::updateCheckDay 记账，同一天不会重复请求）
-	Update::checkLater();
-
 	// onCreated 早于 createNativeWindow 的 layout()，先手动排版，避免首帧节点都在 (0,0)
 	layout();
 
@@ -437,8 +432,6 @@ void WinSetting::onMenuItemClick(Ling::Button* menuItem)
 	auto index = Ling::Util::getIndex(menus, menuItem);
 	if (index < 0) return;
 	if (index == menuIndex) {
-		// 已在该页：关于页的绿色「立即更新」按钮在这里恢复默认（不重建整页）
-		if (index == 7 && pageAbout) pageAbout->resetCheckButton();
 		return;
 	}
 

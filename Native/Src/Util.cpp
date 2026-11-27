@@ -42,23 +42,6 @@ std::array<int, 3> Util::getAppVersion()
 	return result;
 }
 
-std::wstring Util::parseGithubReleaseTag(const std::wstring& atom)
-{
-	// 只取第一个 <entry> 里的 releases/tag/ 链接，避免把正文里的旧版本链接当成最新版
-	const std::wstring key = L"releases/tag/";
-	auto entry = atom.find(L"<entry");
-	auto start = entry == std::wstring::npos ? 0 : entry;
-	auto p = atom.find(key, start);
-	if (p == std::wstring::npos) return {};
-	p += key.size();
-	auto e = atom.find_first_of(L"\"'<", p);
-	if (e == std::wstring::npos) e = atom.size();
-	std::wstring tag = atom.substr(p, e - p);
-	auto cut = tag.find_first_of(L"?#");
-	if (cut != std::wstring::npos) tag.resize(cut);
-	return tag;
-}
-
 bool Util::isElevated()
 {
 	HANDLE token = nullptr;

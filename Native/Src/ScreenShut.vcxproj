@@ -277,7 +277,6 @@
     <ClCompile Include="Translate\TranslateService.cpp" />
     <ClCompile Include="Tray.cpp" />
     <ClCompile Include="TrayIcon.cpp" />
-    <ClCompile Include="Update.cpp" />
     <ClCompile Include="Image\WebpCodec.cpp" />
     <ClCompile Include="Util.cpp" />
     <ClCompile Include="SingleInstance.cpp" />
@@ -401,7 +400,6 @@
     <ClInclude Include="Translate\TranslateTypes.h" />
     <ClInclude Include="Tray.h" />
     <ClInclude Include="TrayIcon.h" />
-    <ClInclude Include="Update.h" />
     <ClInclude Include="Image\WebpCodec.h" />
     <ClInclude Include="Util.h" />
     <ClInclude Include="Win\AnnotHost.h" />
@@ -449,7 +447,6 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="Res\logo.ico" />
-    <Image Include="..\..\images\About.png" />
   </ItemGroup>
   <ItemGroup>
     <Font Include="Res\ScreenShutIcons.ttf" />
@@ -465,24 +462,6 @@
       <Project>{540bb258-d062-4159-8cf3-fe9ab9e4b0ae}</Project>
     </ProjectReference>
   </ItemGroup>
-  <!-- 关于页配图：源图在仓库根 images/About.png，编译资源前拷到 Res/ 供 Resource.rc 打包。
-       放成目标而不是手工拷贝，是为了「改图 → 直接编译」就能生效（SkipUnchangedFiles 避免每次重复写）。 -->
-  <Target Name="CopyAboutImage" BeforeTargets="ResourceCompile">
-    <Copy SourceFiles="$(ProjectDir)..\..\images\About.png"
-          DestinationFiles="$(ProjectDir)Res\About.png"
-          SkipUnchangedFiles="true" />
-    <!-- 关于页彩蛋：悬停作者行时气泡里的二维码，源图在仓库根目录 images/。
-         深色主题的气泡是浅底，浅色主题的气泡是深底，所以两种配色各打一张。
-         源图不在时跳过拷贝（Res/ 下已有打包好的副本），免得整个构建因为缺图失败。 -->
-    <Copy SourceFiles="$(ProjectDir)..\..\images\黑色二维码.png"
-          DestinationFiles="$(ProjectDir)Res\QRCodeBlack.png"
-          SkipUnchangedFiles="true"
-          Condition="Exists('$(ProjectDir)..\..\images\黑色二维码.png')" />
-    <Copy SourceFiles="$(ProjectDir)..\..\images\白色二维码.png"
-          DestinationFiles="$(ProjectDir)Res\QRCodeWhite.png"
-          SkipUnchangedFiles="true"
-          Condition="Exists('$(ProjectDir)..\..\images\白色二维码.png')" />
-  </Target>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
 </Project>

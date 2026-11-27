@@ -12,7 +12,6 @@
 #include "../App.h"
 #include "../Util.h"
 #include "../Lang.h"
-#include "../Update.h"
 #include "CapLong.h"
 #include "CapVideo.h"
 #include "../Tool/ToolCap.h"
@@ -3992,9 +3991,6 @@ void WinCap::onClosed()
         if (!WinPin::hasWindow()) {
             if (Ling::App::get()->args[L"--auto-quit"] == L"true") {
                 Ling::App::get()->quit(0);
-            }
-            else {
-                Update::checkLater();
             }
         }
     });

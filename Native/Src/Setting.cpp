@@ -78,7 +78,7 @@ namespace {
     // 配置文件的默认内容。空文件、坏 JSON、缺键都拿它兜底，所以这里列出的每一项
     // 都是代码里会直接按名字取的（见 getLang / getAutoStart）。
     // 全局热键**不在这里**给默认值 —— 键位统一由 getShortcutKey 的内置默认表决定（defaultShortcutOf）
-    constexpr std::wstring_view defaultConfig{ LR"""({"common":{"autoStart":false,"runAsAdmin":false,"language":"zh-CN","languageAuto":true,"updateCheckFreq":0}})""" };
+    constexpr std::wstring_view defaultConfig{ LR"""({"common":{"autoStart":false,"runAsAdmin":false,"language":"zh-CN","languageAuto":true}})""" };
 
 }
 
@@ -1611,36 +1611,6 @@ void Setting::removeToolKey(const std::wstring& tool, const std::wstring& key)
     save();
 }
 
-long long Setting::getUpdateCheckDay()
-{
-    return getLocalStateInt(L"updateCheckDay", 0);
-}
-
-void Setting::setUpdateCheckDay(long long day)
-{
-    setLocalStateInt(L"updateCheckDay", day);
-}
-
-int Setting::getUpdateCheckFreq()
-{
-    auto common = configObj.GetNamedObject(L"common", nullptr);
-    if (!common) return 0;
-    const int v = static_cast<int>(common.GetNamedNumber(L"updateCheckFreq", 0));
-    return std::clamp(v, 0, 3);
-}
-
-void Setting::setUpdateCheckFreq(int v)
-{
-    auto common = configObj.GetNamedObject(L"common", nullptr);
-    if (!common) {
-        common = JsonObject();
-        configObj.SetNamedValue(L"common", common);
-    }
-    common.SetNamedValue(L"updateCheckFreq",
-        JsonValue::CreateNumberValue(static_cast<double>(std::clamp(v, 0, 3))));
-    save();
-}
-
 void Setting::normalizeConfigSections()
 {
     if (!configObj) configObj = JsonObject{};
@@ -1659,8 +1629,6 @@ void Setting::normalizeConfigSections()
         ensureType(common, L"runAsAdmin", JsonValueType::Boolean);
         ensureType(common, L"language", JsonValueType::String);
         ensureType(common, L"pluginDir", JsonValueType::String);
-        ensureType(common, L"updateCheckFreq", JsonValueType::Number);
-        ensureType(common, L"updateCheckDay", JsonValueType::Number);
     }
     if (auto features = configObj.GetNamedObject(L"features", nullptr)) {
         ensureType(features, L"lastCaptureRect", JsonValueType::String);

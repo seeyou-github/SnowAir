@@ -71,12 +71,6 @@ public:
 	void setToolStr(const std::wstring& tool, const std::wstring& key, const std::wstring& val);
 	// 删除 toolPin/<tool>/<key>（键不存在时什么都不做）。用于「恢复默认」时把覆盖项清掉。
 	void removeToolKey(const std::wstring& tool, const std::wstring& key);
-	long long getUpdateCheckDay();
-	void setUpdateCheckDay(long long day);
-	// 自动检查更新的频率：0=一天 1=一周 2=一月 3=从不
-	int getUpdateCheckFreq();
-	void setUpdateCheckFreq(int v);
-
 	int getOcrEngine();
 	void setOcrEngine(int v);
 	// 离线 OCR 模型档位：0 = 轻量（默认，最快，不含日文假名），1 = 标准（支持日文）

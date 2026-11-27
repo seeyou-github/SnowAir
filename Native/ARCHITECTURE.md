@@ -194,7 +194,7 @@ inputArea->setPadding(0.f, 8.f, 0.f, 0.f);
 
 | 触发方式 | 行为 | 位置 |
 |---|---|---|
-| 直接运行 exe（无参数） | 仅托盘待命，同时 `Update::checkLater()` | `App::App()` |
+| 直接运行 exe（无参数） | 仅托盘待命 | `App::App()` |
 | 开机自启（无参数启动）/ 升级后重启 / `--enter=tray` | 同上，仅托盘待命 | `App::App()` |
 | `--enter=pin\|long\|video\|ocr\|qr` | 直接进入对应模式（`WinCap::init()` → `enterByArg()`）；该参数**一次性**，只作用于进程内第一个会话，取走后 F1 / 托盘截图恢复普通截图 | `App::App()` / `WinCap::init()` / `WinCap::enterByArg()` |
 | `--enter=demo`（别名 `canvas`） | 直接进入演示画布：`WinCap::init()` 识别到该值后改按 `StartMode::Demo` 建会话（实时桌面、无框选、不抓静帧），值不透传给 `enterByArg()`；同样一次性 | `App::App()` / `WinCap::init()` |

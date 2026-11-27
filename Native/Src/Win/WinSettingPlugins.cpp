@@ -16,7 +16,6 @@
 #include "../Ocr/PluginPaths.h"
 #include "../Translate/TranslateModelManager.h"
 #include "../Translate/BergamotEngine.h"
-#include "../Update.h"
 #include "../Lang.h"
 #include "../Setting.h"
 #include "../Tool/IconCodes.h"
@@ -322,13 +321,6 @@ WinSettingPlugins::WinSettingPlugins(Ling::WinBase* parent) : Ling::Node(parent)
 		this->dotsPhase = (this->dotsPhase + 1) % 4;
 		this->applyDots();
 		});
-	// 后台/关于页查到晾衣架新版本时，插件卡片要立刻从红色删除钮换成绿色更新钮
-	rackUpdateTok = Update::onRackUpdateChanged().add([this, weakThis]() {
-		if (!weakThis.lock()) return;
-		this->refreshStatus();
-		POINT pt{}; GetCursorPos(&pt); ScreenToClient(win->hwnd, &pt);
-		this->updateHover(pt);
-		});
 }
 
 WinSettingPlugins::~WinSettingPlugins()
@@ -336,7 +328,6 @@ WinSettingPlugins::~WinSettingPlugins()
 	stopDots();
 	win->onMouseMove.remove(hoverTok);
 	win->onTimer.remove(timerTok);
-	Update::onRackUpdateChanged().remove(rackUpdateTok);
 }
 
 // 生成一张插件卡片：卡片容器 + 顶部行（左说明列 / 右方形图标按钮）+ 徽章行
@@ -516,26 +507,14 @@ void WinSettingPlugins::refreshStatus()
 		setBadges(rackBadgeRow, rackOk
 			? std::vector<std::wstring>{ L"晾衣架 v" + rackVer }
 			: std::vector<std::wstring>{});
-		// 有插件新版本：已安装卡片的删除按钮改成绿色刷新图标，点击直接更新
-		const bool rackUpdate = rackOk && Update::rackUpdateAvailable();
-		cards[CardRack].update = rackUpdate;
 		if (auto* del = cards[CardRack].delBtn) {
 			del->setFontFamily(Icon::Family);
 			del->setFontSize(18.f);
-			if (rackUpdate) {
-				del->setText(Icon::Refresh);
-				del->setBg(0x34C75933);        // 绿色 20% 底
-				del->setHoverBg(0x34C75933);
-				del->setColor(0x34C759FF);
-				del->setHoverColor(0x34C759FF);
-			}
-			else {
-				del->setText(Icon::Remove);
-				del->setBg(0xFF383C33);        // 红色 20% 底
-				del->setHoverBg(0xFF383C33);
-				del->setColor(0xFF383CFF);
-				del->setHoverColor(0xFF383CFF);
-			}
+			del->setText(Icon::Remove);
+			del->setBg(0xFF383C33);        // 红色 20% 底
+			del->setHoverBg(0xFF383C33);
+			del->setColor(0xFF383CFF);
+			del->setHoverColor(0xFF383CFF);
 		}
 		cards[CardOcr].installed = ocrOk;
 		cards[CardTr].installed = trOk;
@@ -680,9 +659,7 @@ void WinSettingPlugins::build()
 	rackBadgeRow = rack.badgeRow;
 	rack.dlBtn->onClick.add([this](Ling::Button*) { this->startRackDownload(); });
 	rack.delBtn->onClick.add([this](Ling::Button*) {
-		// 有更新时这个位置是绿色刷新钮：点击直接更新；否则仍是删除
-		if (cards.size() > CardRack && cards[CardRack].update) this->startRackDownload();
-		else this->deleteCard(CardRack);
+		this->deleteCard(CardRack);
 	});
 	cards.push_back({ rack.card, rack.dlBtn, rack.delBtn, false, false, false });
 
@@ -1057,8 +1034,7 @@ void WinSettingPlugins::startRackDownload()
 
 	// 优先固定资源名：/releases/latest/download/SnowAir-Rack.zip 永远是最新 release。
 	// 老 release 还没传固定名时，退回按版本号拼 URL（不再把 0.1.0 当默认值）。
-	std::wstring fallbackVer = Update::rackLatestVersion();
-	if (fallbackVer.empty()) fallbackVer = kRackVersion;
+	const std::wstring fallbackVer = kRackVersion;
 	const std::wstring fixedUrl = kRackLatestUrl;
 	const std::wstring fallbackUrl = rackDownloadUrl(fallbackVer);
 

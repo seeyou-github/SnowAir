@@ -22,7 +22,6 @@
 #include "../App.h"
 #include "../Setting.h"
 #include "../Util.h"
-#include "../Update.h"
 #include "CaptureEsc.h"
 
 using namespace Microsoft::WRL;
@@ -222,9 +221,6 @@ void WinPin::onClosed()
 		if (winPins.empty()) {
 			if (Ling::App::get()->args[L"--auto-quit"] == L"true") {
 				Ling::App::get()->quit(0);
-			}
-			else {
-				Update::checkLater();
 			}
 			// 一张贴图都不剩了：稍后把贴图/贴屏专用的资源（引擎、图形设备）还回去
 			App::scheduleIdleRelease();

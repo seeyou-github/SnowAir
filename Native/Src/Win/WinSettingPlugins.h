@@ -83,7 +83,6 @@ private:
 	std::vector<CardSlot> cards;   // [0]=OCR [1]=翻译 [2]=晾衣架 [3]=果核看图
 	winrt::event_token hoverTok{};
 	winrt::event_token timerTok{};
-	winrt::event_token rackUpdateTok{};
 	// 省略号动画状态（同一时刻只服务一个进度行）
 	Ling::Label* dotsLabel{ nullptr };
 	std::wstring dotsPrefix, dotsSuffix;
