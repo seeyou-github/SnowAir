@@ -1,144 +1,31 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: light)" srcset="./images/banner.png" />
-    <img src="./images/banner.png" alt="ScreenShut 轻雪" />
-  </picture>
-</p>
-<h1 align="center">
-  <span>ScreenShut 轻雪</span>
-</h1>
-<p align="center">
-  <span align="center">ScreenShut 轻雪是一套轻量的 Windows 截图与标注工具，覆盖截图、长截图、录屏、OCR 识别、标注与贴图，提供 Lite 版与功能更完整的专业版。</span>
-</p>
-<h3 align="center">
-  <a href="#-版本">版本</a>
-  <span> · </span>
-  <a href="#-安装">安装</a>
-  <span> · </span>
-  <a href="Native/ARCHITECTURE.md">架构文档</a>
-  <span> · </span>
-  <a href="https://github.com/CM-idea/SnowAir/releases">发布说明</a>
-</h3>
-<p align="center">
-  <span>简体中文</span>
-  <span> | </span>
-  <a href="README.en.md">English</a>
-</p>
+魔改自用版。
 
-## 🔨 功能
+================================================================================
+第三方组件声明 / Third-Party Notices
+================================================================================
 
-从区域截图、屏幕录制、演示画布到贴图、长截图与文字识别，ScreenShut 内置日常截图所需的一整套工具：
+本项目基于以下开源项目演进而来，相关代码与资源遵循其各自的许可协议：
 
-|   |   |   |
-| --- | --- | --- |
-| <picture><source media="(prefers-color-scheme: light)" srcset="images/icon/region.svg" /><img src="images/icon/region.svg" alt="区域截图" height="20" /></picture>&nbsp;&nbsp; 区域截图 | <picture><source media="(prefers-color-scheme: light)" srcset="images/icon/record.svg" /><img src="images/icon/record.svg" alt="屏幕录制" height="20" /></picture>&nbsp;&nbsp; 屏幕录制 | <picture><source media="(prefers-color-scheme: light)" srcset="images/icon/canvas.svg" /><img src="images/icon/canvas.svg" alt="演示画布" height="20" /></picture>&nbsp;&nbsp; 演示画布 |
-| <picture><source media="(prefers-color-scheme: light)" srcset="images/icon/pin.svg" /><img src="images/icon/pin.svg" alt="贴图" height="20" /></picture>&nbsp;&nbsp; 贴图 | <picture><source media="(prefers-color-scheme: light)" srcset="images/icon/mirror.svg" /><img src="images/icon/mirror.svg" alt="屏幕镜像" height="20" /></picture>&nbsp;&nbsp; 屏幕镜像* | <picture><source media="(prefers-color-scheme: light)" srcset="images/icon/action.svg" /><img src="images/icon/action.svg" alt="超级动作" height="20" /></picture>&nbsp;&nbsp; 超级动作* |
-| <picture><source media="(prefers-color-scheme: light)" srcset="images/icon/long.svg" /><img src="images/icon/long.svg" alt="长截图" height="20" /></picture>&nbsp;&nbsp; 长截图 | <picture><source media="(prefers-color-scheme: light)" srcset="images/icon/ocr.svg" /><img src="images/icon/ocr.svg" alt="OCR" height="20" /></picture>&nbsp;&nbsp; OCR 文字识别 | <picture><source media="(prefers-color-scheme: light)" srcset="images/icon/translate.svg" /><img src="images/icon/translate.svg" alt="翻译" height="20" /></picture>&nbsp;&nbsp; 翻译 |
-| <picture><source media="(prefers-color-scheme: light)" srcset="images/icon/rect.svg" /><img src="images/icon/rect.svg" alt="矩形" height="20" /></picture>&nbsp;&nbsp; 矩形 | <picture><source media="(prefers-color-scheme: light)" srcset="images/icon/arrow.svg" /><img src="images/icon/arrow.svg" alt="箭头" height="20" /></picture>&nbsp;&nbsp; 箭头 | <picture><source media="(prefers-color-scheme: light)" srcset="images/icon/pen.svg" /><img src="images/icon/pen.svg" alt="画笔" height="20" /></picture>&nbsp;&nbsp; 画笔 |
-| <picture><source media="(prefers-color-scheme: light)" srcset="images/icon/text.svg" /><img src="images/icon/text.svg" alt="文字" height="20" /></picture>&nbsp;&nbsp; 文字 | <picture><source media="(prefers-color-scheme: light)" srcset="images/icon/number.svg" /><img src="images/icon/number.svg" alt="序号" height="20" /></picture>&nbsp;&nbsp; 序号 | <picture><source media="(prefers-color-scheme: light)" srcset="images/icon/mosaic.svg" /><img src="images/icon/mosaic.svg" alt="马赛克" height="20" /></picture>&nbsp;&nbsp; 马赛克 |
-| <picture><source media="(prefers-color-scheme: light)" srcset="images/icon/patina.svg" /><img src="images/icon/patina.svg" alt="包浆" height="20" /></picture>&nbsp;&nbsp; 包浆 | <picture><source media="(prefers-color-scheme: light)" srcset="images/icon/watermark.svg" /><img src="images/icon/watermark.svg" alt="水印" height="20" /></picture>&nbsp;&nbsp; 水印 | <picture><source media="(prefers-color-scheme: light)" srcset="images/icon/highlight.svg" /><img src="images/icon/highlight.svg" alt="高亮" height="20" /></picture>&nbsp;&nbsp; 高亮 |
+1) ScreenCapture
+   https://github.com/xland/ScreenCapture
+   Copyright (c) xland
+   Licensed under the MIT License.
 
-此外还有：托盘常驻、全局热键、截图历史、AI大模型*、快捷翻译*、自定义主题等等个性化功能。
+2) Ling
+   https://github.com/xland/Ling
+   Copyright (c) 2025 liulun
+   Licensed under the MIT License.
 
-> \* 带星号的为专业版功能。
+3) lw.PPOCR.C
+   https://github.com/lxw112190/lw.PPOCR.C
+   Copyright (c) lw.PPOCR.C contributors
+   Licensed under the MIT License.
+   （离线文字识别 PP-OCRv6 的推理运行时，按需下载、不随安装包分发）
 
-## 🖼️ 界面
+4) PP-OCRv6 模型（DET / CLS / REC 与字典）
+   来自 PaddlePaddle / PaddleOCR
+   https://github.com/PaddlePaddle/PaddleOCR
+   Licensed under the Apache License, Version 2.0.（按需下载、不随安装包分发）
 
-浅色 / 深色两种主题，可跟随系统自动切换，也可手动指定。
-
-| 浅色主题 | 深色主题 |
-| :---: | :---: |
-| ![浅色主题](images/Bright.png) | ![深色主题](images/dark.png) |
-
-## 🧩 版本
-
-ScreenShut 分为两个版本，共享同一套使用体验与功能布局：
-
-| 版&#8288;本 | 说明 | 获&#8288;取&#8288;方&#8288;式 |
-| --- | --- | --- |
-| **Lite 版** | 4MB 级超小体积、单文件免安装，覆盖截图、标注、长截图、录屏、OCR 与贴图等日常功能。 | [点&#8288;此&#8288;获&#8288;取][releases-link] |
-| **专&#8288;业&#8288;版** | 基于 Qt6 开发，在 Lite 版基础上提供更完整的专业功能（AI 大模型、屏幕镜像、超级动作、快捷翻译等）与持续更新支持 | [点&#8288;此&#8288;获&#8288;取][releases-link] |
-
-## 📦 安装
-
-以下为软件的获取、运行与扩展组件说明，详细说明见 [`Native/README.md`](Native/README.md)：
-<br/><br/>
-<details open>
-<summary><strong>软件下载</strong></summary>
-<br/>
-
-前往 [ScreenShut Releases](https://github.com/CM-idea/SnowAir/releases)，展开 **Assets** 下载 `ScreenShut.exe`，双击即可运行，无需安装。
-
-所有数据都放在 exe 同目录的 `AppData\` 下：`AppData\config\` 存配置、语言、插件及本机数据（含 `local.json`），截图/录像默认输出到 `AppData\save\`，运行时的临时文件写在 `AppData\temp\`。把整个文件夹拷走即可带着全部设置一起迁移；截图与录像目录仍可在设置中改为其它路径。
-
-</details>
-
-<details>
-<summary><strong>开源范围</strong></summary>
-<br/>
-
-ScreenShut 本体以 **Apache License 2.0** 开源；运行依赖定制版 Ling（含未公开实现），该分支不随仓库发布，因此**不提供从源码直接构建**。
-
-需要直接使用请从 [ScreenShut Releases](https://github.com/CM-idea/SnowAir/releases) 下载 `ScreenShut.exe`。
-
-</details>
-
-<details>
-<summary><strong>离线组件</strong></summary>
-<br/>
-包含离线 OCR、离线翻译等组件，按需下载、不随安装包内置：可在设置中心的「插件集成」下载对应组件与所需语言包，再到「功能设置」中启用，即可离线识别中英文与界面截图，无需保持联网，引擎用完即释放、不会长期占用内存。
-
-</details>
-
-<details>
-<summary><strong>命令行</strong></summary>
-<br/>
-不带参数启动时**只挂托盘图标待命**，不会自动进入截图模式：
-
-```text
-ScreenShut.exe                     # 托盘待命，默认
-ScreenShut.exe --auto-quit=true    # 截完即退出
-ScreenShut.exe --enter=pin         # 贴图
-ScreenShut.exe --enter=long        # 长截图
-ScreenShut.exe --enter=video       # 录屏
-ScreenShut.exe --enter=ocr         # 文字识别
-ScreenShut.exe --enter=demo        # 演示画布
-ScreenShut.exe --enter=edit        # 图片编辑
-ScreenShut.exe --enter=tray        # 仅托盘，等同于默认行为
-```
-
-截图入口：托盘图标单击，按「功能设置 → 单击托盘执行」选择截图 / 打开设置 / 无操作；
-或使用全局热键 `F1`；再次运行 exe 则打开设置中心。
-
-</details>
-
-## ✨ 新特性
-
-要了解最新变化，请查看 [发布说明](https://github.com/CM-idea/SnowAir/releases)。
-
-## 🛣️ 路线图
-
-持续打磨标注与录屏能力，完善 OCR / 翻译服务集成，并推进设置中心与工具栏外观编辑器。
-
-## ❤️ ScreenShut 社区
-
-ScreenShut 由 [Liuyiran](https://github.com/CM-idea) 维护，欢迎通过 [Issue](https://github.com/CM-idea/SnowAir/issues) 反馈问题或提出建议。
-
-## 🔒 隐私声明
-
-ScreenShut 是本地工具，默认不上传任何截图或文本；联网仅用于检查更新、在线 OCR / 翻译服务与插件下载。
-
-## 🙏 鸣谢
-
-感谢 [xland](https://github.com/xland) 及 [ScreenCapture](https://github.com/xland/ScreenCapture) 的开源与分享。
-
-[![LINUX DO](https://img.shields.io/badge/LINUX%20DO-Community-1677FF?style=flat-square)](https://linux.do/)
-
-## 📄 许可证
-
-本项目以 **Apache License 2.0** 协议开源，全文见 [`LICENSE`](LICENSE)；第三方组件与上游署名见 [`NOTICE`](NOTICE)。
-
-本仓库的开源范围是 ScreenShut 本体；所依赖的定制版 Ling 不在开源范围内。
-
-[releases-link]: https://github.com/CM-idea/SnowAir/releases
-[issues-link]: https://github.com/CM-idea/SnowAir/issues
+其余第三方组件（如 Yoga、zxing-cpp、libwebp、quirc、cgif 等）分别遵循各自的开源许可协议，
+其版权归各自作者所有。
