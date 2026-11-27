@@ -149,35 +149,6 @@ App* App::get()
     return app.get();
 }
 
-namespace {
-    // 重启用的命令行：沿用当前参数，去掉提权 / 等待标记，再补上 --wait-pid=<本进程>，
-    // 让新实例先等本进程退干净再去抢单实例（窗口销毁在进程退出之后，直接抢会输）。
-    std::wstring relaunchParams(bool elevated)
-    {
-        std::wstring params;
-        if (auto* la = Ling::App::get()) {
-            for (const auto& [key, val] : la->args) {
-                if (key == L"--elevated" || key == L"--wait-pid") continue;
-                params += L" " + key;
-                if (val != L"true") params += L"=" + val;
-            }
-        }
-        if (elevated) params += L" --elevated";
-        params += L" --wait-pid=" + std::to_wstring(GetCurrentProcessId());
-        return params;
-    }
-}
-
-// 以管理员身份重新启动：先以 runas 拉起一个提权新实例（带上本进程 PID 让它等我们退干净），
-// 本进程随即退出。
-bool App::restartAsAdmin()
-{
-    const auto params = relaunchParams(true);
-    if (!Util::spawnElevated(params)) return false;
-    if (auto* la = Ling::App::get()) la->quit(0);
-    return true;
-}
-
 void App::createBitmapFromBGRA(int w, int h, const std::vector<BYTE>& data, ID2D1Bitmap1** img)
 {
     if (!img || w <= 0 || h <= 0) return;
@@ -400,18 +371,6 @@ App::App()
     // 上面判定出的热键归属要等配置就绪再应用（applyHotkeys 会据此决定注册与否）
     if (hotkeysYielded && Setting::get()) Setting::get()->setHotkeysYielded(true);
     Lang::init();
-
-    // 使用 find 读取，不要使用 operator[]：后者会把未传入的键以空值插入 args，
-    // 后面重建命令行时会混进 --elevated= / --auto-quit= 这类空值噪声。
-    auto elevIt = app->args.find(L"--elevated");
-    const bool launchedElevated = elevIt != app->args.end() && elevIt->second == L"true";
-
-    // 以管理员身份运行：开局自举。配置开启、当前进程尚未提权、且本次启动不是提权进程时，
-    // 用 runas 重启自身并退出，让"下一次打开软件"（限手工重开 / 开机自启等）都以管理员身份运行。
-    if (Setting::get()->getRunAsAdmin() && !launchedElevated && !Util::isElevated()) {
-        const auto params = relaunchParams(true);
-        if (Util::spawnElevated(params)) app->exit(0); // 提权进程已拉起，原进程退出
-    }
 
     // 每次启动按当前配置同步一次开机自启登记：开启时把 Run 值指向当前 exe，
     // 关闭时清掉残留的值和键（换目录 / 升级后也能自动接管）。

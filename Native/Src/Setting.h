@@ -39,8 +39,6 @@ public:
 	// 启动时调用：按当前配置同步一次 HKCU Run 项。开启时用当前 exe 路径覆盖，
 	// 关闭时删掉值和键（与 TrafficMonitor 的 SyncAutoStart 一致）。
 	void syncAutoStart();
-	bool getRunAsAdmin();
-	void setRunAsAdmin(bool on);
 	std::wstring getLang();
 	void setLang(const std::wstring& lang);
 	bool getLangAuto();

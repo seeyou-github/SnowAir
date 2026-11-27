@@ -72,7 +72,7 @@ namespace {
     // 配置文件的默认内容。空文件、坏 JSON、缺键都拿它兜底，所以这里列出的每一项
     // 都是代码里会直接按名字取的（见 getLang / getAutoStart）。
     // 全局热键**不在这里**给默认值 —— 键位统一由 getShortcutKey 的内置默认表决定（defaultShortcutOf）
-    constexpr std::wstring_view defaultConfig{ LR"""({"common":{"autoStart":false,"runAsAdmin":false,"language":"zh-CN","languageAuto":true}})""" };
+    constexpr std::wstring_view defaultConfig{ LR"""({"common":{"autoStart":false,"language":"zh-CN","languageAuto":true}})""" };
 
 }
 
@@ -959,27 +959,6 @@ void Setting::syncAutoStart()
     setAutoStart(getAutoStart());
 }
 
-bool Setting::getRunAsAdmin()
-{
-    // 内置 Administrator 账户天然就是管理员（不受 UAC 过滤），恒视为开启。
-    if (Util::isBuiltinAdminAccount()) return true;
-    auto common = configObj.GetNamedObject(L"common", nullptr);
-    return common && common.GetNamedBoolean(L"runAsAdmin", false);
-}
-
-void Setting::setRunAsAdmin(bool on)
-{
-    // 内置 Administrator 账户天然提权，开关关不掉：直接忽略（UI 侧点关闭也只会弹通知）。
-    if (Util::isBuiltinAdminAccount()) return;
-    auto common = configObj.GetNamedObject(L"common", nullptr);
-    if (!common) {
-        common = JsonObject();
-        configObj.SetNamedValue(L"common", common);
-    }
-    common.SetNamedValue(L"runAsAdmin", JsonValue::CreateBooleanValue(on));
-    save();
-}
-
 std::filesystem::path Setting::initDataPath()
 {
     // 全部数据固定在 exe 同目录的 AppData\config 下（不再使用系统 %APPDATA%，
@@ -1570,7 +1549,6 @@ void Setting::normalizeConfigSections()
     };
     if (auto common = configObj.GetNamedObject(L"common", nullptr)) {
         ensureType(common, L"autoStart", JsonValueType::Boolean);
-        ensureType(common, L"runAsAdmin", JsonValueType::Boolean);
         ensureType(common, L"language", JsonValueType::String);
         ensureType(common, L"pluginDir", JsonValueType::String);
     }
@@ -1872,7 +1850,6 @@ void Setting::setCancelConfirmDialog(bool on) { setFeatBool(L"cancelConfirmDialo
 void Setting::restoreFunctionScreenshotDefaults()
 {
 	setAutoStart(false);
-	setRunAsAdmin(false);
 	setFindWindowElements(true);
 	setCancelConfirmDialog(false);
 	setAutoSaveAfterCapture(false);
@@ -1950,10 +1927,7 @@ void Setting::restoreFunctionOtherDefaults()
 // 判据统一取"restore* 会不会真的改动什么"：每项都与 restore 写回的值比一遍。改默认值时两处一起改。
 bool Setting::functionScreenshotAtDefaults()
 {
-	// 内置 Administrator 账户的「以管理员身份运行」恒为开且无法关闭，故不参与判定；
-	// 否则该子页永远不会被判为默认状态，「恢复默认」按钮将始终可用
-	const bool runAsAdminDefault = Util::isBuiltinAdminAccount() || !getRunAsAdmin();
-	return !getAutoStart() && runAsAdminDefault
+	return !getAutoStart()
 		&& getFindWindowElements() && !getCancelConfirmDialog() && !getAutoSaveAfterCapture()
 		&& getCaptureFinishAction() == 0 && getSaveFormat() == L"PNG (*.png)"
 		&& getDemoDefaultTool() == 0 && getDemoEdgeBehavior() == 0

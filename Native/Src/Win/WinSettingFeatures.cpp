@@ -885,50 +885,10 @@ void WinSettingFeatures::build()
 void WinSettingFeatures::buildBasic(Ling::Node* p)
 {
 	auto* s = Setting::get();
-	// 开机自启 + 以管理员身份运行：双栏（由外观设置 > 软件外观 迁移而来，样式与其他开关一致）。
 	{
 		auto* g = SettingUi::grid2(p);
 		SettingUi::toggleRow(g, Lang::get(L"setting.autoStart"), s->getAutoStart(),
 			[](bool on) { Setting::get()->setAutoStart(on); }, true);
-
-		// 「以管理员身份运行」不用 toggleRow：它的开关状态由组件内部自己翻转，一旦遇到
-		// "锁定为开" 或 "取消后回滚"，内部状态就和视觉对不上，表现为要点两下才轮到"关"。
-		// 这里开关恒由 getRunAsAdmin() 决定，点击后按真实值重画，不依赖组件内部状态。
-		{
-			auto r = SettingUi::optionRow(g, Lang::get(L"setting.runAsAdmin"), L"", true, SettingUi::kToggleH);
-			auto* btn = r.ctrlBox->makeChild<Ling::Button>();
-			SettingUi::styleToggle(btn, s->getRunAsAdmin());
-			const bool locked = Util::isBuiltinAdminAccount();
-			btn->onClick.add([this, btn, locked](Ling::Button*) {
-				if (locked) {
-					// 内置 Administrator 账户天然就是管理员：开关锁定为开，点它只弹通知、不翻转
-					SettingUi::ConfirmDialog::ask(this->win, Lang::get(L"setting.runAsAdminLockedTip"),
-						[](bool) {});
-					return;
-				}
-				auto* set = Setting::get();
-				if (set->getRunAsAdmin()) {                        // 开 → 关：只落配置
-					set->setRunAsAdmin(false);
-					SettingUi::styleToggle(btn, set->getRunAsAdmin());
-					return;
-				}
-				if (Util::isElevated()) {                          // 开且已是管理员：只落配置
-					set->setRunAsAdmin(true);
-					SettingUi::styleToggle(btn, set->getRunAsAdmin());
-					return;
-				}
-				// 开且当前是普通权限：确认后立即以管理员身份重启
-				SettingUi::ConfirmDialog::ask(this->win, Lang::get(L"setting.runAsAdminConfirm"),
-					[btn](bool ok) {
-						if (!ok) return;                           // 取消：状态没变，视觉本就不用动
-						Setting::get()->setRunAsAdmin(true);
-						SettingUi::styleToggle(btn, Setting::get()->getRunAsAdmin());
-						// 先投递到调度队列再重启：不要在弹窗自身的点击回调中同步退出进程
-						if (auto* a = Ling::App::get()) a->dq.TryEnqueue([] { ::App::restartAsAdmin(); });
-						else ::App::restartAsAdmin();
-					});
-			});
-		}
 		SettingUi::grid2Cells(g);
 	}
 	SettingUi::groupLabel(p, Lang::get(L"setting.fnGrpCapture"));
