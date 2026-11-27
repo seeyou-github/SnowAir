@@ -116,9 +116,6 @@ namespace
 		// 掩码含录屏 → 录屏会话期间也一并镜像。系统按键页把它放在录屏组第一个。
 		{ L"cmd_mouse_through",       kGrpRecord, L"cmdkey.mouseThrough",       Scope::Global,  Scene::None, kRecord | kFullscreen, true, false, L"`" },
 		{ L"cmd_record_toggle",       kGrpRecord, L"cmdkey.recordToggle",       Scope::Global,  Scene::Record, kRecord | kFullscreen, true, false, L"F2" },
-		// 顺序按用户要求：局部放大 → 系统音量 → 动图录制 → 麦克风
-		// allowModifierOnly：允许绑成 Ctrl/Alt/Shift，由 HotkeyHook 做"连按两次"判定
-		{ L"cmd_toggle_magnifier",    kGrpRecord, L"cmdkey.localMagnifier",     Scope::Global,  Scene::None, kRecord | kFullscreen, true, false, L"", true },
 		{ L"cmd_toggle_system_audio", kGrpRecord, L"cmdkey.toggleSystemAudio",  Scope::Session, Scene::Record, kRecord | kFullscreen, true, false, L"" },
 		{ L"cmd_toggle_gif",          kGrpRecord, L"cmdkey.toggleGif",          Scope::Session, Scene::Record, kRecord | kFullscreen, true, false, L"" },
 		{ L"cmd_toggle_mic",          kGrpRecord, L"cmdkey.toggleMic",          Scope::Session, Scene::Record, kRecord | kFullscreen, true, false, L"" },

@@ -6,7 +6,6 @@
 #include "WinCap.h"
 #include "PixLens.h"
 #include "CursorImage.h"
-#include "MagLens.h"
 #include "WinPin.h"
 #include "CutMask.h"
 #include "../App.h"
@@ -122,8 +121,8 @@ protected:
 		if (!ctx) return;
 		ctx->Clear(0);
 		if (drawChrome_) owner_->cutMask->paintChrome(ctx, true);   // 描边画在选区外侧，避免被录进视频
-		// 鼠标轨迹效果（高亮/线条）和单击层都必须位于放大镜之上、且不进放大源；
-		// 采集侧会在镜头之后按同一时间戳补画同一批效果。
+		// 鼠标轨迹效果（高亮/线条）和单击层都必须位于取色放大镜之上、且不进放大源；
+		// 采集侧会按同一时间戳补画同一批效果。
 		if (App::supportsCaptureExclusion()) {
 			owner_->paintMouseHighlight(ctx);
 			owner_->paintMouseTrail(ctx);
@@ -303,30 +302,6 @@ namespace
 	// 「录制中显示按键」也要能反映鼠标操作（做教程时点按比键盘更需要被看见）
 	HHOOK g_mouseHook{ nullptr };
 
-	// 局部放大：修饰键 + 滚轮临时改倍率。单独一个鼠标钩子，避免和按键浮层的钩子互相影响。
-	HHOOK g_magHook{ nullptr };
-	LRESULT CALLBACK magHookProc(int code, WPARAM wp, LPARAM lp)
-	{
-		if (code == HC_ACTION && wp == WM_MOUSEWHEEL) {
-			auto* ms = reinterpret_cast<MSLLHOOKSTRUCT*>(lp);
-			if (ms && !(ms->flags & LLMHF_INJECTED)) {
-				auto* cap = WinCap::get();
-				if (cap && cap->adjustMagnifierZoom((short)HIWORD(ms->mouseData)))
-					return 1;   // 调倍率时吞掉滚轮，别让下层页面跟着滚
-			}
-		}
-		return CallNextHookEx(g_magHook, code, wp, lp);
-	}
-	void ensureMagHook(bool on)
-	{
-		if (on && !g_magHook)
-			g_magHook = SetWindowsHookExW(WH_MOUSE_LL, magHookProc, GetModuleHandleW(nullptr), 0);
-		else if (!on && g_magHook) {
-			UnhookWindowsHookEx(g_magHook);
-			g_magHook = nullptr;
-		}
-	}
-
 	LRESULT CALLBACK mouseHookProc(int code, WPARAM wp, LPARAM lp)
 	{
 		if (code == HC_ACTION) {
@@ -397,7 +372,7 @@ WinCap::WinCap() : AnnotHost()
 		if (cutMask) cutMask->onHoverAnimTick(id);
 		if (id == keyOverlayTimerId) onKeyOverlayTimer();
 		if (id == recCursorTimerId) { updateSelFollowCursor(); updateMouseFx(); }
-		if (id == demoMagnifierTimerId) updateDemoMagnifier();
+		if (id == demoFxTimerId) updateDemoClickFx();
 		if (id == boardPierceTimerId) demoBoardApplyPierce();
 		if (id == demoRecTickTimerId) {
 			if (demoRecRunning_ && !demoRecPaused_) {
@@ -549,8 +524,8 @@ void WinCap::initNow(StartMode mode, std::shared_ptr<std::vector<BYTE>> grab,
     ptr->createNativeWindow(WS_EX_TOOLWINDOW | WS_EX_TOPMOST, WS_POPUP);
     if (mode == StartMode::Demo) {
         ptr->refresh();
-        // 演示画布：局部放大用独立的 16ms 定时器跟随光标（快捷键临时开关 / 录制时按设置显示）
-        ptr->setTimer(16, demoMagnifierTimerId);
+        // 演示画布：轨迹/单击效果用独立的 16ms 定时器推进动画
+        ptr->setTimer(16, demoFxTimerId);
         ptr->makeDemoToolCap();
         // 「功能设置 → 演示 → 默认工具」：0 渐隐画笔（默认）/ 1 画笔 / 2 无
         const int tool = Setting::get()->getDemoDefaultTool();
@@ -1139,8 +1114,6 @@ void WinCap::startDemoRecording()
 			mouseBtnDown_[i] = (GetAsyncKeyState(vks[i]) & 0x8000) != 0;
 	}
 	demoRecRunning_ = true;
-	// 开始录制这一刻才按「设置 / 临时开关」决定录制画面里要不要镜头
-	if (capVideo) capVideo->setLocalMagnifier(localMagnifierOn());
 	demoRecPaused_ = false;
 	demoRecElapsed_ = 0;
 	setTimer(1000, demoRecTickTimerId);
@@ -2243,7 +2216,7 @@ void WinCap::layout()
     if (!snapshotCapturing_) {
         paintPix(ctx);
         // 支持排除捕获时，鼠标轨迹效果（高亮/线条）与单击效果都改在 SelectionChrome 绘制：
-        // 它们不会进入镜头源帧，采集侧在镜头之后按同一时间戳补画，层级是「镜头 < 效果 < 光标」。
+        // 它们不会进入采集源帧，采集侧按同一时间戳补画，层级是「效果 < 光标」。
         const bool separateMouseFx = chrome_ && App::supportsCaptureExclusion();
         if (!separateMouseFx) {
             paintMouseHighlight(ctx);
@@ -2251,7 +2224,7 @@ void WinCap::layout()
         }
         if (!separateMouseFx) paintClickRipple(ctx);
         // 放大动画期间系统光标被临时藏起，改由覆盖层画放大的实时光标。
-        // 录制中光标只由采集线程画（镜头之后、1:1）：覆盖层再画一份会变成两个光标；
+        // 录制中光标只由采集线程画（1:1）：覆盖层再画一份会变成两个光标；
         // 屏幕上的实时预览用的是系统光标本身，不需要这里补。非录制状态才画快照光标。
         const bool recordingSurface = (stage == CapStage::Video && capVideo && capVideo->isRecording())
             || (demoMode && demoRecRunning_);
@@ -2999,33 +2972,9 @@ bool WinCap::runCommand(const std::wstring& id)
 		return true;
 	}
 
-	// —— 录屏组的四条：动作在录屏工具条上（与点按钮同一段实现）——
+	// —— 录屏组：动作在录屏工具条上（与点按钮同一段实现）——
 	// （它们同时是临时全局键，焦点不在本软件时由全局钩子那侧派发，见 HotkeyHook）
 	// 演示画布内也能录屏：同一组命令在演示会话里改走 demoRec* 入口
-	if (id == L"cmd_toggle_magnifier") {
-		auto* s = Setting::get();
-		if (!s) return false;
-		if (demoMode) {
-			// 演示画布：只临时开关，不改设置；设置默认开了「局部放大」时也能临时取消
-			magnifierOverride_ = localMagnifierOn() ? 0 : 1;
-			if (capVideo && demoRecRunning_) capVideo->setLocalMagnifier(localMagnifierOn());
-			updateDemoMagnifier();
-			return true;
-		}
-		// 录屏：局部放大是**独立叠加**，不改「鼠标轨迹效果」下拉的选择。
-		// 选的是线条/高亮时，按快捷键只是把镜头加进来（镜头在它们下面）；
-		// 选的是「局部放大」时，按快捷键就是本次会话临时关掉。
-		if (s->getMouseTrailEffect() == Setting::kMouseTrailMagnifier) {
-			// 下拉本身就是"只有镜头"：保持旧语义，快捷键在 开/关 之间切设置
-			s->setMouseTrailEffect(Setting::kMouseTrailNone);
-			magnifierOverride_ = -1;
-		}
-		else {
-			magnifierOverride_ = localMagnifierOn() ? 0 : 1;
-		}
-		if (capVideo && capVideo->isRecording()) capVideo->setLocalMagnifier(localMagnifierOn());
-		return true;
-	}
 	if (demoMode) {
 		if (id == L"cmd_record_toggle") { demoRecToggle(); return true; }
 		if (id == L"cmd_toggle_gif") { demoRecToggleGif(); return true; }
@@ -3968,18 +3917,11 @@ void WinCap::onClosed()
     deferExitAfterRightUp = false;
     CaptureEsc::release(hwnd);
     killTimer(recCursorTimerId);
-    killTimer(demoMagnifierTimerId);
+    killTimer(demoFxTimerId);
     killTimer(demoRecTickTimerId);
     killTimer(codeScanTimerId);
-    ensureMagHook(false);
-    demoMagnifierTemp_ = false;
-    magnifierOverride_ = -1;
-    magnifierZoom_ = 1.5f;
-    MagLens::get().setZoom(1.5f);
-    MagLens::get().hide();
     if (zoomCursorHidden_) { ShowCursor(TRUE); zoomCursorHidden_ = false; }
     if (capVideo) capVideo->setCursorHidden(false);
-    MagLens::get().hide();
     demoRecRunning_ = false;
     demoRecPaused_ = false;
     annotLive = false;
@@ -4258,57 +4200,6 @@ void WinCap::updateSelFollowCursor()
 
 // 「鼠标轨迹效果」/「鼠标单击效果」：录制中按 16ms 轮询光标，推进轨迹与单击动画。
 // 高亮圆只看"动没动"；线条/波纹/光标放大是时间动画，即使光标停住也要继续重画。
-bool WinCap::localMagnifierOn() const
-{
-	auto* s = Setting::get();
-	if (!s) return false;
-	// 本次会话里用快捷键临时开/关过，就以它为准：
-	// 演示画布里设置默认开了「局部放大」时，也能用快捷键临时取消（不改设置）。
-	if (magnifierOverride_ >= 0) return magnifierOverride_ != 0;
-	const bool settingOn = s->getMouseTrailEffect() == Setting::kMouseTrailMagnifier;
-	if (demoMode) return demoRecRunning_ && settingOn;   // 演示里设置项的镜头只在录制时出现
-	return settingOn;
-}
-
-void WinCap::onTrailEffectChanged()
-{
-	magnifierOverride_ = -1;
-	if (capVideo && capVideo->isRecording()) capVideo->setLocalMagnifier(localMagnifierOn());
-}
-
-bool WinCap::magnifierActive() const
-{
-	if (demoMode) return localMagnifierOn();
-	return stage == CapStage::Video && capVideo && capVideo->isRecording()
-		&& localMagnifierOn();
-}
-
-bool WinCap::magnifierModifierDown() const
-{
-	UINT vk = VK_CONTROL;
-	const std::wstring chord = CommandKeys::binding(L"cmd_toggle_magnifier");
-	if (!chord.empty()) {
-		for (auto part : Ling::Util::splitStr(chord, L'+')) {
-			std::transform(part.begin(), part.end(), part.begin(), ::towlower);
-			if (part == L"ctrl") { vk = VK_CONTROL; break; }
-			if (part == L"alt") { vk = VK_MENU; break; }
-			if (part == L"shift") { vk = VK_SHIFT; break; }
-		}
-	}
-	return (GetAsyncKeyState(vk) & 0x8000) != 0;
-}
-
-bool WinCap::adjustMagnifierZoom(int wheelDelta)
-{
-	if (!magnifierActive() || !magnifierModifierDown()) return false;
-
-	const float step = wheelDelta > 0 ? 1.1f : 1.f / 1.1f;
-	magnifierZoom_ = std::clamp(magnifierZoom_ * step, 1.2f, 4.f);
-	MagLens::get().setZoom(magnifierZoom_);
-	if (capVideo) capVideo->setLocalMagnifierZoom(magnifierZoom_);
-	return true;
-}
-
 void WinCap::updateDemoClickFx()
 {
 	if (!demoMode || !demoRecRunning_) return;
@@ -4368,33 +4259,6 @@ void WinCap::updateDemoClickFx()
 	}
 	if (capVideo) capVideo->syncClickOverlay();
 	if (dirty) refresh();
-}
-
-void WinCap::updateDemoMagnifier()
-{
-	updateDemoClickFx();
-	const bool active = demoMode && localMagnifierOn();
-	ensureMagHook(active && magnifierModifierDown());
-	if (capVideo && demoRecRunning_) capVideo->setLocalMagnifier(active);
-	if (!active) {
-		MagLens::get().hide();
-		return;
-	}
-	POINT cur{};
-	if (!GetCursorPos(&cur)) return;
-	// 与 updateMouseFx 同一套：单击放大藏起系统光标时沿用上一次的本体偏移，镜头不跟着放大移位
-	if (!zoomCursorHidden_) {
-		float ox = 0.f, oy = 0.f;
-		Util::cursorBodyOffset(ox, oy);
-		magBodyOffset_ = POINT{ (LONG)ox, (LONG)oy };
-	}
-	cur.x += magBodyOffset_.x;
-	cur.y += magBodyOffset_.y;
-	// 录制时单击层压在镜头上；未录制仍沿用演示工具栏的层级。
-	if (demoRecRunning_ && chrome_) MagLens::get().setBelow(chrome_->hwnd);
-	else if (toolCap && toolCap->hwnd) MagLens::get().setBelow(toolCap->hwnd);
-	else MagLens::get().raiseTop();
-	MagLens::get().showAt(cur, dpi);
 }
 
 // 高亮提醒 / 线条跟随的状态推进。普通录屏与演示画布录制共用这一份：
@@ -4498,26 +4362,6 @@ void WinCap::updateMouseFx()
 		dirty = true;
 	}
 	if (!mouseClicks_.empty()) dirty = true;   // 动画还在走，每帧都要重画
-
-	// 「鼠标轨迹效果 → 局部放大」：独立圆形放大镜窗口跟着光标（屏幕与录制都可见）。
-	// 圆心取光标本体中心，不是热点（热点在指针尖角上）。
-	// 单击放大期间系统光标被临时藏起，本体偏移沿用上一次可见时的值 ——
-	// 否则镜头圆心会跟着放大动画跳到热点，看起来就是"放大镜随着光标放大移位"。
-	if (!zoomCursorHidden_) {
-		float ox = 0.f, oy = 0.f;
-		Util::cursorBodyOffset(ox, oy);
-		magBodyOffset_ = POINT{ (LONG)ox, (LONG)oy };
-	}
-	if (localMagnifierOn() && haveCursor) {
-		POINT lensCenter{ screenCur.x + magBodyOffset_.x, screenCur.y + magBodyOffset_.y };
-		MagLens::get().showAt(lensCenter, dpi);
-	}
-	else {
-		MagLens::get().hide();
-	}
-	// 只在真正按住调倍率修饰键时才挂鼠标钩子：常驻钩子会拖慢鼠标/合成，录制时表现为抖动
-	ensureMagHook(localMagnifierOn() && capVideo
-		&& capVideo->isRecording() && magnifierModifierDown());
 
 	// 「光标放大」：动画的 320ms 内由主覆盖层自己画放大的实时光标（屏幕/视频里都只有这一份），
 	// 同时让采集侧暂时不画光标，避免视频里出现"系统光标 + 放大光标"两个。
@@ -5132,20 +4976,15 @@ void WinCap::beginVideoCapture()
 			SetWindowPos(capVideo->toolHwnd(), chrome_->hwnd, 0, 0, 0, 0,
 				SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 	}
-	// 与演示录制同层级：主覆盖层 < 放大镜 < 单击层。
-	// 不再把镜头压到高频重画的主覆盖层下面，避免开录后 DWM 合成时镜头内容抖动。
-	MagLens::get().setBelow(chrome_ && chrome_->hwnd ? chrome_->hwnd : hwnd);
-	lensAboveOverlay_ = false;
 	// 属性栏是独立顶层窗：不排除的话，它出现在选区里就会被录进去
 	if (toolSub && toolSub->hwnd) App::excludeFromCapture(toolSub->hwnd);
-	// 录制期间轮询光标：选框跟随 / 鼠标轨迹 / 单击效果，以及录制中临时按快捷键叠加的局部放大，
-	// 都靠这条 16ms 节拍推进 —— 所以无条件开启（空转一次只是取一次光标，成本可以忽略）。
+	// 录制期间轮询光标：选框跟随 / 鼠标轨迹 / 单击效果都靠这条 16ms 节拍推进 ——
+	// 所以无条件开启（空转一次只是取一次光标，成本可以忽略）。
 	setTimer(recCursorTickMs, recCursorTimerId);
 	mouseTrail_ = {};
 	mouseClicks_.clear();
 	if (zoomCursorHidden_) { ShowCursor(TRUE); zoomCursorHidden_ = false; }
 	if (capVideo) capVideo->setCursorHidden(false);
-	MagLens::get().hide();
 	// 开始录制这一下本身是鼠标点击：先把当前按键状态记成"已按下"，
 	// 避免轮询把这次点击当成单击效果的第一下。
 	{
@@ -5190,8 +5029,6 @@ void WinCap::startVideo()
     }
 
     stage = CapStage::Video;
-    // 每次进入录屏阶段：局部放大先跟随设置，录制中的快捷键只在本次会话里叠加
-    magnifierOverride_ = -1;
     // 录制只能针对**单块显示器**采集（采集链路按屏建复制纹理，跨屏录不全）：
     // 先把现有选区收进单块屏（跨屏框取的选区在此被收小），之后拖边 / 整体平移同样受该约束
     if (cutMask) {
@@ -5221,8 +5058,6 @@ void WinCap::startMp4(bool useSpeaker, bool useMic)
 {
     beginVideoCapture();
     if (capVideo) capVideo->startMp4(useSpeaker, useMic);
-    MagLens::get().setBelow(chrome_ && chrome_->hwnd ? chrome_->hwnd : hwnd);
-    lensAboveOverlay_ = false;
     if (Setting::get()->getKeyOverlayPos() != Setting::kKeyOverlayNone)
         startKeyOverlay();
 }
@@ -5231,8 +5066,6 @@ void WinCap::startGif()
 {
     beginVideoCapture();
     if (capVideo) capVideo->startGif();
-    MagLens::get().setBelow(chrome_ && chrome_->hwnd ? chrome_->hwnd : hwnd);
-    lensAboveOverlay_ = false;
     if (Setting::get()->getKeyOverlayPos() != Setting::kKeyOverlayNone)
         startKeyOverlay();
 }
@@ -5247,12 +5080,6 @@ std::wstring WinCap::stopRecord(bool userAbort)
 	killTimer(recCursorTimerId);
 	if (zoomCursorHidden_) { ShowCursor(TRUE); zoomCursorHidden_ = false; }
 	if (capVideo) capVideo->setCursorHidden(false);
-	ensureMagHook(false);
-	magnifierZoom_ = 1.5f;
-	magnifierOverride_ = -1;
-	MagLens::get().setZoom(1.5f);
-	MagLens::get().hide();
-	MagLens::get().setBelow(nullptr);
 	mouseTrail_ = {};
 	mouseClicks_.clear();
 	mouseHlPos_ = POINT{ -1, -1 };

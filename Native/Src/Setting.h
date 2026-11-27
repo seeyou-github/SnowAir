@@ -223,12 +223,11 @@ public:
 	// 录屏默认开启鼠标穿透：开录即穿透，录制中可用快捷键/工具条按钮临时开关
 	bool getRecordDefaultPierce();
 	void setRecordDefaultPierce(bool on);
-	// 「鼠标轨迹效果」（视频录制）：0 = 高亮提醒，1 = 线条跟随，2 = 无（默认），
-	// 3 = 局部放大（跟随光标的圆形放大镜）。2 保持为「无」是为了兼容旧配置。
+	// 「鼠标轨迹效果」（视频录制）：0 = 高亮提醒，1 = 线条跟随，2 = 无（默认）。
+	// 2 保持为「无」是为了兼容旧配置；旧值 3（局部放大）读取时按「无」处理。
 	static constexpr int kMouseTrailHighlight{ 0 };
 	static constexpr int kMouseTrailLine{ 1 };
 	static constexpr int kMouseTrailNone{ 2 };
-	static constexpr int kMouseTrailMagnifier{ 3 };
 	int getMouseTrailEffect();
 	void setMouseTrailEffect(int effect);
 	// 兼容旧配置：旧版只有布尔 mouseHighlight（开 = 高亮提醒）

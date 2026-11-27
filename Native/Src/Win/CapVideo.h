@@ -9,7 +9,6 @@
 // 只是引用 CapVideo 的编译单元都跟着吃一遍。
 namespace VideoMp4 { struct DESKTOPCAPTUREPARAMS; }
 namespace VideoGif { struct GifParam; }
-namespace LensScene { class Tap; }
 
 class WinCap;
 class ToolVideo;
@@ -36,10 +35,7 @@ public:
 	void setCursorZoom(float scale);
 	// 放大动画期间采集侧不画光标，改由主覆盖层画放大的实时光标（截图/视频都只有一份）
 	void setCursorHidden(bool hidden);
-	// 录制中临时开关「局部放大」（演示画布临时触发 / 设置里切换效果）
-	void setLocalMagnifier(bool on);
-	void setLocalMagnifierZoom(float zoom);
-	// 单击层独立排除捕获后，把同一批动画状态同步给采集线程，在放大镜之后合成
+	// 单击层独立排除捕获后，把同一批动画状态同步给采集线程
 	void syncClickOverlay();
 	void startMp4(bool useSpeaker, bool useMic);
 	void startGif();
@@ -76,8 +72,6 @@ private:
 	int capBaseX{ 0 }, capBaseY{ 0 };
 	// 开录时算好的「能跨过去的那几块屏」（同显卡适配器）：选区跨屏时现取，避免每次移动都查 DXGI
 	std::vector<RECT> reachable_;
-	// 屏幕上圆形镜头预览的取景源：开录时交给采集线程写入，停止后置为不活跃。
-	std::shared_ptr<LensScene::Tap> lensTap_;
 	std::jthread captureThread;
 	bool paused{ false };
 };

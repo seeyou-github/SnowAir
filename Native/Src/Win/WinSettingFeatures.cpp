@@ -18,7 +18,6 @@
 #include "WinSetting.h"
 #include "CapVideo.h"
 #include "CursorImage.h"
-#include "MagLens.h"
 #include <shobjidl.h>
 #include <commdlg.h>
 #include <cmath>
@@ -99,20 +98,20 @@ namespace {
 	constexpr uint32_t kDangerRed{ 0xFF383CFF };     // #FF383C
 	bool isTrashGlyph(const wchar_t* glyph) { return glyph && _wcsicmp(glyph, Icon::Remove) == 0; }
 
-	// 「鼠标轨迹效果」下拉的显示顺序：高亮 / 线条 / 局部放大 / 无。
+	// 「鼠标轨迹效果」下拉的显示顺序：高亮 / 线条 / 无。
 	int trailEffectFromIndex(int i)
 	{
 		static const int kOrder[]{ Setting::kMouseTrailHighlight, Setting::kMouseTrailLine,
-			Setting::kMouseTrailMagnifier, Setting::kMouseTrailNone };
-		return kOrder[std::clamp(i, 0, 3)];
+			Setting::kMouseTrailNone };
+		return kOrder[std::clamp(i, 0, 2)];
 	}
 	int trailIndexFromEffect(int effect)
 	{
 		static const int kOrder[]{ Setting::kMouseTrailHighlight, Setting::kMouseTrailLine,
-			Setting::kMouseTrailMagnifier, Setting::kMouseTrailNone };
-		for (int i = 0; i < 4; ++i)
+			Setting::kMouseTrailNone };
+		for (int i = 0; i < 3; ++i)
 			if (kOrder[i] == effect) return i;
-		return 3;
+		return 2;
 	}
 
 	// 「鼠标单击效果」下拉的显示顺序：波纹 / 放大 / 组合 / 无。
@@ -358,7 +357,6 @@ WinSettingFeatures::WinSettingFeatures(Ling::WinBase* parent) : Ling::Node(paren
 WinSettingFeatures::~WinSettingFeatures()
 {
 	SettingUi::closePopup(win);
-	MagLens::get().hide();
 	restorePreviewCursor();
 	if (!win) return;
 	win->onMouseMove.remove(mouseMoveTok);
@@ -393,15 +391,6 @@ void WinSettingFeatures::updatePreviewOnMouseMove(const POINT& pos)
 	// 否则用户移出窗口后会有最多 320ms 看不到光标。
 	if (pos.x == INT_MAX || pos.y == INT_MAX) {
 		restorePreviewCursor();
-		// 放大镜是置顶窗，鼠标进入它时卡片可能收到 WM_MOUSELEAVE；
-		// 此时真实光标还在卡片上，不能 hide，否则会 hide→show→leave 疯狂闪烁。
-		bool cursorInCard = false;
-		POINT cur{};
-		if (GetCursorPos(&cur)) {
-			if (win && win->hwnd) ScreenToClient(win->hwnd, &cur);
-			cursorInCard = trailPreviewArea_ && trailPreviewArea_->isPosIn(cur);
-		}
-		if (!cursorInCard) MagLens::get().hide();
 		previewHoverOn_ = false;
 		previewTrail_ = {};
 		previewClicks_.clear();
@@ -415,7 +404,6 @@ void WinSettingFeatures::updatePreviewOnMouseMove(const POINT& pos)
 			|| !previewClicks_.empty();
 		previewHoverOn_ = false;
 		previewTrail_ = {};
-		MagLens::get().hide();
 		if (wasActive) paintPreview();
 		return;
 	}
@@ -424,25 +412,6 @@ void WinSettingFeatures::updatePreviewOnMouseMove(const POINT& pos)
 		|| !previewClicks_.empty();
 	const bool inArea = trailPreviewArea_ && trailPreviewArea_->isPosIn(pos);
 	const int trailMode = s->getMouseTrailEffect();
-
-	// 局部放大用独立的圆形放大镜窗口预览（实时放大卡片本身），不在 Canvas 上画
-	if (inArea && trailMode == Setting::kMouseTrailMagnifier) {
-		POINT p = pos;
-		if (win && win->hwnd) ClientToScreen(win->hwnd, &p);
-		// 与录制一致：镜头圆心取光标本体中心，不是热点尖角
-		float ox = 0.f, oy = 0.f;
-		Util::cursorBodyOffset(ox, oy);
-		p.x += (LONG)ox;
-		p.y += (LONG)oy;
-		// 设置页预览：镜头盖在下拉菜单/悬停气泡上面
-		MagLens::get().raiseTop();
-		MagLens::get().showAt(p, win ? win->dpi : 1.f);
-		previewHoverOn_ = false;
-		previewTrail_ = {};
-		paintPreview();
-		return;
-	}
-	MagLens::get().hide();
 
 	if (inArea && trailMode != Setting::kMouseTrailNone) {
 		previewHoverOn_ = true;
@@ -762,7 +731,6 @@ void WinSettingFeatures::showTab(int index)
 {
 	if (index < 0 || index > 4) return;
 	// 切页时收起上一个 Tab 的预览（尤其线条/波纹还没走完的动画）
-	MagLens::get().hide();
 	restorePreviewCursor();
 	previewHoverOn_ = false;
 	previewHoverPt_ = POINT{ -1, -1 };
@@ -796,7 +764,6 @@ void WinSettingFeatures::rebuildTab(int index)
 {
 	if (index < 0 || index > 4 || !tabs[index]) return;
 	// 重建会销毁行节点：预览触发区/动画先全部收掉，避免旧指针和新状态残留
-	MagLens::get().hide();
 	restorePreviewCursor();
 	previewHoverOn_ = false;
 	previewHoverPt_ = POINT{ -1, -1 };
@@ -1034,15 +1001,11 @@ void WinSettingFeatures::buildRecord(Ling::Node* p)
 		auto* ddl = SettingUi::selectDdl(r.ctrlBox,
 			{ Lang::get(L"setting.fnRecMouseTrailHighlight"),
 			  Lang::get(L"setting.fnRecMouseTrailLine"),
-			  Lang::get(L"setting.fnRecMouseTrailMagnifier"),
 			  Lang::get(L"setting.fnRecMouseTrailNone") },
 			trailIndexFromEffect(s->getMouseTrailEffect()),
 			[this](int i, const std::wstring&) {
 				Setting::get()->setMouseTrailEffect(trailEffectFromIndex(i));
-				// 录制中用快捷键临时叠加的镜头：下拉一改就作废，按新选择来
-				if (auto* cap = WinCap::get()) cap->onTrailEffectChanged();
 				updateSwatchVisibility();
-				MagLens::get().hide();
 			});
 		// 这一行还要放色块：下拉比通用宽稍窄（124），否则半栏里标题会被挤到换行
 		ddl->setWidth(124.f);

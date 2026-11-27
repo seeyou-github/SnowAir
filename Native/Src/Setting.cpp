@@ -2130,7 +2130,8 @@ int Setting::getMouseTrailEffect()
 	if (f.HasKey(L"mouseTrailEffect")
 		&& f.GetNamedValue(L"mouseTrailEffect").ValueType() == JsonValueType::Number) {
 		const int v = static_cast<int>(f.GetNamedValue(L"mouseTrailEffect").GetNumber());
-		if (v < kMouseTrailHighlight || v > kMouseTrailMagnifier) return kMouseTrailNone;
+		// 旧配置里的 3 = 已删除的「局部放大」，统一回落到「无」
+		if (v < kMouseTrailHighlight || v > kMouseTrailNone) return kMouseTrailNone;
 		return v;
 	}
 	// 旧配置只有布尔 mouseHighlight（开 = 高亮提醒，关 = 无）
@@ -2138,7 +2139,7 @@ int Setting::getMouseTrailEffect()
 }
 void Setting::setMouseTrailEffect(int effect)
 {
-	const int v = (effect < kMouseTrailHighlight || effect > kMouseTrailMagnifier)
+	const int v = (effect < kMouseTrailHighlight || effect > kMouseTrailNone)
 		? kMouseTrailNone : effect;
 	setFeatInt(L"mouseTrailEffect", v);
 	// 新键已经落盘，旧布尔开关不再需要（避免以后读不到新键时又按旧值回退）

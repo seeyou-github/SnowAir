@@ -200,13 +200,6 @@ public:
 	bool handleLayerCancel(bool fromToolbar = false);
 public:
 	std::unique_ptr<CutMask> cutMask;
-	// 局部放大滚轮调倍率（全局鼠标钩子需要调用）
-	bool magnifierActive() const;
-	// 「局部放大」是否开启：设置里选的就是它，或本次录制中用快捷键临时叠加（override）
-	bool localMagnifierOn() const;
-	// 设置页改了「鼠标轨迹效果」：临时叠加状态作废，按新选择来
-	void onTrailEffectChanged();
-	bool adjustMagnifierZoom(int wheelDelta);
 private:
 	friend class SelectionChrome;
 	friend class CapVideo;
@@ -457,7 +450,7 @@ private:
 	//   · 「鼠标轨迹效果」：高亮圆 / 会变短渐隐的跟随线条
 	//   · 「鼠标单击效果」：单击波纹 / 光标放大（单击由全局鼠标钩子写进来）
 	static constexpr UINT recCursorTimerId{ 0x5302 };
-	static constexpr UINT demoMagnifierTimerId{ 0x5303 };
+	static constexpr UINT demoFxTimerId{ 0x5303 };
 	// 还没框选时 Ctrl+C 只取色：成功提示显示一会儿后自动退出截图
 	static constexpr UINT colorCopyCloseTimerId{ 0x5501 };
 	// 框选定格后的自动扫码去抖：只有「拖边/挪选区」这种连续动作才需要，定格那一下直接扫
@@ -489,9 +482,7 @@ private:
 	// 高亮/线条的状态推进：普通录屏与演示画布录制共用（lineAllowed=false 时让位给渐隐画笔）
 	bool updateTrailFx(POINT screenCur, bool haveCursor, int trailMode, bool lineAllowed, int64_t nowMs);
 	void paintMouseHighlight(ID2D1DeviceContext* ctx);
-	void updateDemoMagnifier();
 	void updateDemoClickFx();
-	bool magnifierModifierDown() const;
 	void paintMouseTrail(ID2D1DeviceContext* ctx);
 	void paintClickRipple(ID2D1DeviceContext* ctx);
 	void paintZoomCursor(ID2D1DeviceContext* ctx);   // 放大动画期间由覆盖层画实时光标
@@ -503,15 +494,6 @@ private:
 	// 鼠标按键沿检测（左/右/中）：16ms 轮询，不依赖全局鼠标钩子是否安装成功
 	bool mouseBtnDown_[3]{ false, false, false };
 	bool zoomCursorHidden_{ false };
-	// 演示画布里用快捷键临时开关局部放大（不改设置；录制时设置开了也会自动显示）
-	bool demoMagnifierTemp_{ false };
-	// 录屏中按「局部放大」快捷键：-1 跟随设置、0 本次会话强制关、1 临时叠加（线条/高亮照常画）
-	int magnifierOverride_{ -1 };
-	bool lensAboveOverlay_{ true };
-	float magnifierZoom_{ 1.5f };
-	// 镜头圆心相对光标热点的偏移（光标本体中心）：只在光标可见时更新。
-	// 单击放大动画会把系统光标临时藏起来，此时不能重新取偏移，否则镜头会跟着放大动画移位。
-	POINT magBodyOffset_{ 0, 0 };
 	POINT mouseHlPos_{ -1, -1 };   // 上次画高亮时的圆心（客户区，已含光标本体偏移）；没动就不重画
 	UINT32 mouseHlColor_{ 0 };     // 笔刷对应的色号（颜色改了要重建笔刷）
 	Microsoft::WRL::ComPtr<ID2D1SolidColorBrush> mouseHlBrush_;

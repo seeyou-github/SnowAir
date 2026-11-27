@@ -107,10 +107,6 @@ WinSettingSystemKeys::WinSettingSystemKeys(Ling::WinBase* parent) : Ling::Node(p
 			// 免得两行都写着 Tab，被当成重复配置或以为工具循环坏了
 			if (id == L"cmd_toggle_pix_color")
 				SettingUi::helpTipButton(r.labRow, Lang::get(L"setting.toggleColorValueTip"));
-			// 局部放大：说明连按两次修饰键 / 修饰键+滚轮调倍率
-			if (id == L"cmd_toggle_magnifier")
-				SettingUi::helpTipButton(r.labRow, Lang::get(L"cmdkey.localMagnifierKeyTip"));
-
 			// 只读 / 未实装行：键位框换成只读展示框（不给手型、不可点），行名称保持正常色
 			if (!editable) {
 				SettingUi::staticBox(r.ctrlBox, chordDisplay(chord), kKeyBoxW);
@@ -124,9 +120,7 @@ WinSettingSystemKeys::WinSettingSystemKeys(Ling::WinBase* parent) : Ling::Node(p
 			key->setWidth(kKeyBoxW);
 			key->setBorderRadius(SettingTheme::radiusCtl);
 			styleKeyBtn(key, false);
-			std::wstring shown = chordDisplay(chord);
-			if (id == L"cmd_toggle_magnifier" && !chord.empty()) shown += L" ×2";
-			key->setText(shown);
+			key->setText(chordDisplay(chord));
 			// 未绑定的行：占位文案走 muted（与「点击设置」同色）
 			if (chord.empty()) key->setColor(SettingTheme::textMuted);
 			key->onClick.add([this](Ling::Button* b) { this->onBtnClick(b); });
@@ -205,7 +199,6 @@ void WinSettingSystemKeys::refreshRow(const std::wstring& id)
 {
 	const std::wstring chord = CommandKeys::binding(id);
 	std::wstring text = chordDisplay(chord);
-	if (id == L"cmd_toggle_magnifier" && !chord.empty()) text += L" ×2";
 	for (auto& row : rows) {
 		if (row.id != id) continue;
 		row.btn->setText(text);
