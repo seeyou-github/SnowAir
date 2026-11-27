@@ -1,0 +1,15 @@
+ScreenShut prebuilt static libraries
+Built : 2026-11-27 20:59:17 UTC
+Commit: e5b628486d5bdaae9c2c735f9f57f03e83260e26
+Runner: 
+Config: Release x64, toolset v143, CRT /MT
+
+Layout (copy into the source tree as needed):
+  libwebp/libwebp.lib       <- Native/deps/libwebp/libwebp.vcxproj
+  Ling/Ling.lib             <- Native/deps/Ling/Ling.vcxproj
+  Ling/yoga/yoga.lib        <- Native/deps/Ling/yoga/yoga.vcxproj
+  zxing-cpp-311/ZXing.lib   <- Native/deps/zxing-cpp-311 (CMake)
+
+ZXing cmake flags:
+  -DBUILD_SHARED_LIBS=OFF -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+  -DZXING_WRITERS=OFF -DZXING_EXAMPLES=OFF -DZXING_UNIT_TESTS=OFF -DZXING_BLACKBOX_TESTS=OFF
