@@ -25,19 +25,11 @@ jobs:
           msbuild Native/Src/ScreenShut.vcxproj /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /m
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Stage release package
-        shell: pwsh
-        run: |
-          $pack = 'Native/x64/Release/pack'
-          Remove-Item -Recurse -Force $pack -ErrorAction SilentlyContinue
-          New-Item -ItemType Directory -Force -Path $pack | Out-Null
-          Copy-Item 'Native/x64/Release/ScreenShut.exe' $pack -Force
-          Compress-Archive -Path (Join-Path $pack '*') -DestinationPath 'Native/x64/Release/ScreenShut-fast.zip' -Force
-
+      # 不打包：直接上传 exe 单文件（下载得到的就是 ScreenShut.exe 本身）
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ScreenShut-fast
-          path: Native/x64/Release/ScreenShut-fast.zip
+          path: Native/x64/Release/ScreenShut.exe
           if-no-files-found: error
           retention-days: 1
