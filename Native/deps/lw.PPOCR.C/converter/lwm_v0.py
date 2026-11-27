@@ -648,6 +648,61 @@ def _materialize_slice_inputs(model: onnx.ModelProto) -> onnx.ModelProto:
     return converted
 
 
+def _materialize_auto_pad(
+    model: onnx.ModelProto, inferred: onnx.ModelProto
+) -> onnx.ModelProto:
+    """Turn Conv auto_pad into explicit pads; LWM stores only explicit pads."""
+    values = {
+        value.name: value
+        for value in (*inferred.graph.input, *inferred.graph.value_info, *inferred.graph.output)
+    }
+    for node in model.graph.node:
+        if node.op_type != "Conv":
+            continue
+        attrs = _attribute_map(node)
+        auto_pad = attrs.get("auto_pad", b"NOTSET")
+        if isinstance(auto_pad, bytes):
+            auto_pad = auto_pad.decode("ascii", "replace")
+        if auto_pad in ("NOTSET", ""):
+            continue
+        if auto_pad not in ("VALID", "SAME_UPPER", "SAME_LOWER"):
+            raise ValueError(f"unsupported Conv auto_pad {auto_pad!r}")
+        kernel = _require_count(_int_list(attrs, "kernel_shape", []), 2, "Conv kernel_shape")
+        strides = _require_count(_int_list(attrs, "strides", [1, 1]), 2, "Conv strides")
+        dilations = _require_count(_int_list(attrs, "dilations", [1, 1]), 2, "Conv dilations")
+        effective = [(k - 1) * d + 1 for k, d in zip(kernel, dilations)]
+
+        totals: list[int] = []
+        for axis, stride, k_eff in zip((2, 3), strides, effective):
+            value_info = values.get(node.input[0])
+            dims = value_info.type.tensor_type.shape.dim if value_info is not None else None
+            in_size = (dims[axis].dim_value if dims is not None and len(dims) > axis
+                       and dims[axis].HasField("dim_value") else None)
+            if in_size and in_size > 0:
+                out_size = (in_size + stride - 1) // stride
+                totals.append(max(0, (out_size - 1) * stride + k_eff - in_size))
+            elif stride == 1:
+                # SAME with stride 1 is independent of the input size.
+                totals.append(k_eff - 1)
+            else:
+                raise ValueError("cannot materialize auto_pad with dynamic input size")
+
+        if auto_pad == "VALID":
+            pads = [0, 0, 0, 0]
+        else:
+            pads = []
+            for total in totals:
+                head = total // 2
+                pads.extend((head, total - head) if auto_pad == "SAME_UPPER"
+                            else (total - head, head))
+
+        kept = [attr for attr in node.attribute if attr.name not in ("auto_pad", "pads")]
+        del node.attribute[:]
+        node.attribute.extend(kept)
+        node.attribute.append(onnx.helper.make_attribute("pads", pads))
+    return model
+
+
 def _drop_unused_nodes(model: onnx.ModelProto) -> onnx.ModelProto:
     """Drop nodes that no longer contribute to any graph output.
 
@@ -703,6 +758,7 @@ def convert_rec_model(input_path: Path, output_path: Path) -> ConversionInfo:
             model, strict_mode=False, data_prop=False
         )
     model = _materialize_slice_inputs(model)
+    model = _materialize_auto_pad(model, inferred)
     folded = _fold_conv_batch_normalization(model)
     folded = _drop_unused_nodes(folded)
     return _write_model(folded, output_path, inferred)
