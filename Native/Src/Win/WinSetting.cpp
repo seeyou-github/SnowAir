@@ -336,14 +336,22 @@ void WinSetting::onCreated()
 	// ★ 首帧底色垫层：见 SettingUi::primeWindowBackground。
 	//   合成内容（DirectComposition）是异步上屏的，窗口先出现、内容后到，中间那几帧
 	//   看到的是窗口的 GDI 表面。先刷成画布色，就不会有"进设置页先白一下"。
+	//   注意：这一次刷在 show() 之前 —— 此时 DWM 的重定向表面还没创建，像素会被直接丢弃，
+	//   真正留住底色的是下面 show() 之后那次。这里保留只是为了 show 之后不会再有的路径（复用窗口）。
 	SettingUi::primeWindowBackground(hwnd, SettingTheme::canvas);
 
 	// 不再用 DWMWA_CLOAK 藏首帧：被 DWM 隐藏的窗口不参与合成，解除隐藏后合成器要从头
 	// 上传内容，这段时间露出来的恰好是没内容的空白面（也就是原来的白闪来源）。
-	// 现在窗口在"内容已建好 + 底色已刷"之后才显示，首帧就是完整的。
 	SetWindowPos(hwnd, nullptr, x, y, (int)w, (int)h,
 		SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOREDRAW);
 	show();
+
+	// ★ 垫层第二遍（真正有效的一遍）：DWM 的重定向表面是窗口第一次显示时才建立的，
+	//   show() 之前刷的那一遍落在"表面还不存在"的空档里，GDI 像素直接丢掉 —— 实测
+	//   打开瞬间仍有一帧纯白 255（约 70~140ms）就是这么来的。改到 show() 之后立刻再刷一次：
+	//   此时表面已存在、DWM 还没合成第一帧，底色才留得住，白闪退化成与界面同色的垫层。
+	SettingUi::primeWindowBackground(hwnd, SettingTheme::canvas);
+
 	UpdateWindow(hwnd);
 	DwmFlush();
 }
