@@ -657,7 +657,7 @@ def _materialize_auto_pad(
         for value in (*inferred.graph.input, *inferred.graph.value_info, *inferred.graph.output)
     }
     for node in model.graph.node:
-        if node.op_type != "Conv":
+        if node.op_type not in ("Conv", "MaxPool", "AveragePool"):
             continue
         attrs = _attribute_map(node)
         auto_pad = attrs.get("auto_pad", b"NOTSET")
