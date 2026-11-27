@@ -260,7 +260,6 @@ void App::captureFullScreenSilent()
 	else if (action == 2 && saved) Util::addFileToClipboardCut(path);
 	else Util::saveToClipboard(sw, sh, pixels.data());
 	st->setLastCaptureRect(sx, sy, sw, sh);
-	if (saved) st->addHistoryFile(path, sw, sh, L"fullscreen", &pixels);
 	// 静默截图没有窗口可反馈：托盘图标临时换成绿色的「成功」勾，1.2s 后自动恢复
 	TrayIcon::flashSuccess();
 }
@@ -324,7 +323,6 @@ void App::captureFocusedWindowSilent()
 	else if (Setting::get()->getCaptureFinishAction() == 2 && saved) Util::addFileToClipboardCut(path);
 	else Util::saveToClipboard(w, h, pixels.data());
 	Setting::get()->setLastCaptureRect(rc.left, rc.top, w, h);
-	if (saved) Setting::get()->addHistoryFile(path, w, h, L"focused", &pixels);
 	// 静默截图没有窗口可反馈：托盘图标临时换成绿色的「成功」勾，1.2s 后自动恢复
 	TrayIcon::flashSuccess();
 }
@@ -359,7 +357,6 @@ void App::captureLastRegionSilent()
 	if (!saved.empty() && action == 1) Util::addFileToClipboard(saved);
 	else if (!saved.empty() && action == 2) Util::addFileToClipboardCut(saved);
 	else Util::saveToClipboard(rw, rh, pixels.data());
-	if (!saved.empty()) Setting::get()->addHistoryFile(saved, rw, rh, L"capture", &pixels);
 	// 静默截图没有窗口可反馈：托盘图标临时换成绿色的「成功」勾，1.2s 后自动恢复
 	TrayIcon::flashSuccess();
 }

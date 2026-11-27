@@ -2340,7 +2340,6 @@ void CapLong::copyToClipboard()
 	if (!saved.empty() && action == 1) Util::addFileToClipboard(saved);
 	else if (!saved.empty() && action == 2) Util::addFileToClipboardCut(saved);
 	else Util::saveToClipboard(imgW, resultH, pixels.data());
-	if (!saved.empty()) st->addHistoryFile(saved, imgW, resultH, L"long", &pixels);
 }
 
 bool CapLong::saveToFile()
@@ -2357,7 +2356,6 @@ bool CapLong::saveToFile()
 		Util::extensionFromSaveFormat(st->getSaveFormat()), defName, Util::desktopDir().wstring());
 	if (path.empty()) return false;
 	if (!Util::saveToFile(path, imgW, resultH, pixels.data())) return false;
-	st->addHistoryFile(path, imgW, resultH, L"long", &pixels);
 	return true;
 }
 

@@ -56,7 +56,7 @@ ScreenShut.exe --enter=tray              # 仅托盘（等同于默认行为）
 
 默认：`AppData\config\`（配置、语言、插件、本机数据）
 
-用户设置在 `config.json`；本机数据（剪贴板历史、截图/录屏历史、上次选区）在 `local.json`，图片缓存在 `Clipboard\`。截图/录像默认输出到 `AppData\save\`，临时文件在 `AppData\temp\`。
+用户设置在 `config.json`；本机数据（上次选区等）在 `local.json`。截图/录像默认输出到 `AppData\save\`，临时文件在 `AppData\temp\`。程序不保留截图/录像历史，也不记录剪贴板历史。
 
 ## OCR 运行时
 

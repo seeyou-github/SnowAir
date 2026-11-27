@@ -1112,17 +1112,6 @@ void Util::cursorBodyOffset(float& dx, float& dy)
 	if (ii.hbmMask) DeleteObject(ii.hbmMask);
 }
 
-// ================= History 辅助：id → 条目 filePath 查找 =================
-static std::wstring findHistoryFilePath(const std::wstring& id)
-{
-	auto list = Setting::get()->getHistoryItems();
-	for (auto& it : list) if (it.id == id) return it.filePath;
-	// 目录扫描出来的条目把路径直接当 id
-	std::error_code ec;
-	if (std::filesystem::exists(id, ec)) return id;
-	return L"";
-}
-
 // WIC 从文件解码成 BGRA、top-down、行紧凑 (步长 = w*4) 向量；失败返回 {0,0,空}
 std::tuple<int, int, std::vector<BYTE>> Util::loadImagePixels(const std::wstring& path)
 {
@@ -1555,29 +1544,6 @@ std::wstring Util::svgPreviewPath(const std::wstring& id, const std::wstring& te
 	if (!renderSvgText(text, 512, w, h, px)) return {};
 	if (!saveToFile(path.wstring(), w, h, px.data())) return {};
 	return path.wstring();
-}
-
-void Util::copyHistoryFileToClipboard(const std::wstring& historyId)
-{
-	auto path = findHistoryFilePath(historyId);
-	if (path.empty()) return;
-	addFileToClipboard(path);
-}
-
-bool Util::pinHistoryFile(const std::wstring& historyId)
-{
-	auto path = findHistoryFilePath(historyId);
-	if (path.empty()) return false;
-	auto [w, h, data] = Util::loadImagePixels(path);
-	if (w <= 0 || h <= 0 || data.empty()) return false;
-	// 位置：屏幕工作区中央
-	RECT rc{};
-	SystemParametersInfo(SPI_GETWORKAREA, 0, &rc, 0);
-	int areaW = rc.right - rc.left;
-	int areaH = rc.bottom - rc.top;
-	int x = rc.left + (std::max)(0, (areaW - w) / 2);
-	int y = rc.top + (std::max)(0, (areaH - h) / 2);
-	return WinPin::initFromData(x, y, w, h, data, path) != nullptr;
 }
 
 // ============ 应用数据目录（exe 同目录的 AppData）============

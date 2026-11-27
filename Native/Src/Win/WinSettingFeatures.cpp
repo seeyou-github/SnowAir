@@ -1153,35 +1153,6 @@ void WinSettingFeatures::buildOutput(Ling::Node* p)
 		gOutputLabelW = (std::min)(labelW + 10.f, 170.f);
 	}
 
-	// 顶部：历史相关——文件保留天数 / 停用截图历史
-	{
-		auto* g = SettingUi::grid2(p);
-		const std::vector<std::wstring> retOpts = {
-			Lang::get(L"setting.retention1d"),
-			Lang::get(L"setting.retention3d"),
-			Lang::get(L"setting.retention7d"),
-			Lang::get(L"setting.retention30d"),
-			Lang::get(L"setting.retentionForever"),
-		};
-		static const int kRetDays[] = { 1, 3, 7, 30, -1 };
-		int retIdx = 4;   // 认不出的值按「永久」
-		for (int i = 0; i < 5; ++i)
-			if (kRetDays[i] == s->getHistoryRetentionDays()) { retIdx = i; break; }
-
-		SettingUi::selectRow(g, Lang::get(L"setting.retentionDays"), retOpts, retIdx,
-			[](int i, const std::wstring&) {
-				static const int d[] = { 1, 3, 7, 30, -1 };
-				Setting::get()->setHistoryRetentionDays(d[i < 0 || i > 4 ? 4 : i]);
-				Setting::get()->pruneExpiredHistory();
-			}, true);
-		SettingUi::toggleRow(g, Lang::get(L"setting.disableHistory"), s->getDisableCaptureHistory(),
-			[](bool on) {
-				Setting::get()->setDisableCaptureHistory(on);
-				WinSetting::applyHistoryMenuVisibility();
-			}, true);
-		SettingUi::grid2Cells(g);
-	}
-
 	// 格式与路径合并成一组
 	SettingUi::groupLabel(p, Lang::get(L"setting.formatAndPath"), Lang::get(L"setting.outputSectionTip"));
 	outputRow(p, Lang::get(L"setting.manualSaveFmt"),
@@ -1341,11 +1312,6 @@ void WinSettingFeatures::buildOther(Ling::Node* p)
 	mkStateToggle(grid, L"setting.hotkeyTip",
 		[] { return Setting::get()->getHotkeyTip(); },
 		[](bool on) { Setting::get()->setHotkeyTip(on); }, {});
-	// 悬停预览：历史记录 / 剪切板卡片停悬时弹出大图或文字卡（默认关闭，避免误触打扰）
-	mkStateToggle(grid, L"setting.hoverPreview",
-		[] { return Setting::get()->getHoverPreview(); },
-		[](bool on) { Setting::get()->setHoverPreview(on); }, {},
-		L"setting.hoverPreviewTip");
 	// 记忆工具样式：记住上次标注工具样式（如大箭头），下次截图自动复用；默认关闭
 	mkStateToggle(grid, L"setting.rememberToolStyle",
 		[] { return Setting::get()->getRememberToolStyle(); },

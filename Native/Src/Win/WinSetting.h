@@ -6,7 +6,6 @@ namespace SettingUi { class HoverTip; }   // SettingWidgets.h：设置项「?」
 class WinSettingHotkeys;
 class WinSettingSystemKeys;
 class WinSettingQuickTranslate;
-class WinSettingHistory;
 class WinSettingAppearance;
 class WinSettingFeatures;
 
@@ -15,14 +14,12 @@ class WinSetting :public Ling::WinBase
 public:
 	~WinSetting();
 	static void init();
-	// 打开设置中心并切到指定菜单页（0 全局热键 / 1 快捷翻译 / 2 系统按键 / 3 外观 / 4 功能 / 5 截图历史）
+	// 打开设置中心并切到指定菜单页（0 全局热键 / 1 快捷翻译 / 2 系统按键 / 3 外观 / 4 功能）
 	static void init(int pageIndex);
 	static void dispose();
 	// 全局快捷键用：已在该页且在前台就关掉，否则打开/切到该页并抢前台
 	static void toggle();
 	static void togglePage(int pageIndex);
-	// 按「停用截图历史」开关同步侧栏「截图历史」菜单显隐（设置里切换后立即生效）
-	static void applyHistoryMenuVisibility();
 private:
 	WinSetting();
 	void initMenuItems(Ling::Node* menuBox);
@@ -49,7 +46,6 @@ private:
 	WinSettingHotkeys*        pageHotkeys{ nullptr };
 	WinSettingSystemKeys*     pageSysKeys{ nullptr };
 	WinSettingQuickTranslate* pageQuick{ nullptr };
-	WinSettingHistory*        pageHistory{ nullptr };
 	WinSettingAppearance*     pageAppearance{ nullptr };
 	WinSettingFeatures*       pageFeatures{ nullptr };
 };

@@ -157,7 +157,7 @@ WinSettingHotkeys::WinSettingHotkeys(Ling::WinBase* parent) :Ling::Node(parent)
         restoreBtn->setMarginLeft(SettingTheme::sp3);
     }
 
-    // 4 分组 14 项（AI 对话组已随 AI 功能一并移除）
+    // 4 分组 13 项（AI 对话组已随 AI 功能一并移除）
     // 注：滚动已由外层 WinSetting 的内容 ScrollerBox 统一管理，本页不再自建滚动容器。
     struct Group { std::wstring title; std::vector<std::pair<std::wstring, std::wstring>> items; };
     std::vector<Group> groups = {
@@ -179,24 +179,17 @@ WinSettingHotkeys::WinSettingHotkeys(Ling::WinBase* parent) :Ling::Node(parent)
         {Lang::get(L"setting.hotkeyGrpTranslate"),{
             { L"quick_translate",       Lang::get(L"shortcut.quick_translate") },
         }},
-        // 3 其他组 6 项
+        // 3 其他组 5 项
         {Lang::get(L"setting.hotkeyGrpOther"),{
             { L"show_main",             Lang::get(L"shortcut.show_main") },
             { L"make_collage",          Lang::get(L"shortcut.make_collage") + L" Beta" },
             { L"open_screenshot_dir",   Lang::get(L"shortcut.open_screenshot_dir") },
-            { L"open_history",          Lang::get(L"shortcut.open_history") },
-            { L"restore_pin",           Lang::get(L"shortcut.restore_pin") },
             { L"toggle_pins",           Lang::get(L"shortcut.toggle_pins") },
         }},
     };
-    // 「停用截图历史」开启时，隐藏「打开截图历史」这一行的键位设置
     bool firstGroup = true;
     for (const auto& g : groups) {
-        std::vector<std::pair<std::wstring, std::wstring>> items;
-        for (const auto& it : g.items) {
-            if (it.first == L"open_history" && Setting::get()->getDisableCaptureHistory()) continue;
-            items.push_back(it);
-        }
+        const auto& items = g.items;
         buildGroup(g.title, items, this, firstGroup);
         firstGroup = false;
     }

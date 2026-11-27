@@ -32,7 +32,6 @@ namespace {
 	// 「恢复历史贴图」的本次会话进度：已经恢复过的历史条目（id + createdAt）。
 	// 只存索引，不存图片像素 —— 恢复时按「历史记录 > 贴图」重新读文件贴出来。
 	// 用 id+createdAt 做键：同一张图重新贴会沿用 id 但刷新 createdAt，仍可再次恢复。
-	std::set<std::wstring> restoredPinKeys;
 
 	int clampPos(float val, float size, int min, int max)
 	{
@@ -236,30 +235,6 @@ void WinPin::dispose()
 	// 同 WinSetting::dispose：~WinBase 不销毁 HWND，退出前把还开着的贴图窗逐个真正关掉
 	for (auto& p : winPins) { if (p && p->hwnd) p->close(); }
 	winPins.clear();
-}
-
-// 恢复历史贴图：以「历史记录 > 贴图」为准，按列表顺序（新的在前）每次贴下一条。
-// 只记索引、不缓存像素：恢复时重新读历史文件贴出来；记录被删 / 文件不在了 /
-// 这张图现在还贴在桌面上，都跳过。贴完当前历史为止，重复按不会回到已恢复过的条目。
-void WinPin::restoreLastClosed()
-{
-	auto* setting = Setting::get();
-	if (!setting) return;
-	for (const auto& it : setting->getHistoryItems()) {
-		if (it.source != L"pin") continue;
-		// 用 id + createdAt 做键：同一张图重新贴时会沿用 id 但刷新 createdAt，仍可再次恢复
-		const std::wstring key = it.id + L"@" + std::to_wstring(it.createdAt);
-		if (restoredPinKeys.count(key)) continue;
-		// 这张图现在就贴在桌面上（可能还没关）：不重复贴，留给下一次
-		bool alreadyOpen = false;
-		for (const auto& p : winPins) {
-			if (p && !p->isClosed && p->pinHistoryId == it.id) { alreadyOpen = true; break; }
-		}
-		if (alreadyOpen) continue;
-		if (!Util::pinHistoryFile(it.id)) continue;   // 文件丢失 / 解码失败：跳过
-		restoredPinKeys.insert(key);
-		return;
-	}
 }
 
 // 全局热键「隐藏/显示贴图」：一次把所有贴图藏起来，再按一次全部放回来。
@@ -595,9 +570,6 @@ WinPin* WinPin::initFromData(int x, int y, int w, int h, std::vector<BYTE>& data
 		ptr->bindToolChrome();
 		ptr->raiseToolChrome();
 	}
-	// 贴图历史：有源文件就引用；没有源文件（截图直接贴图）在 PinHistory 里按内容去重存一份
-	if (Setting::get())
-		ptr->pinHistoryId = Setting::get()->addPinHistory(sourcePath, w, h, data);
 	winPins.push_back(std::move(winPin));
 	return ptr;
 }

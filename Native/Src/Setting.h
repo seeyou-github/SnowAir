@@ -149,9 +149,6 @@ public:
 	// 只在 getRememberToolStyle() 开启时读写；没存过返回 def
 	int getToolLastInt(const std::wstring& toolId, const std::wstring& key, int def);
 	void setToolLastInt(const std::wstring& toolId, const std::wstring& key, int value);
-	// 悬停预览：历史记录 / 剪切板卡片停悬时弹出预览（默认关闭）
-	bool getHoverPreview();
-	void setHoverPreview(bool on);
 	int getLastArrowHead();
 	void setLastArrowHead(int v);
 	bool getAutoSaveAfterCapture();

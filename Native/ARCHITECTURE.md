@@ -201,7 +201,7 @@ inputArea->setPadding(0.f, 8.f, 0.f, 0.f);
 | `--enter=edit`（别名 `image`） | 直接打开图片编辑窗口（`WinImageEdit::init()`），与托盘「图片编辑」同一入口；不进入截图会话，参数取走后清掉 | `App::App()` |
 | `--auto-quit=true` | 立即进入截图、截完即退（脚本 / 命令行用） | `App::App()` / `WinCap`、`WinPin` |
 | 托盘图标**左键单击** | 按设置 `Setting::getTrayClickAction()`：0 截图 / 1 打开设置 / 2 无操作 | `Tray::Tray()` |
-| 托盘图标**右键** | 弹出菜单：截图 / 截取全屏 / 屏幕录制 / 演示画布 / 快捷翻译 / 截图历史 / 打开目录 / 设置 / 退出（见第 9 节） | `Tray::onTrayRightClick()` |
+| 托盘图标**右键** | 弹出菜单：截图 / 截取全屏 / 屏幕录制 / 演示画布 / 快捷翻译 / 打开目录 / 设置 / 退出（见第 9 节） | `Tray::onTrayRightClick()` |
 | 全局热键（默认 `F1`） | 进入截图 | `Setting::initShortcutKeys()` |
 | **再次运行 exe**（已有实例在托盘） | 打开设置中心（`WinSetting::init()`） | `Setting::initShortcutKeys()` 的 `onSecondInstance` |
 
@@ -221,15 +221,15 @@ inputArea->setPadding(0.f, 8.f, 0.f, 0.f);
 
 ## 9. 托盘右键菜单（源：Src\Tray.cpp）
 
-菜单项顺序固定：**截图 / 截取全屏 / 屏幕录制 / 演示画布 ┊ 快捷翻译 ┊ 截图历史 / 打开目录 ┊ 设置 / 退出**（`kMenuRows[]`，文案在语言文件 `tray.*`）
+菜单项顺序固定：**截图 / 截取全屏 / 屏幕录制 / 演示画布 ┊ 快捷翻译 ┊ 打开目录 ┊ 设置 / 退出**（`kMenuRows[]`，文案在语言文件 `tray.*`）
 
 | 菜单项 | 行为 | 入口 |
 |---|---|---|
 | 截图 | 进截图态（悬停找元素 → 框选 → 截图工具栏） | `WinCap::init()` |
-| 截取全屏 | 静默整屏抓图：存 `AppData\save\<全屏模板>.png` → 剪贴板（勾选「以文件形式复制」则复制文件）→ 记录一条历史 | `App::captureFullScreenSilent()` |
+| 截取全屏 | 静默整屏抓图：存 `AppData\save\<全屏模板>.png` → 剪贴板（勾选「以文件形式复制」则复制文件） | `App::captureFullScreenSilent()` |
 | 屏幕录制 | 进入截图态（找元素 → 框选），框完直接切换为录屏工具栏 | `WinCap::beginRecordPick()`（内部 `pendingRecord`，在 `WinCap::onUp` 的 Select→Adjust 分支生效） |
 | 演示画布 | 整屏作为画布：选区自动铺满，并按「功能设置 → 演示 → 默认工具」选好画笔（0 渐隐画笔 / 1 画笔 / 2 无） | `WinCap::beginDemoCanvas()`（`selectFullScreenRect()` + `startAnnotate(L"pen")`） |
-| 快捷翻译 / 截图历史 / 设置 | 打开设置中心并切到对应页（1 / 2 / 0） | `WinSetting::init(pageIndex)` / `WinSetting::showPage()` |
+| 快捷翻译 / 设置 | 打开设置中心并切到对应页（1 / 0） | `WinSetting::init(pageIndex)` / `WinSetting::showPage()` |
 | 打开目录 | 打开 `AppData\save` | `Util::outputDir()` + `ShellExecute` |
 | 退出 | 退出程序 | `Ling::App::quit(0)` |
 

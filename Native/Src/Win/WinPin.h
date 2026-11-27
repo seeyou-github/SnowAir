@@ -18,7 +18,6 @@ public:
 	static void dispose();
 	// 全局热键「恢复历史贴图」：按「历史记录 > 贴图」顺序，每次恢复下一条（新的在前），
 	// 只读历史文件重新贴出，删记录 / 文件丢失 / 已在桌面上的跳过
-	static void restoreLastClosed();
 	// 全局热键「隐藏/显示贴图」：临时隐藏 / 放回全部贴图（不落盘，重启照常显示）
 	static void toggleAllHidden();
 	// 外观页改了贴图边框颜色 / 粗细 / 圆角后，让已经开着的贴图立即重绘
@@ -176,7 +175,6 @@ private:
 	// —— 重复贴图 ——
 	uint64_t contentHash{ 0 };        // 底图像素指纹（0 = 未知，不参与重复判定）
 	// 这张贴图在「历史记录 → 贴图」里的条目 id；删除历史记录后恢复热键不再恢复它
-	std::wstring pinHistoryId;
 	PinShake::State shakeState;       // 「重复」抖动提示
 	// 窗口短边小于这个值就收起悬停控件；控件本身按 dpi 缩放，阈值也跟着缩放
 	static constexpr float kChromeMinSide{ 50.f };

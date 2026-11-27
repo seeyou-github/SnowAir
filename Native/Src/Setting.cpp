@@ -44,10 +44,8 @@ namespace {
         { L"fullscreen_canvas",      103 },
         { L"record",                 104 },
         { L"toggle_pins",            105 },
-        { L"restore_pin",            114 },
         { L"show_main",              106 },
         { L"open_screenshot_dir",    107 },
-        { L"open_history",           108 },
         { L"capture_repeat",         109 },
         { L"quick_pin",              110 },
         { L"make_collage",           113 },
@@ -718,19 +716,10 @@ void Setting::init()
     setting->purgeRemovedAiSettings();
     // 启动时清理旧程序（ScreenCapture）留下的历史键位
     setting->purgeLegacyShortcutKeys();
-    // 视频/录屏文件已经不在了：对应的封面缓存也不再保留
-    setting->pruneOrphanThumbCache();
-    // 按「文件保留天数」清理过期历史：之前只在改设置或打开历史页时才跑，
-    // 用户设成 1 天后隔天启动程序，旧文件还留在盘里（本次修复）。
-    setting->pruneExpiredHistory();
-    // 旧数据里同内容的剪贴板条目收敛成一条
-    setting->dedupeClipboardItems();
-    installClipboardWatch();
 }
 
 void Setting::dispose()
 {
-    uninstallClipboardWatch();
     setting.reset();
 }
 
@@ -1864,9 +1853,6 @@ void Setting::setToolLastInt(const std::wstring& toolId, const std::wstring& key
 	features.SetNamedValue(L"toolLast", last);
 	save();
 }
-// 悬停预览：历史记录 / 剪切板卡片停悬时弹出大图或文字卡（默认关闭）
-bool Setting::getHoverPreview() { return featBool(L"hoverPreview", false); }
-void Setting::setHoverPreview(bool on) { setFeatBool(L"hoverPreview", on); }
 int Setting::getLastArrowHead() { return featInt(L"lastArrowHead", 0); }
 void Setting::setLastArrowHead(int v) { setFeatInt(L"lastArrowHead", v); }
 bool Setting::getAutoSaveAfterCapture() { return featBool(L"autoSaveAfterCapture", false); }
@@ -1958,13 +1944,12 @@ void Setting::restoreFunctionTranslateDefaults()
 	setQuickTranslateNewSession(false);
 }
 
-// 其他功能：功能提示开、快捷键提示关、记忆工具样式关、悬停预览关、静默截图开
+// 其他功能：功能提示开、快捷键提示关、记忆工具样式关、静默截图开
 void Setting::restoreFunctionOtherDefaults()
 {
 	setFeatureTips(true);
 	setHotkeyTip(false);
 	setRememberToolStyle(false);
-	setHoverPreview(false);
 	setSilentCapture(true);
 	setCaptureToolbarAlign(0);
 	setPauseHotkeysFullscreen(false);
@@ -2020,7 +2005,7 @@ bool Setting::functionTranslateAtDefaults()
 bool Setting::functionOtherAtDefaults()
 {
 	return getFeatureTips() && !getHotkeyTip()
-		&& !getRememberToolStyle() && !getHoverPreview()
+		&& !getRememberToolStyle()
 		&& getSilentCapture() && getCaptureToolbarAlign() == 0
 		&& !getPauseHotkeysFullscreen();
 }
@@ -2196,20 +2181,8 @@ namespace {
         SystemParametersInfo(SPI_GETWORKAREA, 0, &rc, 0);
         const int areaW = (int)rc.right - (int)rc.left;
         const int areaH = (int)rc.bottom - (int)rc.top;
-        // 剪贴板图片：监听端已经把它落到了 Clipboard 缓存。能找到就引用那份，不另存贴图历史副本
-        std::wstring historyPath = sourcePath;
-        if (historyPath.empty()) {
-            const unsigned hash = clipboardHash(px);
-            for (const auto& c : s->getClipboardItems()) {
-                if (c.type == L"image" && c.hash == hash && c.width == w && c.height == h
-                    && !c.filePath.empty()) {
-                    historyPath = c.filePath;
-                    break;
-                }
-            }
-        }
         WinPin::initFromData(rc.left + (std::max)(0, (areaW - w) / 2),
-            rc.top + (std::max)(0, (areaH - h) / 2), w, h, px, historyPath);
+            rc.top + (std::max)(0, (areaH - h) / 2), w, h, px, sourcePath);
     }
 
     // 贴一组文件：单张图片按图片贴图，其余（文件夹 / 视频 / 其它文件）贴成文件贴屏
@@ -2400,7 +2373,7 @@ namespace {
         QuickPinPayload out;
         bool opened = false;
         for (int attempt = 0; attempt < 10 && !opened; ++attempt) {
-            if (OpenClipboard(g_clipWnd)) opened = true;
+            if (OpenClipboard(nullptr)) opened = true;
             else Sleep(5);
         }
         if (!opened) return out;
@@ -2498,8 +2471,6 @@ void Setting::runHotkeyAction(const std::wstring& id)
     if (id == L"make_collage") { WinImageEdit::init(); return; }
     if (id == L"quick_pin") { quickPinFromContext(); return; }
     if (id == L"toggle_pins") { WinPin::toggleAllHidden(); return; }
-    if (id == L"restore_pin") { WinPin::restoreLastClosed(); return; }
-    if (id == L"open_history") { if (!getDisableCaptureHistory()) WinSetting::togglePage(5); return; }
     if (id == L"open_screenshot_dir") {
         const auto dir = Util::outputDir();
         if (!dir.empty()) {

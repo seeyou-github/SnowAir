@@ -23,7 +23,7 @@ namespace {
 	// 配色/字体全部取自菜单主题（GetThemeColor），行高按系统菜单（30）。不抢前台，鼠标钩子点外关闭。
 	enum MenuCmd : UINT {
 		kCmdCapture = 1, kCmdCaptureFullscreen, kCmdRecord, kCmdDemoCanvas,
-		kCmdMakeCollage, kCmdHistory, kCmdOpenDir, kCmdSettings, kCmdExit,
+		kCmdMakeCollage, kCmdOpenDir, kCmdSettings, kCmdExit,
 	};
 
 	struct MenuRow { UINT id; const wchar_t* langKey; const wchar_t* shortcutId; };
@@ -36,18 +36,11 @@ namespace {
 		{ 0,                     nullptr,                   nullptr },
 		{ kCmdMakeCollage,       L"tray.makeCollage",       L"make_collage" },
 		{ 0,                     nullptr,                   nullptr },
-		{ kCmdHistory,           L"tray.history",           L"open_history" },
 		{ kCmdOpenDir,           L"tray.openDir",           L"open_screenshot_dir" },
 		{ 0,                     nullptr,                   nullptr },
 		{ kCmdSettings,          L"tray.setting",           L"show_main" },
 		{ kCmdExit,              L"tray.exit",              nullptr },
 	};
-
-	// 「停用截图历史」开启时，托盘里不显示「截图历史」这一项（隐私用途，只隐藏入口）
-	bool trayRowVisible(UINT cmd)
-	{
-		return !(cmd == kCmdHistory && Setting::get()->getDisableCaptureHistory());
-	}
 
 	// 菜单外观（配色/尺寸）统一由 Win/MenuTheme.h 提供，托盘与贴图右键菜单共用。
 	using MenuPalette = MenuTheme::Palette;
@@ -73,7 +66,6 @@ namespace {
 		{
 			float h = kMenuPadY * 2.f;
 			for (const auto& row : kMenuRows) {
-				if (row.id != 0 && !trayRowVisible(row.id)) continue;
 				h += (row.id == 0 ? (float)kSepH : (float)kRowH);
 			}
 			return h;
@@ -124,7 +116,6 @@ namespace {
 			shell->setBorderRadius((float)kMenuRadius);
 
 			for (const auto& row : kMenuRows) {
-				if (row.id != 0 && !trayRowVisible(row.id)) continue;
 				if (row.id == 0) {
 					auto* line = shell->makeChild<Ling::Node>();
 					line->setHeight(1.f);
@@ -272,7 +263,6 @@ private:
 		case kCmdRecord:             WinCap::beginRecordPick(); break;
 		case kCmdDemoCanvas:         WinCap::beginDemoCanvas(); break;
 		case kCmdMakeCollage:        WinImageEdit::init(); break;
-		case kCmdHistory:            if (trayRowVisible(kCmdHistory)) WinSetting::init(5); break;
 		case kCmdOpenDir:            openOutputDir(); break;
 		case kCmdSettings:           WinSetting::init(0); break;
 		case kCmdExit:               if (auto* app = Ling::App::get()) app->quit(0); break;

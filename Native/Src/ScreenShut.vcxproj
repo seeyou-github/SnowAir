@@ -298,7 +298,6 @@
     <ClCompile Include="Win\WinSetting.cpp" />
     <ClCompile Include="Win\WinSettingAppearance.cpp" />
     <ClCompile Include="Win\WinSettingFeatures.cpp" />
-    <ClCompile Include="Win\WinSettingHistory.cpp" />
     <ClCompile Include="Win\WinSettingHotkeys.cpp" />
     <ClCompile Include="Win\WinSettingSystemKeys.cpp" />
     <ClCompile Include="Win\WinSettingQuickTranslate.cpp" />
@@ -425,7 +424,6 @@
     <ClInclude Include="Win\WinSetting.h" />
     <ClInclude Include="Win\WinSettingAppearance.h" />
     <ClInclude Include="Win\WinSettingFeatures.h" />
-    <ClInclude Include="Win\WinSettingHistory.h" />
     <ClInclude Include="Win\WinSettingHotkeys.h" />
     <ClInclude Include="Win\WinSettingSystemKeys.h" />
     <ClInclude Include="Win\WinSettingQuickTranslate.h" />

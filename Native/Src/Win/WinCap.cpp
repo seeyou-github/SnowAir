@@ -1242,7 +1242,6 @@ void WinCap::addRecordHistory(const std::wstring& path, int durationSec)
 			else cover.clear();
 		}
 	}
-	Setting::get()->addHistoryMedia(path, vw, vh, L"record", durationSec, cover);
 }
 
 void WinCap::demoRecCancel()
@@ -6369,7 +6368,6 @@ void WinCap::saveToFile(bool keepOpen)
     }
     if (Util::saveToFile(path, cw, ch, pixels.data())) {
         Util::rememberSaveDir(false, path);
-        Setting::get()->addHistoryFile(path, cw, ch, L"capture", &pixels);
         if (!keepOpen) close();
     }
     else {
@@ -6400,7 +6398,6 @@ void WinCap::copyToClipboard(bool keepOpen)
     if (!saved.empty() && copyAsFile) Util::addFileToClipboard(saved);
     else if (!saved.empty() && cutFile) Util::addFileToClipboardCut(saved);
     else Util::saveToClipboard(cw, ch, pixels.data());
-    if (!saved.empty()) st->addHistoryFile(saved, cw, ch, L"capture", &pixels);
     if (!keepOpen) close();
 }
 
@@ -6439,7 +6436,6 @@ void WinCap::closeByUser()
             }
             else {
                 const auto path = Util::quietSaveCapture(pixels, cw, ch, focusAppName_);
-                if (!path.empty()) s->addHistoryFile(path, cw, ch, L"autosave", &pixels);
             }
         }
     }

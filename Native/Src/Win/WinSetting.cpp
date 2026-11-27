@@ -18,7 +18,6 @@
 #include "WinSettingHotkeys.h"
 #include "WinSettingSystemKeys.h"
 #include "WinSettingQuickTranslate.h"
-#include "WinSettingHistory.h"
 #include "WinSettingAppearance.h"
 #include "WinSettingFeatures.h"
 #include "../Tool/IconCodes.h"
@@ -83,10 +82,6 @@ void WinSetting::init(int pageIndex)
 {
 	if (!winSetting || !winSetting->hwnd || !IsWindow(winSetting->hwnd))
 		winSetting.reset(new WinSetting());
-	// 建完窗按当前设置应用一次「历史记录」入口可见性。
-	// 不能写在构造函数里：那时全局 winSetting 还没赋值，applyHistoryMenuVisibility 会直接返回，
-	// 表现就是「停用历史记录开了，重开设置页那一项又冒出来」
-	applyHistoryMenuVisibility();
 	// 新建和已存在都抢一次前台焦点（不置顶）
 	winSetting->bringToForeground();
 	winSetting->showPage(pageIndex);
@@ -124,16 +119,6 @@ void WinSetting::bringToForeground()
 		SetForegroundWindow(hwnd);
 	}
 	SetFocus(hwnd);
-}
-
-// 侧栏「截图历史」菜单（索引 5）按开关显隐：关掉历史后设置里不再出现这一项
-void WinSetting::applyHistoryMenuVisibility()
-{
-	if (!winSetting || winSetting->menus.size() <= 5) return;
-	auto* item = winSetting->menus[5];
-	if (!item) return;
-	if (Setting::get()->getDisableCaptureHistory()) item->hide();
-	else item->show();
 }
 
 void WinSetting::dispose()
@@ -270,7 +255,7 @@ void WinSetting::onCreated()
 		subLabel->setColor(SettingTheme::textSecondary);
 	}
 
-	// ② 中部：6 菜单
+	// ② 中部：5 菜单
 	initMenuItems(sideNav);
 
 	// ③ 底部：版本号（zinc-400 弱文字）。数字从当前 exe 的内存版本资源取，与「关于」页同源；后缀带 Lite 版本标记。
@@ -364,34 +349,32 @@ void WinSetting::onCreated()
 	DwmSetWindowAttribute(hwnd, DWMWA_CLOAK, &cloak, sizeof(cloak));
 }
 
-// 6 菜单：按键顺序 Hotkeys → Quick → SystemKeys → Appearance → Features → History
+// 5 菜单：按键顺序 Hotkeys → Quick → SystemKeys → Appearance → Features
 void WinSetting::initMenuItems(Ling::Node* sideNav)
 {
-	const std::wstring keys[6] = {
+	const std::wstring keys[5] = {
 		L"setting.hotkeys",
 		L"setting.quick",
 		L"setting.systemKeys",
 		L"setting.appearance",
 		L"setting.function",
-		L"setting.history",
 	};
-	const wchar_t* icons[6] = {
+	const wchar_t* icons[5] = {
 		Icon::Hotkey,      // 全局热键
 		Icon::Quick,       // 快捷翻译
 		Icon::SystemKeys,  // 系统按键
 		Icon::Appearance,  // 外观设置
 		Icon::Function,    // 功能设置
-		Icon::Folder,      // 截图历史
 	};
 	menus.clear();
-	gMenuData.assign(6, MenuItemData{});
+	gMenuData.assign(5, MenuItemData{});
 
 	auto menuBox = sideNav->makeChild<Ling::Node>();
 	menuBox->setFlexGrow(1.0);
 	menuBox->setFlexDirection(Ling::FlexDirection::Column);
 	menuBox->setJustifyContent(Ling::Justify::Start);
 
-	for (int i = 0; i < 6; ++i) {
+	for (int i = 0; i < 5; ++i) {
 		auto menuItem = menuBox->makeChild<Ling::Button>();
 		menuItem->setWidthPercent(100.f);
 		menuItem->setText(L""); // 内部 Text 置空，由手动 Label 控制
@@ -416,8 +399,6 @@ void WinSetting::initMenuItems(Ling::Node* sideNav)
 		menuItem->onClick.add([this](auto mi) { onMenuItemClick(mi); });
 		menus.push_back(menuItem);
 	}
-	// 「停用截图历史」开启时隐藏该菜单项
-	applyHistoryMenuVisibility();
 }
 
 void WinSetting::onMenuItemClick(Ling::Button* menuItem)
@@ -458,7 +439,7 @@ void WinSetting::scheduleLoadPage(int index)
 	loadPage(index);
 }
 
-// 切到指定菜单页（托盘菜单「快捷翻译 / 截图历史 / 设置」用）。已打开时也生效；
+// 切到指定菜单页（托盘菜单「快捷翻译 / 设置」用）。已打开时也生效；
 // 与 onMenuItemClick 的区别是"目标页就是当前页"时直接返回，不重建页面。
 void WinSetting::showPage(int index)
 {
@@ -480,7 +461,7 @@ void WinSetting::loadPage(int index)
 {
 	if (!content) return;
 
-	// 若上一页是「直挂视口容器」的页（QuickTranslate / History）：它们不经 contentScroll，
+	// 若上一页是「直挂视口容器」的页（QuickTranslate）：它不经 contentScroll，
 	// 切走前必须先把 contentScroll 恢复显示、并把页面从 cardNode 摘除，
 	// 否则页面残留为 cardNode 子节点、contentScroll 被 display:none 钉死。
 	contentScroll->show();
@@ -490,16 +471,11 @@ void WinSetting::loadPage(int index)
 		cardNode->removeChild(pageQuick);   // 立即销毁 pageQuick（返回值丢弃 == 解构）
 		pageQuick = nullptr;
 	}
-	if (pageHistory) {
-		cardNode->removeChild(pageHistory);
-		pageHistory = nullptr;
-	}
 
 	// 清理旧子页：先手动置空指针（避免访问悬空），再清空 content 的所有子节点
 	pageHotkeys    = nullptr;
 	pageQuick      = nullptr;
 	pageSysKeys    = nullptr;
-	pageHistory    = nullptr;
 	pageAppearance = nullptr;
 	pageFeatures   = nullptr;
 	content->removeAllChildren();
@@ -529,7 +505,7 @@ void WinSetting::loadPage(int index)
 		SettingUi::adoptChild(content, child);
 	};
 
-	// 菜单顺序：0=Hotkeys 1=Quick 2=SystemKeys 3=Appearance 4=Features 5=History
+	// 菜单顺序：0=Hotkeys 1=Quick 2=SystemKeys 3=Appearance 4=Features
 	switch (index) {
 	case 0:
 		pageHotkeys = new WinSettingHotkeys(this);
@@ -566,18 +542,6 @@ void WinSetting::loadPage(int index)
 	case 4:
 		pageFeatures = new WinSettingFeatures(this);
 		adopt(pageFeatures); makeFullFill(pageFeatures);
-		break;
-	case 5:
-		// 截图历史页：底部一行（打开目录 / 清空历史 / 当前条目）需始终贴住视口底部 →
-		// 与快捷翻译页同策略，直接把该页塞进视口容器 cardNode（页面高度恒等于视口高度），
-		// 页内只让中部缩略图网格自建滚动，底行因此恒贴底、不随网格滚走。
-		contentScroll->hide();
-		pageHistory = new WinSettingHistory(this);
-		SettingUi::adoptChild(cardNode, pageHistory);
-		makeFullFill(pageHistory);
-		// 页面自带内容内边距（原先由 contentScroll->content 提供）
-		pageHistory->setPadding(SettingTheme::contentPadX, SettingTheme::contentPadY,
-			SettingTheme::contentPadX, SettingTheme::contentPadY);
 		break;
 	}
 }

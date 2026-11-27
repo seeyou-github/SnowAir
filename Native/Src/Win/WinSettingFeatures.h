@@ -22,7 +22,7 @@ private:
 	void buildOther(Ling::Node* p);       // 其他功能：功能提示 / 快捷键提示 / 悬停预览 / 记忆工具样式
 	void rebuildTab(int index);
 	// 延迟到调度队列再重建：调用点若位于卡片内按钮/下拉自身的回调中，同步 removeAllChildren
-	// 会在事件派发中途销毁正在执行回调的控件（同 WinSettingHistory 筛选下拉的处理）。
+	// 会在事件派发中途销毁正在执行回调的控件。
 	void deferRebuildTab(int index);
 	// 「恢复默认」的置灰：当前子页各项都还在出厂值 → 灰字且点击不做事（与外观页同款口径）
 	void syncRestoreState();

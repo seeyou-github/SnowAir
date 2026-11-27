@@ -1,7 +1,6 @@
 ﻿{
   "common": {
-    "sysTip": "Informasi",
-    "copySuccess": "Berhasil disalin"
+    "sysTip": "Informasi"
   },
   "cap": {
     "mark": "Tandai Gambar",
@@ -20,7 +19,6 @@
     "record": "Rekam Layar",
     "demoCanvas": "Kanvas Demo",
     "quickTranslate": "Terjemah Cepat",
-    "history": "Riwayat Tangkapan",
     "openDir": "Buka Folder"
   },
   "tool": {
@@ -96,33 +94,6 @@
     "hotkeysTip": "Klik sisi kanan untuk mulai merekam (maks 3 tombol); lepas untuk simpan. Backspace/Delete hapus, Esc batal",
     "quick": "Terjemah Cepat",
     "quickDesc": "Terjemahkan teks dengan cepat (Microsoft / Google / Youdao / Baidu / Offline)",
-    "history": "Riwayat Tangkapan",
-    "historyDesc": "Catatan riwayat, retensi, pembersihan & ekspor",
-    "retention": "Masa simpan",
-    "retention1d": "1 hari",
-    "retention3d": "3 hari",
-    "retention7d": "7 hari",
-    "retention30d": "30 hari",
-    "retentionForever": "Selamanya",
-    "retentionDays": "Masa simpan file",
-    "disableHistory": "Nonaktifkan riwayat tangkapan",
-    "currentCount": "Entri riwayat saat ini: %1",
-    "noHistory": "Belum ada riwayat tangkapan",
-    "historyFilterAll": "Semua waktu",
-    "historyMonthFmt": "%1-%2",
-    "srcFullscreen": "Layar penuh",
-    "srcFocused": "Jendela aktif",
-    "srcCapture": "Area",
-    "srcLong": "Tangkapan panjang",
-    "srcRecord": "Rekaman layar",
-    "copy": "Salin",
-    "pin": "Sematkan",
-    "pinScreen": "Sematkan ke Layar",
-    "revealFile": "Tampilkan di folder",
-    "delete": "Hapus",
-    "openHistoryDir": "Buka folder riwayat",
-    "clearHistory": "Bersihkan riwayat",
-    "clearHistoryConfirm": "Yakin hapus semua riwayat tangkapan?",
     "confirm": "OK",
     "cancel": "Batal",
     "appearance": "Tampilan",
@@ -163,8 +134,6 @@
     "trayLight": "Terang",
     "trayCustom": "Kustom",
     "featureTips": "Tips Fitur",
-    "hoverPreview": "Pratinjau Hover",
-    "hoverPreviewTip": "Saat diaktifkan, menahan kursor pada kartu Riwayat atau Papan Klip akan menampilkan pratinjau: gambar dalam skala asli, teks lengkap, serta berkas dengan ikon jenis, nama, dan folder sumbernya",
     "restoreDefault": "Pulihkan Default",
     "function": "Fitur",
     "functionDesc": "Tangkapan, rekaman, output, OCR, dan terjemah",
@@ -177,9 +146,6 @@
     "trayClickCapture": "Tangkap",
     "trayClickSetting": "Buka Pengaturan",
     "trayClickNone": "Tidak ada",
-    "windowBlacklist": "Daftar Hitam Jendela",
-    "blacklistPlaceholder": "Masukkan judul jendela lengkap, Enter untuk tambah",
-    "blacklistDoubleClick": "Klik ganda hapus",
     "pinWheelAction": "Aksi gulir",
     "pinWheelZoomAtCursor": "Perbesar dari kursor",
     "pinWheelZoomEdge": "Perbesar ke tepi berlawanan",
@@ -322,7 +288,6 @@
     "quickPinTip": "Satu tekan menyematkan apa yang sedang Anda gunakan: file / folder / gambar / video yang dipilih di Explorer, atau teks yang dipilih di jendela aktif; jika tidak ada, isi papan klip (teks / gambar / file)",
     "open_clipboard": "Buka Papan Klip",
     "open_screenshot_dir": "Buka Folder Tangkapan",
-    "open_history": "Buka Riwayat Tangkapan",
     "toggle_pins": "Tampil/Sembunyi Semua Sematan"
   },
   "long": {

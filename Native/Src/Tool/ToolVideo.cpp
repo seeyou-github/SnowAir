@@ -722,7 +722,6 @@ void ToolVideo::addRecordHistory(const std::wstring& path, int durationSec)
 			else cover.clear();
 		}
 	}
-	Setting::get()->addHistoryMedia(path, vw, vh, L"record", durationSec, cover);
 }
 
 bool ToolVideo::onSaveKey(bool toClipboard)
