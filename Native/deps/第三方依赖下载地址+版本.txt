@@ -1,0 +1,4 @@
+libwebp			https://github.com/webmproject/libwebp		版本v1.4.0.
+Ling:			https://github.com/xland/Ling				版本2026-oct13
+lw.PPOCR.C: 	https://github.com/lxw112190/lw.PPOCR.C 	版本v1.2.2
+zxing-cpp-311:	https://github.com/zxing-cpp/zxing-cpp		版本v3.1.1
