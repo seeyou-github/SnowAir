@@ -111,23 +111,6 @@ namespace {
 		btn->setColor(key.empty() ? SettingTheme::textMuted : SettingTheme::textPrimary);
 	}
 
-	// 开关本体（与 SettingUi::styleToggle 同一套尺寸/配色），但挂在普通 Node 上：
-	// 固定项（设置 / 退出）的开关不可点，用 Button 会给出误导性的手型光标。
-	void paintSwitch(Ling::Node* box, bool on)
-	{
-		auto* track = box->makeChild<Ling::Node>();
-		track->setSize(44.f, SettingUi::kToggleH);
-		track->setBorderRadius(12.f);
-		track->setBg(on ? SettingTheme::toggleTrackOn : SettingTheme::toggleTrackOff);
-
-		auto* thumb = track->makeChild<Ling::Node>();
-		thumb->setSize(20.f, 20.f);
-		thumb->setBorderRadius(10.f);
-		thumb->setBg(0xFFFFFFFF);
-		thumb->setPositionType(Ling::Position::Absolute);
-		thumb->setPosition(Ling::Edge::Left, on ? 22.f : 2.f);
-		thumb->setPosition(Ling::Edge::Top, 2.f);
-	}
 }
 
 WinSettingTrayMenu::WinSettingTrayMenu(Ling::WinBase* parent) : Ling::Node(parent)
@@ -308,7 +291,7 @@ void WinSettingTrayMenu::buildRow(Ling::Node* list, const std::wstring& id)
 	name->setFlexGrow(1.f);
 	name->setFlexShrink(1.f);
 
-	// ② 快捷键（固定项：禁止设置；关闭的项：只读展示，点不了）
+	// ② 快捷键（固定项：不显示；关闭的项：只读展示，点不了）
 	Ling::Button* shortcutBtn = nullptr;
 	{
 		auto* box = row->makeChild<Ling::Node>();
@@ -317,25 +300,27 @@ void WinSettingTrayMenu::buildRow(Ling::Node* list, const std::wstring& id)
 		box->setFlexDirection(Ling::FlexDirection::Row);
 		box->setAlignItems(Ling::Align::Center);
 
-		const std::wstring chord = fixed ? std::wstring{} : s->getShortcutKey(id);
-		if (fixed || !on) {
-			SettingUi::staticBox(box, chord.empty() ? Lang::get(L"setting.trayNoShortcut") : chord,
-				kColShortcut, kBoxH);
-		}
-		else {
-			auto* btn = box->makeChild<Ling::Button>();
-			btn->setId(id);
-			btn->setWidth(kColShortcut);
-			btn->setHeight(kBoxH);
-			btn->setBorderRadius(SettingTheme::radiusCtl);
-			styleShortcutBox(btn, false);
-			applyShortcutLabel(btn, id);
-			btn->onClick.add([this](Ling::Button* b) { capture_.begin(b, b->id, styleShortcutBox); });
-			shortcutBtn = btn;
+		if (!fixed) {
+			const std::wstring chord = s->getShortcutKey(id);
+			if (!on) {
+				SettingUi::staticBox(box, chord.empty() ? Lang::get(L"setting.trayNoShortcut") : chord,
+					kColShortcut, kBoxH);
+			}
+			else {
+				auto* btn = box->makeChild<Ling::Button>();
+				btn->setId(id);
+				btn->setWidth(kColShortcut);
+				btn->setHeight(kBoxH);
+				btn->setBorderRadius(SettingTheme::radiusCtl);
+				styleShortcutBox(btn, false);
+				applyShortcutLabel(btn, id);
+				btn->onClick.add([this](Ling::Button* b) { capture_.begin(b, b->id, styleShortcutBox); });
+				shortcutBtn = btn;
+			}
 		}
 	}
 
-	// ③ 开关（固定项恒开且不可点）
+	// ③ 开关（固定项：不显示）
 	{
 		auto* box = row->makeChild<Ling::Node>();
 		box->setWidth(kColSwitch);
@@ -344,10 +329,7 @@ void WinSettingTrayMenu::buildRow(Ling::Node* list, const std::wstring& id)
 		box->setAlignItems(Ling::Align::Center);
 		box->setPadding(kSpinnerPad, 0, 0, 0);
 
-		if (fixed) {
-			paintSwitch(box, true);
-		}
-		else {
+		if (!fixed) {
 			auto* sw = box->makeChild<Ling::Button>();
 			SettingUi::styleToggle(sw, on);
 			// on 是 const 局部量，MSVC 会把按值捕获的成员也视为 const（C2166），
@@ -361,7 +343,7 @@ void WinSettingTrayMenu::buildRow(Ling::Node* list, const std::wstring& id)
 		}
 	}
 
-	// ④ 拖动排序（固定项只显示手柄，不参与拖动）
+	// ④ 拖动排序（固定项：不显示手柄，不参与拖动）
 	{
 		auto* box = row->makeChild<Ling::Node>();
 		box->setWidth(kColDrag);
@@ -371,11 +353,13 @@ void WinSettingTrayMenu::buildRow(Ling::Node* list, const std::wstring& id)
 		box->setAlignItems(Ling::Align::Center);
 		box->setJustifyContent(Ling::Justify::Center);
 
-		auto* handle = box->makeChild<Ling::Label>();
-		handle->setText(Icon::DragHandle);
-		handle->setFontFamily(Icon::Family);
-		handle->setFontSize(18.f);
-		handle->setColor(fixed ? SettingTheme::faintForeground : SettingTheme::textTertiary);
+		if (!fixed) {
+			auto* handle = box->makeChild<Ling::Label>();
+			handle->setText(Icon::DragHandle);
+			handle->setFontFamily(Icon::Family);
+			handle->setFontSize(18.f);
+			handle->setColor(SettingTheme::textTertiary);
+		}
 
 		rows.push_back({ row, fixed ? nullptr : box, shortcutBtn, id, !fixed });
 	}

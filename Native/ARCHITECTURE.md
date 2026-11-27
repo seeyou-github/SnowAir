@@ -222,10 +222,10 @@ inputArea->setPadding(0.f, 8.f, 0.f, 0.f);
 ## 9. 托盘右键菜单（源：Src\Tray.cpp + Src\Win\WinSettingTrayMenu.cpp）
 
 菜单项、顺序、显隐、右侧显示的键位全部由「设置 → 右键菜单」页驱动（存在 `features.trayMenuOrder` /
-`features.trayMenuOff` + `shortcutKey` 里），Tray.cpp 只保留一张「id → 命令 / 文案」表（`kMenuItems[]`）。
+`features.trayMenuOn` / `features.trayMenuOff` + `shortcutKey` 里），Tray.cpp 只保留一张「id → 命令 / 文案」表（`kMenuItems[]`）。
 
 出厂形态：**截图 / OCR / 翻译 ┊ 设置 / 退出**（┊ 表示「设置」上方那条分割线）。
-「设置」「退出」是固定项：不能关闭、不能拖动、不能设快捷键，永远排在最下方。
+「设置」「退出」是固定项：不能关闭、不能拖动、不能设快捷键，永远排在最下方（设置页中不显示快捷键框、开关和拖动手柄）。
 
 | 菜单项 id | 行为 | 入口 |
 |---|---|---|

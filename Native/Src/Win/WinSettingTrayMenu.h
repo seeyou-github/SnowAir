@@ -8,7 +8,7 @@
  * 设置 · 右键菜单页（托盘右键菜单管理）。
  *
  * 一张表：名称 / 快捷键 / 开关 / 拖动排序。
- *   · 顺序、显隐、快捷键都存在 Setting 里（features.trayMenuOrder / trayMenuOff + shortcutKey）；
+ *   · 顺序、显隐、快捷键都存在 Setting 里（features.trayMenuOrder / trayMenuOn / trayMenuOff + shortcutKey）；
  *   · 快捷键与「全局热键」页共用同一套键位（同一批 id），跨页冲突由 Setting::findShortcutOwner 判定；
  *   · 「设置」「退出」是固定项：不能关闭、不能拖、不能设快捷键，恒在最下方（设置上方由托盘菜单画分割线）。
  */

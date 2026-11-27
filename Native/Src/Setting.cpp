@@ -837,8 +837,9 @@ std::wstring Setting::findShortcutOwner(const std::wstring& chord, const std::ws
 }
 
 // —— 托盘右键菜单：项序 / 开关 ——
-// 存 features.trayMenuOrder（逗号分隔的 id，顺序即菜单顺序）与 features.trayMenuOff
-// （逗号分隔的「已关闭」id）。只存差异，出厂状态在代码里定义，新增菜单项自动出现在末尾。
+// 存 features.trayMenuOrder（逗号分隔的 id，顺序即菜单顺序），以及
+// features.trayMenuOff / trayMenuOn（分别记录与出厂状态不同的关 / 开项）。
+// 只存差异，出厂状态在代码里定义，新增菜单项自动出现在末尾。
 namespace {
     // 出厂菜单顺序：设置、退出固定在最下方
     const wchar_t* kTrayMenuFixedTail[] = { L"settings", L"exit" };
@@ -910,6 +911,9 @@ void Setting::setTrayMenuOrder(const std::vector<std::wstring>& order)
 bool Setting::getTrayMenuItemEnabled(const std::wstring& id)
 {
     if (trayMenuItemFixed(id)) return true;   // 设置 / 退出：无法关闭
+    for (const auto& on : splitIds(featStr(L"trayMenuOn", L""))) {
+        if (on == id) return true;
+    }
     for (const auto& off : splitIds(featStr(L"trayMenuOff", L""))) {
         if (off == id) return false;
     }
@@ -918,27 +922,46 @@ bool Setting::getTrayMenuItemEnabled(const std::wstring& id)
 
 void Setting::setTrayMenuItemEnabled(const std::wstring& id, bool on)
 {
-    if (trayMenuItemFixed(id)) return;   // 固定项不接受关闭
-    std::vector<std::wstring> off;
-    for (const auto& o : splitIds(featStr(L"trayMenuOff", L""))) {
-        if (o != id) off.push_back(o);
-    }
+    if (trayMenuItemFixed(id)) return;   // 固定项不接受开关
+    // 两个差异表都先摘掉本项，再按「是否偏离出厂值」写入其中一边
+    auto collect = [this, &id](const wchar_t* key) {
+        std::vector<std::wstring> out;
+        for (const auto& v : splitIds(featStr(key, L""))) {
+            if (v != id) out.push_back(v);
+        }
+        return out;
+    };
+    std::vector<std::wstring> onIds = collect(L"trayMenuOn");
+    std::vector<std::wstring> offIds = collect(L"trayMenuOff");
     const bool defaultOn = trayMenuDefaultOn(id);
-    // 只记与出厂不同的项：默认开启的要关就进 off，默认关闭的要开就从 off 里去掉
-    if (defaultOn && !on) off.push_back(id);
-    std::wstring s;
-    for (const auto& o : off) {
-        if (!s.empty()) s += L',';
-        s += o;
-    }
-    setFeatStr(L"trayMenuOff", s);
+    if (on && !defaultOn) onIds.push_back(id);
+    if (!on && defaultOn) offIds.push_back(id);
+
+    auto f = featuresObj();
+    auto write = [&f](const wchar_t* key, const std::vector<std::wstring>& ids) {
+        std::wstring s;
+        for (const auto& v : ids) {
+            if (!s.empty()) s += L',';
+            s += v;
+        }
+        if (s.empty()) {
+            if (f.HasKey(key)) f.Remove(key);
+        }
+        else {
+            f.SetNamedValue(key, JsonValue::CreateStringValue(s));
+        }
+    };
+    write(L"trayMenuOn", onIds);
+    write(L"trayMenuOff", offIds);
+    save();
 }
 
 void Setting::restoreTrayMenuDefaults()
 {
-    // 项序 / 开关只是两个 features 字段，删掉即回到出厂
+    // 项序 / 开关只是几个 features 字段，删掉即回到出厂
     auto f = featuresObj();
     f.Remove(L"trayMenuOrder");
+    f.Remove(L"trayMenuOn");
     f.Remove(L"trayMenuOff");
     save();
     // 这几条菜单项的键位也一起回到内置默认表（删掉覆盖项，getShortcutKey 就会回落默认值）
@@ -955,7 +978,7 @@ void Setting::restoreTrayMenuDefaults()
 bool Setting::trayMenuAtDefaults()
 {
     const auto f = featuresObj();
-    if (f.HasKey(L"trayMenuOrder") || f.HasKey(L"trayMenuOff")) return false;
+    if (f.HasKey(L"trayMenuOrder") || f.HasKey(L"trayMenuOn") || f.HasKey(L"trayMenuOff")) return false;
     // 键位：这几条菜单项若存过覆盖值，也已经不是出厂状态
     auto obj = configObj.GetNamedObject(L"shortcutKey", nullptr);
     if (obj) {
