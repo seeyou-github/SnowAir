@@ -9,7 +9,6 @@
 #include "../App.h"
 #include "../Lang.h"
 #include "../Setting.h"
-#include "../Plugin/PluginHost.h"
 #include "../Util.h"
 #include "WinSetting.h"
 #include "SettingTheme.h"
@@ -20,7 +19,6 @@
 #include "WinSettingSystemKeys.h"
 #include "WinSettingQuickTranslate.h"
 #include "WinSettingHistory.h"
-#include "WinSettingPlugins.h"
 #include "WinSettingAppearance.h"
 #include "WinSettingFeatures.h"
 #include "../Tool/IconCodes.h"
@@ -272,7 +270,7 @@ void WinSetting::onCreated()
 		subLabel->setColor(SettingTheme::textSecondary);
 	}
 
-	// ② 中部：7 菜单
+	// ② 中部：6 菜单
 	initMenuItems(sideNav);
 
 	// ③ 底部：版本号（zinc-400 弱文字）。数字从当前 exe 的内存版本资源取，与「关于」页同源；后缀带 Lite 版本标记。
@@ -366,36 +364,34 @@ void WinSetting::onCreated()
 	DwmSetWindowAttribute(hwnd, DWMWA_CLOAK, &cloak, sizeof(cloak));
 }
 
-// 7 菜单：按键顺序 Hotkeys → Quick → SystemKeys → Appearance → Features → History → Plugins
+// 6 菜单：按键顺序 Hotkeys → Quick → SystemKeys → Appearance → Features → History
 void WinSetting::initMenuItems(Ling::Node* sideNav)
 {
-	const std::wstring keys[7] = {
+	const std::wstring keys[6] = {
 		L"setting.hotkeys",
 		L"setting.quick",
 		L"setting.systemKeys",
 		L"setting.appearance",
 		L"setting.function",
 		L"setting.history",
-		L"setting.plugins",
 	};
-	const wchar_t* icons[7] = {
+	const wchar_t* icons[6] = {
 		Icon::Hotkey,      // 全局热键
 		Icon::Quick,       // 快捷翻译
 		Icon::SystemKeys,  // 系统按键
 		Icon::Appearance,  // 外观设置
 		Icon::Function,    // 功能设置
 		Icon::Folder,      // 截图历史
-		Icon::Plugin,      // 插件集成
 	};
 	menus.clear();
-	gMenuData.assign(7, MenuItemData{});
+	gMenuData.assign(6, MenuItemData{});
 
 	auto menuBox = sideNav->makeChild<Ling::Node>();
 	menuBox->setFlexGrow(1.0);
 	menuBox->setFlexDirection(Ling::FlexDirection::Column);
 	menuBox->setJustifyContent(Ling::Justify::Start);
 
-	for (int i = 0; i < 7; ++i) {
+	for (int i = 0; i < 6; ++i) {
 		auto menuItem = menuBox->makeChild<Ling::Button>();
 		menuItem->setWidthPercent(100.f);
 		menuItem->setText(L""); // 内部 Text 置空，由手动 Label 控制
@@ -466,7 +462,6 @@ void WinSetting::scheduleLoadPage(int index)
 // 与 onMenuItemClick 的区别是"目标页就是当前页"时直接返回，不重建页面。
 void WinSetting::showPage(int index)
 {
-	PluginHost::instance().setRackPreview(false);
 	if (menus.empty() || gMenuData.empty()) return;
 	if (index < 0) index = 0;
 	if (index > (int)menus.size() - 1) index = (int)menus.size() - 1;
@@ -485,7 +480,7 @@ void WinSetting::loadPage(int index)
 {
 	if (!content) return;
 
-	// 若上一页是「直挂视口容器」的页（QuickTranslate / History / Plugins）：它们不经 contentScroll，
+	// 若上一页是「直挂视口容器」的页（QuickTranslate / History）：它们不经 contentScroll，
 	// 切走前必须先把 contentScroll 恢复显示、并把页面从 cardNode 摘除，
 	// 否则页面残留为 cardNode 子节点、contentScroll 被 display:none 钉死。
 	contentScroll->show();
@@ -499,17 +494,12 @@ void WinSetting::loadPage(int index)
 		cardNode->removeChild(pageHistory);
 		pageHistory = nullptr;
 	}
-	if (pagePlugins) {
-		cardNode->removeChild(pagePlugins);
-		pagePlugins = nullptr;
-	}
 
 	// 清理旧子页：先手动置空指针（避免访问悬空），再清空 content 的所有子节点
 	pageHotkeys    = nullptr;
 	pageQuick      = nullptr;
 	pageSysKeys    = nullptr;
 	pageHistory    = nullptr;
-	pagePlugins    = nullptr;
 	pageAppearance = nullptr;
 	pageFeatures   = nullptr;
 	content->removeAllChildren();
@@ -539,7 +529,7 @@ void WinSetting::loadPage(int index)
 		SettingUi::adoptChild(content, child);
 	};
 
-	// 菜单顺序：0=Hotkeys 1=Quick 2=SystemKeys 3=Appearance 4=Features 5=History 6=Plugins
+	// 菜单顺序：0=Hotkeys 1=Quick 2=SystemKeys 3=Appearance 4=Features 5=History
 	switch (index) {
 	case 0:
 		pageHotkeys = new WinSettingHotkeys(this);
@@ -587,16 +577,6 @@ void WinSetting::loadPage(int index)
 		makeFullFill(pageHistory);
 		// 页面自带内容内边距（原先由 contentScroll->content 提供）
 		pageHistory->setPadding(SettingTheme::contentPadX, SettingTheme::contentPadY,
-			SettingTheme::contentPadX, SettingTheme::contentPadY);
-		break;
-	case 6:
-		// 插件集成页：底部工具栏需始终贴住视口底部，与截图历史页同策略。
-		// 切走时由 loadPage 开头的 pagePlugins 清理分支摘除。
-		contentScroll->hide();
-		pagePlugins = new WinSettingPlugins(this);
-		SettingUi::adoptChild(cardNode, pagePlugins);
-		makeFullFill(pagePlugins);
-		pagePlugins->setPadding(SettingTheme::contentPadX, SettingTheme::contentPadY,
 			SettingTheme::contentPadX, SettingTheme::contentPadY);
 		break;
 	}

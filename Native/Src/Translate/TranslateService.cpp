@@ -1,21 +1,11 @@
 #include "pch.h"
 #include "TranslateService.h"
 #include "TranslateLangs.h"
-#include "TranslateModelManager.h"
 #include "FreeWebTranslate.h"
-#include "BergamotEngine.h"
 #include "../Setting.h"
 #include <thread>
 #include <algorithm>
 #include <future>
-
-namespace {
-// 这台机器上离线引擎能不能翻这个方向：所需的语言对（可能是 en 枢轴的两段）都装齐了才算
-bool offlineCanServe(const std::wstring& sourceLang, const std::wstring& targetLang)
-{
-	return TranslateModelManager::instance().canServeOffline(sourceLang, targetLang);
-}
-}
 
 TranslateService& TranslateService::instance()
 {
@@ -32,23 +22,19 @@ std::wstring TranslateService::resolveProvider(const std::wstring& preferred)
 	for (auto& c : lower) c = (wchar_t)towlower(c);
 	// 老配置里可能残留已移除的 AI/第三方引擎名，统一回落到默认在线引擎
 	if (lower == L"ai" || lower == L"custom" || lower == L"qwen-flash" || lower == L"qwen-plus"
-		|| lower == L"deepseek-v4-flash" || lower == L"yandex" || lower == L"bing" || lower == L"deepl") {
+		|| lower == L"deepseek-v4-flash" || lower == L"yandex" || lower == L"bing" || lower == L"deepl"
+		|| lower == L"offline") {
 		return TranslateProvider::Youdao;
 	}
 	return p;
 }
 
-// 服务链：用户选的服务优先；其后按「有道 > 百度 > 微软 > 谷歌 > 离线」回退。
+// 服务链：用户选的服务优先；其后按「有道 > 百度 > 微软 > 谷歌」回退。
 std::vector<std::wstring> TranslateService::providerChain(const std::wstring& preferred,
 	const std::wstring& sourceLang, const std::wstring& targetLang)
 {
 	std::vector<std::wstring> chain;
 	const std::wstring first = resolveProvider(preferred);
-	const bool offlineFirst = _wcsicmp(first.c_str(), TranslateProvider::Offline) == 0;
-	// 用户明确选了离线：方向装齐了就只走离线（隐私/断网，也不用为每行等在线超时）。
-	// 这个方向的语言包没装时不把离线放在链首 —— 它必然失败，直接改走在线。
-	if (offlineFirst && offlineCanServe(sourceLang, targetLang))
-		return { first };
 	auto push = [&chain](const std::wstring& p) {
 		for (auto& c : chain) if (_wcsicmp(c.c_str(), p.c_str()) == 0) return;
 		chain.push_back(p);
@@ -58,15 +44,11 @@ std::vector<std::wstring> TranslateService::providerChain(const std::wstring& pr
 	push(TranslateProvider::Baidu);
 	push(TranslateProvider::Microsoft);
 	push(TranslateProvider::Google);
-	if (BergamotEngine::isAvailable()) push(TranslateProvider::Offline);
 	return chain;
 }
 
 TranslateResult TranslateService::translateOnce(const TranslateRequest& req)
 {
-	if (resolveProvider(req.provider) == TranslateProvider::Offline)
-		return BergamotEngine::translateSync(req);
-
 	// 在线引擎是异步回调，这里同步等它回来（调用方本来就在工作线程上）
 	std::promise<TranslateResult> prom;
 	auto fut = prom.get_future();

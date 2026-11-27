@@ -152,11 +152,6 @@ public:
 	// 悬停预览：历史记录 / 剪切板卡片停悬时弹出预览（默认关闭）
 	bool getHoverPreview();
 	void setHoverPreview(bool on);
-	// Rack plugin config lives under features.rack.<key>.
-	bool getRackFlag(const wchar_t* key, bool def);
-	void setRackFlag(const wchar_t* key, bool on);
-	int getRackInt(const wchar_t* key, int def);
-	void setRackInt(const wchar_t* key, int value);
 	int getLastArrowHead();
 	void setLastArrowHead(int v);
 	bool getAutoSaveAfterCapture();

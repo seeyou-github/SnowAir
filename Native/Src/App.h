@@ -5,7 +5,6 @@
 class App
 {
 	public:
-		~App();
 		static void init();
 		// 消息循环退出后、Ling::dispose 之前调用：单例和窗口对象里存着 WinRT / D2D 对象
 		//（配置和语言为 JsonObject，贴图窗口持有位图与画刷）。进程退出后执行静态析构时

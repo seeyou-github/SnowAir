@@ -3,9 +3,8 @@
 #include <vector>
 #include <functional>
 
-// 仅保留非 AI 的翻译引擎：在线免费接口（微软/谷歌/有道/百度）+ 离线 Bergamot。
+// 仅保留非 AI 的在线翻译引擎：微软 / 谷歌 / 有道 / 百度。
 namespace TranslateProvider {
-	inline constexpr const wchar_t* Offline = L"offline";
 	inline constexpr const wchar_t* Microsoft = L"microsoft";
 	inline constexpr const wchar_t* Google = L"google";
 	inline constexpr const wchar_t* Youdao = L"youdao";

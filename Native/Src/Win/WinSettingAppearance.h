@@ -28,9 +28,6 @@ private:
 	void tbUpdateKindTitle();                  // 刷新 Tab0 标题（××工具栏外观）
 
 	void buildToolbarTab(Ling::Node* host);    // Tab 0
-	void buildRackTab(Ling::Node* host);       // Tab 2（仅安装晾衣架组件时存在）
-	void setRackTheme(int theme);
-	void styleRackThemeButtons();
 	void buildAppTab(Ling::Node* host);        // Tab 1：自启+语言+主题+贴图边框
 
 	// Tab 1 内部子组件
@@ -100,11 +97,7 @@ private:
 
 private:
 	Ling::Node* tabHost{ nullptr };
-	Ling::Node* tabs[3]{ nullptr };
-	bool rackAvailable{ false };   // 晾衣架组件已安装 → 才创建 Tab2 与对应胶囊
-	std::array<Ling::Button*, 4> rackThemeRadios{};
-	std::array<Ling::Node*, 4> rackThemeDots{};
-	Ling::Button* rackDisplayModeDdl{ nullptr };
+	Ling::Node* tabs[2]{ nullptr };
 	int tabIndex{ 0 };
 
 	// 顶部分段胶囊（Tab0 为「标题 + ▾下拉」组合，保留现有胶囊样式）
@@ -114,7 +107,6 @@ private:
 	Ling::Button* seg0TitleBtn{ nullptr };
 	Ling::Label* seg0Arrow{ nullptr };    // 按钮内的 ▾ 图标（左右各留 8px）
 	Ling::Button* segBtn1{ nullptr };     // Tab1 胶囊
-	Ling::Button* segRackBtn{ nullptr };  // Tab2 胶囊（仅安装晾衣架组件时创建）
 	// 工具栏类型下拉浮层（挂在 Tab0 ▾ 上）
 	std::unique_ptr<SettingUi::Popup> tbKindPopup;
 

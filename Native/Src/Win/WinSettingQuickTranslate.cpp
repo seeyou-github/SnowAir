@@ -12,9 +12,7 @@
 #include "../Tool/IconCodes.h"
 #include "../Translate/TranslateService.h"
 #include "../Translate/TranslateTypes.h"
-#include "../Translate/TranslateModelManager.h"
 #include "../Translate/DictLookup.h"
-#include "../Translate/BergamotEngine.h"
 
 namespace {
 	constexpr float kBubbleMaxW{ 340.f };      // 气泡最大逻辑宽度
@@ -93,7 +91,6 @@ namespace {
 		{ L"baidu",     L"setting.fnTransBaidu" },
 		{ L"microsoft", L"setting.fnTransMs" },
 		{ L"google",    L"setting.fnTransGoogle" },
-		{ L"offline",   L"setting.fnTransOffline" },
 	};
 	constexpr int kProviderCount = (int)(sizeof(kProviders) / sizeof(kProviders[0]));
 
@@ -214,10 +211,6 @@ WinSettingQuickTranslate::~WinSettingQuickTranslate()
 	win->onMouseMove.remove(mouseMoveTok);
 	win->onCursor.remove(cursorTok);
 	win->onMouseDown.remove(sendClickTok);
-	// 离开这一页就把离线翻译模型（几百 MB）还回去：截图会话那条链路已在 WinCap::onClosed
-	// 释放过，这里补上缺的那条 —— 否则在这一页翻过一次离线之后，模型会一直常驻到退出。
-	// release() 内部加锁，后台还在翻的那一段会先跑完，不会被抽掉。
-	BergamotEngine::release();
 }
 
 // ============ 语言选项弹层 ============
@@ -688,27 +681,9 @@ void WinSettingQuickTranslate::ensureTargetWhenSrcZh()
 void WinSettingQuickTranslate::showLangBox(Ling::Button* btn, bool target)
 {
 	auto* s = Setting::get();
-	// 离线服务只能翻「已经下载的语言包」：下拉里只列这些。在线服务照旧列全部主流语种
-	// —— 用户只装了中/英/日，下拉就不该还能选到法语，选了也只是白白回退到在线。
 	std::vector<std::wstring> codes;
 	codes.reserve(kPopularLangCount);
 	for (int i = 0; i < kPopularLangCount; i++) codes.push_back(kPopularLangs[i].code);
-	if (_wcsicmp(s->getTranslateProvider().c_str(), TranslateProvider::Offline) == 0) {
-		auto& mgr = TranslateModelManager::instance();
-		std::vector<std::wstring> keep;
-		for (const auto& code : codes) {
-			// 源语言看「从它翻出去」，目标语言看「翻进它」；非英语之间可能还要经 en 枢轴
-			bool ok = false;
-			for (const auto& other : codes) {
-				if (_wcsicmp(code.c_str(), other.c_str()) == 0) continue;
-				const bool hit = target ? mgr.canServeOffline(other, code) : mgr.canServeOffline(code, other);
-				if (hit) { ok = true; break; }
-			}
-			if (ok) keep.push_back(code);
-		}
-		// 未安装任何语言包：保持完整清单，避免下拉框为空（实际请求会由服务链回退到在线）
-		if (!keep.empty()) codes.swap(keep);
-	}
 
 	std::vector<std::wstring> ids, labs;
 	if (!target) {   // 源语言最前多一项「自动检测」
@@ -720,7 +695,7 @@ void WinSettingQuickTranslate::showLangBox(Ling::Button* btn, bool target)
 		labs.push_back(langLabel(code));
 	}
 	const std::wstring cur = target ? s->getTranslateTargetLang() : s->getTranslateSourceLang();
-	// 当前值不在过滤后的清单里（刚切到离线服务，或语言包被卸掉）：仍然列出来，否则下拉
+	// 当前值不在主流清单里时仍然列出来，否则下拉
 	// 高亮会落到第一项，和按钮上的文字对不上
 	bool hasCur = false;
 	for (const auto& id : ids)

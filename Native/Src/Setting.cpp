@@ -14,10 +14,8 @@
 #include <oleacc.h>
 #include <UIAutomationClient.h>
 #include "Setting.h"
-#include "Ocr/PluginPaths.h"
 #include "BlacklistMatch.h"
 #include "ConfigMerge.h"
-#include "Plugin/PluginHost.h"
 #include "Util.h"
 #include "Lang.h"
 #include "Win/WinCap.h"
@@ -52,8 +50,6 @@ namespace {
         { L"open_history",           108 },
         { L"capture_repeat",         109 },
         { L"quick_pin",              110 },
-        { L"rack_quick_hang",        111 },
-        { L"rack_toggle",            112 },
         { L"make_collage",           113 },
     };
     bool isGlobalHotkeyId(const std::wstring& id)
@@ -1123,9 +1119,6 @@ bool Setting::setCacheDir(const std::wstring& dir)
         { oldRoot.wstring(), target.wstring() },
     };
     rewriteJsonPaths(getLocalDataPath(), pairs);
-    const auto rackData = PluginPaths::root() / L"rack" / L"data";
-    rewriteJsonPaths(rackData / L"rack.json", pairs);
-    rewriteJsonPaths(rackData / L"rack_items.json", pairs);
 
     for (const wchar_t* rel : kSubdirs) {
         std::error_code re;
@@ -1381,22 +1374,6 @@ void Setting::migrateCacheDirs()
 
     if (changed) saveLocalData(data);
 
-    // 晾衣架自己的数据：rack_items.json 里的 hung 卡片路径
-    const std::vector<std::pair<std::wstring, std::wstring>> pairs{
-        { oldClip.wstring(), newClip.wstring() },
-        { oldThumb.wstring(), newThumb.wstring() },
-        { oldPin.wstring(), newPin.wstring() },
-        { oldRackQuick.wstring(), newRackQuick.wstring() },
-        { oldIcon.wstring(), newIcon.wstring() },
-        { flatClip.wstring(), newClip.wstring() },
-        { flatThumb.wstring(), newThumb.wstring() },
-        { flatPin.wstring(), newPin.wstring() },
-        { flatRackQuick.wstring(), newRackQuick.wstring() },
-        { flatIcon.wstring(), newIcon.wstring() },
-    };
-    const auto rackData = PluginPaths::root() / L"rack" / L"data";
-    rewriteJsonPaths(rackData / L"rack.json", pairs);
-    rewriteJsonPaths(rackData / L"rack_items.json", pairs);
 }
 
 void Setting::save()
@@ -1890,10 +1867,6 @@ void Setting::setToolLastInt(const std::wstring& toolId, const std::wstring& key
 // 悬停预览：历史记录 / 剪切板卡片停悬时弹出大图或文字卡（默认关闭）
 bool Setting::getHoverPreview() { return featBool(L"hoverPreview", false); }
 void Setting::setHoverPreview(bool on) { setFeatBool(L"hoverPreview", on); }
-bool Setting::getRackFlag(const wchar_t* key, bool def) { return featBool(key, def); }
-void Setting::setRackFlag(const wchar_t* key, bool on) { setFeatBool(key, on); }
-int Setting::getRackInt(const wchar_t* key, int def) { return featInt(key, def); }
-void Setting::setRackInt(const wchar_t* key, int value) { setFeatInt(key, value); }
 int Setting::getLastArrowHead() { return featInt(L"lastArrowHead", 0); }
 void Setting::setLastArrowHead(int v) { setFeatInt(L"lastArrowHead", v); }
 bool Setting::getAutoSaveAfterCapture() { return featBool(L"autoSaveAfterCapture", false); }
@@ -2204,15 +2177,6 @@ void Setting::applyHotkeys()
 namespace {
     unsigned clipboardHash(const std::vector<BYTE>& data);
 
-    /* 快速贴屏上绳开关 + 插件在场时，快速贴屏整体交给晾衣架接管。
-       图片仍走插件原有的 on_quick_hang；文字和文件走新的可选导出。 */
-    bool rackQuickHangEnabled()
-    {
-        auto* s = Setting::get();
-        return s && s->getRackFlag(L"rack.quick_pin_hang", false) &&
-               PluginHost::instance().loaded();
-    }
-
     bool quickPinIsImagePath(const std::wstring& path)
     {
         const auto dot = path.find_last_of(L'.');
@@ -2228,24 +2192,6 @@ namespace {
                        const std::wstring& sourcePath = L"")
     {
         if (w <= 0 || h <= 0 || px.empty()) return;
-        auto* s = Setting::get();
-        if (s && s->getRackFlag(L"rack.quick_pin_hang", false)) {
-            std::wstring hangPath = sourcePath;
-            if (hangPath.empty()) {
-                auto dir = s->getRackQuickDir();
-                std::error_code ec;
-                std::filesystem::create_directories(dir, ec);
-                hangPath = (dir / wfmt(L"quick-%llu.png", GetTickCount64())).wstring();
-                if (!Util::saveToFile(hangPath, w, h, px.data())) hangPath.clear();
-            }
-            if (!hangPath.empty() && PluginHost::instance().loaded()) {
-                // "上绳" means the image goes to the rack, not also to a
-                // separate pin window on the desktop.
-                PluginHost::instance().hangQuickPin(hangPath);
-                return;
-            }
-        }
-
         RECT rc{};
         SystemParametersInfo(SPI_GETWORKAREA, 0, &rc, 0);
         const int areaW = (int)rc.right - (int)rc.left;
@@ -2276,10 +2222,6 @@ namespace {
                 quickPinImage(w, h, px, paths.front());
                 return;
             }
-        }
-        if (rackQuickHangEnabled() &&
-            PluginHost::instance().hangQuickPinPaths(paths)) {
-            return;
         }
         ClipPin::showFiles(paths);
     }
@@ -2519,10 +2461,6 @@ namespace {
         // ② 前台窗口里拖选的文字
         const std::wstring selected = foregroundSelectedText();
         if (!selected.empty()) {
-            if (rackQuickHangEnabled() &&
-                PluginHost::instance().hangQuickPinText(selected)) {
-                return;
-            }
             ClipPin::showText(selected);
             return;
         }
@@ -2530,10 +2468,6 @@ namespace {
         auto payload = readClipboardForPin();
         if (!payload.files.empty()) { quickPinPaths(payload.files); return; }
         if (!payload.text.empty()) {
-            if (rackQuickHangEnabled() &&
-                PluginHost::instance().hangQuickPinText(payload.text)) {
-                return;
-            }
             ClipPin::showText(payload.text);
             return;
         }
@@ -2563,8 +2497,6 @@ void Setting::runHotkeyAction(const std::wstring& id)
     if (id == L"show_main") { WinSetting::toggle(); return; }
     if (id == L"make_collage") { WinImageEdit::init(); return; }
     if (id == L"quick_pin") { quickPinFromContext(); return; }
-    if (id == L"rack_quick_hang") { PluginHost::instance().quickHang(); return; }
-    if (id == L"rack_toggle") { PluginHost::instance().toggleRack(); return; }
     if (id == L"toggle_pins") { WinPin::toggleAllHidden(); return; }
     if (id == L"restore_pin") { WinPin::restoreLastClosed(); return; }
     if (id == L"open_history") { if (!getDisableCaptureHistory()) WinSetting::togglePage(5); return; }
@@ -3406,7 +3338,6 @@ std::wstring Setting::addHistoryFile(const std::wstring& filePath, int width, in
     // 有新文件落盘时顺带清理一次过期历史：程序常驻托盘时不会重启，
     // 只靠启动/改设置那两次会漏掉"跨天"的过期文件。
     pruneExpiredHistory();
-    PluginHost::instance().onCapture(filePath);
     return it.id;
 }
 

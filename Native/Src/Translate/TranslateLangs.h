@@ -4,19 +4,8 @@
 #include <cwctype>
 #include "TranslateTypes.h"
 
-// 语种归一 / 原文粗检测 / 自动换向 / 语言对解析。
-// 供 TranslateService（检测与换向）与 BergamotEngine（选离线语言对）共用。
+// 语种归一 / 原文粗检测 / 自动换向。供 TranslateService 使用。
 namespace TranslateLangs {
-
-	// app 语种码 → 离线模型用的基码：zh-CN→zh、zh-TW→zh_hant，其余（en/ru/ko/ja/fr/es/de）原样小写
-	inline std::wstring baseCode(const std::wstring& lang)
-	{
-		if (_wcsicmp(lang.c_str(), L"zh-CN") == 0 || _wcsicmp(lang.c_str(), L"zh") == 0) return L"zh";
-		if (_wcsicmp(lang.c_str(), L"zh-TW") == 0 || _wcsicmp(lang.c_str(), L"zh-Hant") == 0) return L"zh_hant";
-		std::wstring s = lang;
-		for (auto& c : s) c = (wchar_t)towlower(c);
-		return s;
-	}
 
 	// 脚本计数（只数"字母类"字符：假名 / 谚文 / 汉字 / 西里尔 / 拉丁）
 	struct Scripts {
@@ -97,16 +86,6 @@ namespace TranslateLangs {
 		// 否则保持用户设的目标不动 —— 中英混排里夹几个英文字母不该把 zh→en 翻成 en→zh。
 		if (_wcsicmp(src.c_str(), tgt.c_str()) == 0 && langShare(tgt, text) >= 0.85f)
 			tgt = isChineseLang(tgt) ? L"en" : L"zh-CN";
-	}
-
-	// 需要的语言对（pairId）：1 个 = 直译；2 个 = 以英语为枢轴的接力翻译
-	inline std::vector<std::wstring> pairIds(const std::wstring& src, const std::wstring& tgt)
-	{
-		auto s = baseCode(src), t = baseCode(tgt);
-		if (s.empty() || t.empty() || s == t) return {};
-		if (t == L"en") return { s + L"-en" };
-		if (s == L"en") return { L"en-" + t };
-		return { s + L"-en", L"en-" + t };
 	}
 
 } // namespace TranslateLangs

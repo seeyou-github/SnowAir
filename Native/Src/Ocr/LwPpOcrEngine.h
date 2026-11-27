@@ -8,7 +8,7 @@
 // 用过就永久占着几百 MB。这里换成有 create/free 的 C ABI：首次 recognitize 时建一次、
 // 之后复用，release() 时 lw_ocr_free + FreeLibrary，实测内存从 103MB 回到 8MB。
 //
-// 调用时机：截图/贴图会话结束时释放（与离线翻译引擎 BergamotEngine 一样），
+// 调用时机：截图/贴图会话结束时释放，
 // 以及卸载或重装模型之前。
 namespace LwPpOcrEngine {
 	// 运行时 DLL 与三个模型 + 字典是否齐全（纯文件探测，不加载、不建引擎）

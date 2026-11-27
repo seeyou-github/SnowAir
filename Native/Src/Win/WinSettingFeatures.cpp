@@ -1,4 +1,5 @@
 #include "pch.h"
+#include <filesystem>
 #include "WinSettingFeatures.h"
 #include "SettingWidgets.h"
 #include "SettingTheme.h"
@@ -12,7 +13,7 @@
 #include "../Ocr/OcrPackVariant.h"
 #include "../Ocr/LwPpOcrEngine.h"
 #include "../Translate/TranslateTypes.h"
-#include "../Plugin/PluginHost.h"
+#include "../Ocr/PluginPaths.h"
 #include "WinCap.h"
 #include "WinSetting.h"
 #include "CapVideo.h"
@@ -1220,85 +1221,54 @@ void WinSettingFeatures::buildRecognize(Ling::Node* p)
 void WinSettingFeatures::buildOcr(Ling::Node* p)
 {
 	auto* s = Setting::get();
-	// Lite 版不提供云端 / API 识图：只保留本地 PP-OCRv6 与系统 OCR。
-	// PP-OCRv6 有轻量/标准两档；只有装了多档时才需要「模型规格」选择。
-	std::vector<OcrPackVariant> installed;
+	// 模型列表来自 AppData\config\plugin\ocr-models 下实际存在的目录。
+	// 0=轻量 1=标准 4=系统 OCR
+	std::vector<int> ids;
+	std::vector<std::wstring> labels;
+	std::error_code ec;
+	const auto modelsRoot = PluginPaths::ocrModels();
 	for (int i = 0; i < OcrPack::kCount; ++i) {
 		const auto v = OcrPack::clampVariant(i);
-		if (OcrModelManager::instance().isInstalled(v)
-			&& OcrRuntimeManager::instance().isInstalled(v))
-			installed.push_back(v);
+		if (!std::filesystem::is_directory(modelsRoot / OcrPack::folderName(v), ec)) continue;
+		if (!OcrModelManager::instance().isInstalled(v)) continue;
+		if (!OcrRuntimeManager::instance().isInstalled(v)) continue;
+		ids.push_back(i);
+		labels.push_back(OcrPack::label(v));
 	}
+	ids.push_back(4);
+	labels.push_back(Lang::get(L"setting.fnOcrSystem"));
 
-	std::vector<std::wstring> labels;
-	std::vector<int> engines;
-	if (!installed.empty()) { labels.push_back(L"PP-OCRv6"); engines.push_back(0); }
-	// 文本识别模型默认只有「系统 OCR」
-	labels.push_back(Lang::get(L"setting.fnOcrSystem")); engines.push_back(4);
+	const int selected = (s->getOcrEngine() == 4)
+		? 4 : std::clamp(s->getOcrPackVariant(), 0, OcrPack::kCount - 1);
 	int cur = 0;
-	for (int i = 0; i < (int)engines.size(); i++) {
-		if (engines[i] == s->getOcrEngine()) { cur = i; break; }
+	for (size_t i = 0; i < ids.size(); ++i) {
+		if (ids[i] == selected) { cur = (int)i; break; }
 	}
-	{
-		// 固定 50% 列容器：每列 = 半栏 − 半个列距，落单时也保持半宽
-		// （grid2Cells 按 flex 分配，单项会被拉满整行）
-		auto addResultRow = [s](Ling::Node* parent) {
-			SettingUi::selectRow(parent, Lang::get(L"setting.fnOcrResultMode"),
-				{ Lang::get(L"setting.fnOcrResultOverlay"), Lang::get(L"setting.fnOcrResultReflow") },
-				std::clamp(s->getOcrResultMode(), 0, 1),
-				[](int i, const std::wstring&) { Setting::get()->setOcrResultMode(i); }, true);
-		};
 
-		const bool tierShown = (s->getOcrEngine() == 0 && installed.size() > 1);
+	// 固定 50% 列容器：每列 = 半栏 − 半个列距，落单时也保持半宽
+	auto addResultRow = [s](Ling::Node* parent) {
+		SettingUi::selectRow(parent, Lang::get(L"setting.fnOcrResultMode"),
+			{ Lang::get(L"setting.fnOcrResultOverlay"), Lang::get(L"setting.fnOcrResultReflow") },
+			std::clamp(s->getOcrResultMode(), 0, 1),
+			[](int i, const std::wstring&) { Setting::get()->setOcrResultMode(i); }, true);
+	};
 
-		auto* row1 = halfRow(p);
-		SettingUi::selectRow(halfCol(row1, false), Lang::get(L"setting.fnOcrModel"), labels, cur,
-			[this, engines](int i, const std::wstring&) {
-				if (i < 0 || i >= (int)engines.size()) return;
-				const bool changed = Setting::get()->getOcrEngine() != engines[i];
-				Setting::get()->setOcrEngine(engines[i]);
-				// 切到系统 OCR 时「模型规格」要收起来（反之亦然），按需重建本页
-				if (changed) this->deferRebuildTab(3);
-			}, true);
-
-		// 模型规格：只有选中 PP-OCRv6 且装了多档时才需要选择；只有一档不显示
-		if (tierShown) {
-			// 识别结果版式放第一行右列（与文本识别模型并排）
-			addResultRow(halfCol(row1, true));
-
-			// 模型规格独占第二行左列（半栏）
-			std::vector<std::wstring> tiers;
-			std::vector<int> tierIds;
-			for (auto v : installed) {
-				tiers.push_back(OcrPack::tierLabel(v));
-				tierIds.push_back((int)v);
-			}
-			int curTier = 0;
-			for (int i = 0; i < (int)tierIds.size(); ++i)
-				if (tierIds[i] == s->getOcrPackVariant()) { curTier = i; break; }
-			// 「?」放在标题「模型规格」右侧（optionRow 的 helpText 就是干这个的）
-			auto tierRow = SettingUi::optionRow(halfCol(halfRow(p), false), Lang::get(L"setting.fnOcrTier"), L"", true,
-				SettingTheme::ctrlH, Lang::get(L"setting.plugOcrTierTip"));
-			auto* ddl = SettingUi::selectDdl(tierRow.ctrlBox, tiers, curTier,
-				[tierIds](int i, const std::wstring&) {
-					if (i < 0 || i >= (int)tierIds.size()) return;
-					Setting::get()->setOcrPackVariant(tierIds[i]);
-					LwPpOcrEngine::release();   // 换档要重建引擎
-				});
-			ddl->setWidth(SettingTheme::dropdownWidth);
-			ddl->setFlexShrink(0.f);
-		}
-		else {
-			// 系统 OCR：没有模型规格，识别结果版式直接并到第一行右列
-			addResultRow(halfCol(row1, true));
-		}
-	}
+	auto* row1 = halfRow(p);
+	SettingUi::selectRow(halfCol(row1, false), Lang::get(L"setting.fnOcrModel"), labels, cur,
+		[ids](int i, const std::wstring&) {
+			if (i < 0 || i >= (int)ids.size()) return;
+			const int id = ids[i];
+			Setting::get()->setOcrEngine(id == 4 ? 4 : 0);
+			if (id != 4) Setting::get()->setOcrPackVariant(id);
+			LwPpOcrEngine::release();   // 换模型要重建引擎
+		}, true);
+	addResultRow(halfCol(row1, true));
 }
 
 void WinSettingFeatures::buildTranslate(Ling::Node* p)
 {
 	auto* s = Setting::get();
-	// 只提供非 AI 的翻译引擎：在线免费接口（微软/谷歌/有道/百度）+ 离线 Bergamot。
+	// 只提供非 AI 的在线翻译引擎：微软 / 谷歌 / 有道 / 百度。
 	// （已移除 AI 模型翻译与「自定义 API」配置：不再有 URL / Key / 模型 / 提示词等设置。）
 	struct Item { const wchar_t* id; const wchar_t* labKey; };
 	const Item items[] = {
@@ -1306,7 +1276,6 @@ void WinSettingFeatures::buildTranslate(Ling::Node* p)
 		{ L"baidu",     L"setting.fnTransBaidu" },
 		{ L"microsoft", L"setting.fnTransMs" },
 		{ L"google",    L"setting.fnTransGoogle" },
-		{ L"offline",   L"setting.fnTransOffline" },
 	};
 	std::vector<std::wstring> svcLabs, svcIds;
 	for (auto& it : items) {
@@ -1375,10 +1344,7 @@ void WinSettingFeatures::buildOther(Ling::Node* p)
 	// 悬停预览：历史记录 / 剪切板卡片停悬时弹出大图或文字卡（默认关闭，避免误触打扰）
 	mkStateToggle(grid, L"setting.hoverPreview",
 		[] { return Setting::get()->getHoverPreview(); },
-		[](bool on) {
-			Setting::get()->setHoverPreview(on);
-			PluginHost::instance().onSettingChanged(L"hoverPreview");
-		}, {},
+		[](bool on) { Setting::get()->setHoverPreview(on); }, {},
 		L"setting.hoverPreviewTip");
 	// 记忆工具样式：记住上次标注工具样式（如大箭头），下次截图自动复用；默认关闭
 	mkStateToggle(grid, L"setting.rememberToolStyle",

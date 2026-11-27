@@ -212,7 +212,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="App.cpp" />
-    <ClCompile Include="Plugin\PluginHost.cpp" />
     <ClCompile Include="CommandKeys.cpp" />
     <ClCompile Include="Export\ImageExport.cpp" />
     <ClCompile Include="Export\PdfWriter.cpp" />
@@ -269,11 +268,9 @@
     <ClCompile Include="Tool\ToolPicker.cpp" />
     <ClCompile Include="Tool\ToolSub.cpp" />
     <ClCompile Include="Tool\ToolVideo.cpp" />
-    <ClCompile Include="Translate\BergamotEngine.cpp" />
     <ClCompile Include="Translate\DictLookup.cpp" />
     <ClCompile Include="Translate\DictPopup.cpp" />
     <ClCompile Include="Translate\FreeWebTranslate.cpp" />
-    <ClCompile Include="Translate\TranslateModelManager.cpp" />
     <ClCompile Include="Translate\TranslateService.cpp" />
     <ClCompile Include="Tray.cpp" />
     <ClCompile Include="TrayIcon.cpp" />
@@ -304,7 +301,6 @@
     <ClCompile Include="Win\WinSettingHistory.cpp" />
     <ClCompile Include="Win\WinSettingHotkeys.cpp" />
     <ClCompile Include="Win\WinSettingSystemKeys.cpp" />
-    <ClCompile Include="Win\WinSettingPlugins.cpp" />
     <ClCompile Include="Win\WinSettingQuickTranslate.cpp" />
     <ClCompile Include="Win\cgif\cgif.c">
       <CompileAs>CompileAsC</CompileAs>
@@ -388,11 +384,9 @@
     <ClInclude Include="Tool\ToolPicker.h" />
     <ClInclude Include="Tool\ToolSub.h" />
     <ClInclude Include="Tool\ToolVideo.h" />
-    <ClInclude Include="Translate\BergamotEngine.h" />
     <ClInclude Include="Translate\DictLookup.h" />
     <ClInclude Include="Translate\DictPopup.h" />
     <ClInclude Include="Translate\FreeWebTranslate.h" />
-    <ClInclude Include="Translate\TranslateModelManager.h" />
     <ClInclude Include="Translate\TranslateLangs.h" />
     <ClInclude Include="Translate\TranslateService.h" />
     <ClInclude Include="Translate\TranslateTypes.h" />
@@ -434,9 +428,6 @@
     <ClInclude Include="Win\WinSettingHistory.h" />
     <ClInclude Include="Win\WinSettingHotkeys.h" />
     <ClInclude Include="Win\WinSettingSystemKeys.h" />
-    <ClInclude Include="Win\WinSettingPlugins.h" />
-    <ClInclude Include="Plugin\PluginHost.h" />
-    <ClInclude Include="Plugin\SnowAirPlugin.h" />
     <ClInclude Include="Win\WinSettingQuickTranslate.h" />
   </ItemGroup>
   <ItemGroup>

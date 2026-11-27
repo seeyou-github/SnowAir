@@ -16,8 +16,6 @@
 #include "./Win/ScreenCapture.h"
 #include "./Win/ClipPin.h"
 #include "Ocr/LwPpOcrEngine.h"
-#include "Translate/BergamotEngine.h"
-#include "Plugin/PluginHost.h"
 #include "SingleInstance.h"
 
 std::unique_ptr<App> app;
@@ -35,9 +33,8 @@ namespace {
         // 还有别的 Ling 窗口（截图 / 设置 / 工具条 / 菜单）开着：图形设备不能拆
         auto* lingApp = Ling::App::get();
         if (!lingApp || !lingApp->windows.empty()) return;
-        // 识别 / 翻译引擎常驻几十到几百 MB，只有贴图和截图会用，这里一并还回去
+        // 识别引擎常驻几十到几百 MB，只有贴图和截图会用，这里一并还回去
         LwPpOcrEngine::release();
-        BergamotEngine::release();
         // 标注复制缓冲里的形状可能还挂着设备资源，拆设备前先清掉
         AnnotHost::clearShapeClipboard();
         // 图形设备（D3D/D2D + 它内部的显存 / 内存分配池）：一个窗口都没有了就没有用处
@@ -94,11 +91,6 @@ namespace {
     }
 }
 
-
-App::~App()
-{
-    PluginHost::instance().shutdown();
-}
 
 void App::init()
 {
@@ -411,7 +403,6 @@ App::App()
     // 上面判定出的热键归属要等配置就绪再应用（applyHotkeys 会据此决定注册与否）
     if (hotkeysYielded && Setting::get()) Setting::get()->setHotkeysYielded(true);
     Lang::init();
-    PluginHost::instance().init();
 
     // 使用 find 读取，不要使用 operator[]：后者会把未传入的键以空值插入 args，
     // 后面重建命令行时会混进 --elevated= / --auto-quit= 这类空值噪声。

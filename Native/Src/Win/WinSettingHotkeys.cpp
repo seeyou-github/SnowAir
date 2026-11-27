@@ -2,7 +2,6 @@
 #include "../Lang.h"
 #include "../Setting.h"
 #include "../CommandKeys.h"
-#include "../Plugin/PluginHost.h"
 #include "WinSetting.h"
 #include "WinSettingHotkeys.h"
 #include "SettingTheme.h"
@@ -190,13 +189,6 @@ WinSettingHotkeys::WinSettingHotkeys(Ling::WinBase* parent) :Ling::Node(parent)
             { L"toggle_pins",           Lang::get(L"shortcut.toggle_pins") },
         }},
     };
-    if (PluginHost::instance().loaded()) {
-        groups.insert(groups.begin() + 2,
-            Group{ Lang::get(L"setting.hotkeyGrpRack"),
-                   { { L"rack_quick_hang", Lang::get(L"shortcut.rack_quick_hang") },
-                     { L"rack_toggle", Lang::get(L"shortcut.rack_toggle") } } });
-    }
-
     // 「停用截图历史」开启时，隐藏「打开截图历史」这一行的键位设置
     bool firstGroup = true;
     for (const auto& g : groups) {

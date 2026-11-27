@@ -21,7 +21,6 @@
 #include "../Ocr/OcrService.h"
 #include "../Ocr/OcrInk.h"
 #include "../Translate/TranslateService.h"
-#include "../Translate/BergamotEngine.h"
 #include "../Ocr/LwPpOcrEngine.h"
 #include "../CommandKeys.h"
 #include "../Tool/ToolVideo.h"
@@ -3966,7 +3965,6 @@ void WinCap::onClosed()
     // 截图会话结束：把离线翻译引擎（模型几百 MB）还回去。它平时按语言对常驻换速度，
     // 但这一次截图已经收工，没有继续留着的理由 —— 下次要用再重新加载。
     // release() 内部加锁：若还有后台翻译在跑会等它收尾，不会把正在用的引擎抽掉。
-    BergamotEngine::release();
     // 同理把离线识别引擎（PP-OCRv6，常驻约 100MB）还回去：一次截图已经收工，
     // 没有继续留着的理由 —— lw_ocr_free 会把引擎内存真正交还，下次要用再重建。
     LwPpOcrEngine::release();

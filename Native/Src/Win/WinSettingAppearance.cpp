@@ -9,8 +9,6 @@
 #include "WinPin.h"                 // 贴图边框改完立即推给已开着的贴图
 #include "ClipPin.h"                // 贴屏卡片同理（「显示边框」走的是同一套贴图边框样式）
 #include "SettingTheme.h"
-#include "../Plugin/PluginHost.h"
-#include "../Ocr/PluginPaths.h"
 #include "SettingWidgets.h"
 #include "../Tool/IconCodes.h"
 #include "../Tool/ToolbarTheme.h"   // 预览条镜像实际工具栏用的同一套常量
@@ -78,9 +76,7 @@ WinSettingAppearance::WinSettingAppearance(Ling::WinBase* parent) :Ling::Node(pa
     // 悬停文字（系统 tooltip，需要 hwnd）。必须在构建各 Tab 之前建好：
     // tbBuildTheme 在构建期就会给自定义色块 bind，若此刻 tbTip_ 还是空，bind 被跳过 → 色块永远没有提示。
     tbTip_ = std::make_unique<Tip>(win);
-    // 子 Tab：工具栏外观 / 软件外观；安装「轻雪晾衣架」组件后追加轻雪晾衣架
-    //（分段胶囊滑动 + 右侧横排「恢复默认/预览效果」）
-    rackAvailable = PluginHost::instance().rackInstalled();
+    // 子 Tab：工具栏外观 / 软件外观（分段胶囊滑动 + 右侧横排「恢复默认/预览效果」）
     auto tabRow = makeChild<Ling::Node>();
     tabRow->setFlexDirection(Ling::FlexDirection::Row);
     tabRow->setWidthPercent(100.f);
@@ -101,18 +97,12 @@ WinSettingAppearance::WinSettingAppearance(Ling::WinBase* parent) :Ling::Node(pa
     tabs[0]->setFlexGrow(1.f); tabs[0]->setWidthPercent(100.f);
     tabs[1] = tabHost->makeChild<Ling::Node>();
     tabs[1]->setFlexGrow(1.f); tabs[1]->setWidthPercent(100.f);
-    if (rackAvailable) {
-        tabs[2] = tabHost->makeChild<Ling::Node>();
-        tabs[2]->setFlexGrow(1.f); tabs[2]->setWidthPercent(100.f);
-    }
     buildToolbarTab(tabs[0]);
     buildAppTab(tabs[1]);
-    if (rackAvailable && tabs[2]) buildRackTab(tabs[2]);
     showTab(0);
     // 内容区只有外层 content 提供底部留白：清掉各 tab 末尾元素的 marginBottom，使底部与左右一致。
     SettingUi::trimTrailingGap(tabs[0]);
     SettingUi::trimTrailingGap(tabs[1]);
-    if (tabs[2]) SettingUi::trimTrailingGap(tabs[2]);
 
     // 拖拽幽灵：绝对定位浮块（不占布局），跟手显示被拖的图标；随本页一起销毁
     tbGhost = makeChild<Ling::Node>();
@@ -183,7 +173,6 @@ WinSettingAppearance::WinSettingAppearance(Ling::WinBase* parent) :Ling::Node(pa
 
 WinSettingAppearance::~WinSettingAppearance()
 {
-    PluginHost::instance().setRackPreview(false);
     selectPopup.reset();
     tbKindPopup.reset();
     win->onMouseDown.remove(tbInitDownTok);
@@ -255,14 +244,12 @@ void WinSettingAppearance::tbRefreshActionState()
 
 void WinSettingAppearance::showTab(int index)
 {
-    if (index < 0 || index > 2) return;
+    if (index < 0 || index > 1) return;
     // 未安装晾衣架组件时不存在 Tab2，兜底回到工具栏外观
-    if (index == 2 && (!rackAvailable || !tabs[2])) index = 0;
-    PluginHost::instance().setRackPreview(index == 2);
     tabIndex = index;
     // 同步胶囊选中态（不触发 onChange，避免点击后递归）
     segHighlight(index);
-    // 「预览效果」只属于工具栏外观页：切到软件外观或晾衣架时隐藏
+    // 「预览效果」只属于工具栏外观页：切到软件外观时隐藏
     if (tbPreviewBtn) {
         if (index == 0) tbPreviewBtn->show(); else tbPreviewBtn->hide();
     }
@@ -279,7 +266,7 @@ void WinSettingAppearance::showTab(int index)
             }
         }
     }
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < 2; ++i) {
         if (!tabs[i]) continue;
         if (i == index) tabs[i]->show(); else tabs[i]->hide();
     }
@@ -329,7 +316,7 @@ void WinSettingAppearance::buildSegTabs(Ling::Node* row)
     seg0Arrow->setMarginLeft(8.f);
     seg0Arrow->setFlexShrink(0.f);
 
-    // Tab1：软件外观；Tab2：轻雪晾衣架（仅安装组件时创建）
+    // Tab1：软件外观
     auto makeSeg = [&](const std::wstring& text) -> Ling::Button* {
         auto* b = track->makeChild<Ling::Button>();
         b->setText(text);
@@ -344,10 +331,6 @@ void WinSettingAppearance::buildSegTabs(Ling::Node* row)
     };
     segBtn1 = makeSeg(Lang::get(L"setting.appTab"));
     segBtn1->onClick.add([this](Ling::Button*) { this->showTab(1); });
-    if (rackAvailable) {
-        segRackBtn = makeSeg(Lang::get(L"setting.rackNav"));
-        segRackBtn->onClick.add([this](Ling::Button*) { this->showTab(2); });
-    }
 
     tbUpdateKindTitle();
     segHighlight(0);
@@ -355,7 +338,7 @@ void WinSettingAppearance::buildSegTabs(Ling::Node* row)
 
 void WinSettingAppearance::segHighlight(int index)
 {
-    if (index < 0 || index > 2) index = 0;
+    if (index < 0 || index > 1) index = 0;
     // Tab0 胶囊容器：整块画 primary 底（选中）或透明（未选中）
     if (seg0Box) {
         bool on = (index == 0);
@@ -372,7 +355,7 @@ void WinSettingAppearance::segHighlight(int index)
             seg0Arrow->setColor(on ? SettingTheme::primaryForeground : SettingTheme::textMuted);
         }
     }
-    // Tab1 / Tab2 独立胶囊按钮
+    // Tab1 胶囊按钮
     auto styleBtn = [](Ling::Button* btn, bool on) {
         if (!btn) return;
         btn->setBorder(0.f, 0);
@@ -389,7 +372,6 @@ void WinSettingAppearance::segHighlight(int index)
         }
     };
     styleBtn(segBtn1, index == 1);
-    styleBtn(segRackBtn, index == 2);
 }
 
 // 刷新 Tab0 标题：××工具栏外观（× = 当前工具栏类型）
@@ -525,163 +507,6 @@ void WinSettingAppearance::buildToolbarTab(Ling::Node* host)
     tbRebuildZones();
 }
 
-void WinSettingAppearance::buildRackTab(Ling::Node* host)
-{
-    host->setFlexDirection(Ling::FlexDirection::Column);
-
-    SettingUi::groupLabel(host, Lang::get(L"setting.rackThemeGroup"));
-    static const wchar_t* kNames[4] = {
-        L"setting.rackTheme0", L"setting.rackTheme1",
-        L"setting.rackTheme2", L"setting.rackTheme3"
-    };
-    auto* themeGrid = SettingUi::grid2(host);
-    std::array<Ling::Node*, 4> themeCells{};
-    for (int idx = 0; idx < 4; ++idx) {
-        auto* cell = themeGrid->makeChild<Ling::Button>();
-        themeCells[idx] = cell;
-        cell->setText(L"");
-        cell->setWidthPercent(100.f);
-        cell->setFlexDirection(Ling::FlexDirection::Row);
-        cell->setAlignItems(Ling::Align::Center);
-        cell->setJustifyContent(Ling::Justify::Start);
-        cell->setBg(SettingTheme::card);
-        cell->setHoverBg(SettingTheme::card);
-        cell->setBorder(1.f, SettingTheme::border);
-        cell->setBorderRadius(SettingTheme::radiusRow);
-        cell->setPadding(SettingTheme::sp2, 0, SettingTheme::sp4, 0);
-        cell->onClick.add([this, idx](Ling::Button*) { this->setRackTheme(idx); });
-
-        auto* preview = cell->makeChild<Ling::ImageBox>();
-        preview->setSize(116.f, 52.f);
-        preview->setFlexShrink(0.f);
-        preview->setMarginRight(SettingTheme::sp3);
-        preview->setBorderRadius(0.f);
-        const std::wstring previewPath =
-            (PluginPaths::root() / L"rack" / L"assets" /
-             (L"theme_" + std::to_wstring(idx) + L".png")).wstring();
-        preview->loadImg(previewPath, 232.f * win->dpi, 104.f * win->dpi);
-
-        auto* name = cell->makeChild<Ling::Label>();
-        name->setText(Lang::get(kNames[idx]));
-        name->setFontSize(SettingTheme::fontBase);
-        name->setColor(SettingTheme::textPrimary);
-        name->setFlexGrow(1.f);
-        name->setFlexShrink(1.f);
-
-        auto* radio = cell->makeChild<Ling::Button>();
-        radio->setSize(16.f, 16.f);
-        radio->setBorderRadius(SettingTheme::radiusFull);
-        radio->setBorderWidth(0.f);
-        radio->setBg(SettingTheme::input);
-        radio->setHoverBg(SettingTheme::input);
-        radio->setAlignItems(Ling::Align::Center);
-        radio->setJustifyContent(Ling::Justify::Center);
-        radio->setFlexShrink(0.f);
-        radio->setMarginLeft(SettingTheme::sp3);
-        auto* hole = radio->makeChild<Ling::Node>();
-        hole->setSize(12.f, 12.f);
-        hole->setBorderRadius(SettingTheme::radiusFull);
-        hole->setBg(SettingTheme::card);
-        hole->setAlignItems(Ling::Align::Center);
-        hole->setJustifyContent(Ling::Justify::Center);
-        hole->setFlexShrink(0.f);
-        auto* dot = hole->makeChild<Ling::Node>();
-        dot->setSize(6.f, 6.f);
-        dot->setBorderRadius(SettingTheme::radiusFull);
-        dot->setBg(0);
-        dot->setFlexShrink(0.f);
-        rackThemeRadios[idx] = radio;
-        rackThemeDots[idx] = dot;
-        radio->onClick.add([this, idx](Ling::Button*) { this->setRackTheme(idx); });
-    }
-    SettingUi::grid2Cells(themeGrid);
-    for (auto* cell : themeCells) {
-        if (cell) cell->setHeight(72.f);
-    }
-    styleRackThemeButtons();
-
-    SettingUi::groupLabel(host, Lang::get(L"setting.rackCollectGroup"));
-    auto* collectGrid = SettingUi::grid2(host);
-    auto* s = Setting::get();
-    SettingUi::toggleRow(collectGrid, Lang::get(L"setting.rackAutoCapture"),
-        s->getRackFlag(L"rack.auto_capture", true),
-        [](bool on) {
-            Setting::get()->setRackFlag(L"rack.auto_capture", on);
-            PluginHost::instance().onSettingChanged(L"rack.auto_capture");
-        }, true);
-    SettingUi::toggleRow(collectGrid, Lang::get(L"setting.rackQuickPinHang"),
-        s->getRackFlag(L"rack.quick_pin_hang", false),
-        [](bool on) {
-            Setting::get()->setRackFlag(L"rack.quick_pin_hang", on);
-        }, true);
-    SettingUi::grid2Cells(collectGrid);
-
-    // 收起行为与衣架尺寸：同一行左右两栏，继续沿用常规组的双栏卡片排布。
-    auto* behaviorGrid = SettingUi::grid2(host);
-    behaviorGrid->setMarginTop(SettingTheme::optionGap);
-    int displayMode = s->getRackInt(L"rack.display_mode", -1);
-    if (displayMode < 0) {
-        // 老版本只有「自动收回」开关：true → 悬停展开，false → 常驻显示。
-        displayMode = s->getRackFlag(L"rack.auto_retract", true) ? 0 : 2;
-        s->setRackInt(L"rack.display_mode", displayMode);
-    }
-    displayMode = std::clamp(displayMode, 0, 2);
-    rackDisplayModeDdl = SettingUi::selectRow(
-        behaviorGrid, Lang::get(L"setting.rackDisplayMode"), L"",
-        { Lang::get(L"setting.rackDisplayModeHover"),
-          Lang::get(L"setting.rackDisplayModeHotkey"),
-          Lang::get(L"setting.rackDisplayModeAlways") },
-        displayMode,
-        [](int i, const std::wstring&) {
-            const int mode = std::clamp(i, 0, 2);
-            auto* st = Setting::get();
-            st->setRackInt(L"rack.display_mode", mode);
-            // 旧版插件只认这个布尔值，一并同步，升级/回退都不至于失效。
-            st->setRackFlag(L"rack.auto_retract", mode == 0);
-            PluginHost::instance().onSettingChanged(L"rack.display_mode");
-        }, true);
-    SettingUi::selectRow(behaviorGrid, Lang::get(L"setting.rackSize"),
-        { Lang::get(L"setting.rackSizeSmall"), Lang::get(L"setting.rackSizeMedium"),
-          Lang::get(L"setting.rackSizeLarge") },
-        std::clamp(s->getRackInt(L"rack.size", 1), 0, 2),
-        [](int i, const std::wstring&) {
-            Setting::get()->setRackInt(L"rack.size", std::clamp(i, 0, 2));
-            PluginHost::instance().onSettingChanged(L"rack.size");
-        }, true);
-    SettingUi::selectRow(behaviorGrid, Lang::get(L"setting.rackMaxMode"), L"",
-        { Lang::get(L"setting.rackMaxModeAuto"),
-          Lang::get(L"setting.rackMaxModeUnlimited") },
-        std::clamp(s->getRackInt(L"rack.max_mode", 0), 0, 1),
-        [](int i, const std::wstring&) {
-            Setting::get()->setRackInt(L"rack.max_mode", std::clamp(i, 0, 1));
-            PluginHost::instance().onSettingChanged(L"rack.max_mode");
-        }, true);
-    SettingUi::grid2Cells(behaviorGrid);
-}
-
-void WinSettingAppearance::setRackTheme(int theme)
-{
-    theme = std::clamp(theme, 0, 3);
-    if (auto* s = Setting::get()) s->setRackInt(L"rack.theme", theme);
-    PluginHost::instance().applyRackTheme(theme);
-    styleRackThemeButtons();
-    tbRefreshRestore();
-}
-
-void WinSettingAppearance::styleRackThemeButtons()
-{
-    constexpr uint32_t kGreen = 0x34C759FFu;
-    const int current = Setting::get() ? Setting::get()->getRackInt(L"rack.theme", 0) : 0;
-    for (int i = 0; i < 4; ++i) {
-        auto* radio = rackThemeRadios[i];
-        if (!radio) continue;
-        const bool on = i == current;
-        const uint32_t ring = on ? kGreen : SettingTheme::input;
-        radio->setBg(ring);
-        radio->setHoverBg(ring);
-        if (rackThemeDots[i]) rackThemeDots[i]->setBg(on ? kGreen : 0u);
-    }
-}
 
 void WinSettingAppearance::buildAppTab(Ling::Node* host)
 {
@@ -1353,14 +1178,6 @@ bool WinSettingAppearance::appearanceAtDefaults() const
             && s->getTrayIconStyle() == (int)TrayIcon::Style::Theme
             && s->getTrayCustomIconPath().empty();
     }
-    if (tabIndex == 2) {
-        // 「轻雪晾衣架」页
-        int displayMode = s->getRackInt(L"rack.display_mode", -1);
-        if (displayMode < 0) {
-            displayMode = s->getRackFlag(L"rack.auto_retract", true) ? 0 : 2;
-        }
-        return s->getRackInt(L"rack.theme", 0) == 0 && displayMode == 0;
-    }
     // 「工具栏外观」页：布局与初始属性都为默认值
     auto def = ToolbarStore::defaultLayout(tbKind);
     return !s->hasAnyToolDesign() && tbActive == def.active && tbInactive == def.inactive;
@@ -1378,19 +1195,6 @@ void WinSettingAppearance::tbRestoreDefaults()
 {
     // 已是默认值：按钮置灰，点击不产生任何改动（各子页规则一致）
     if (appearanceAtDefaults()) return;
-    // 「轻雪晾衣架」页
-    if (tabIndex == 2) {
-        setRackTheme(0);
-        auto* s = Setting::get();
-        s->setRackInt(L"rack.display_mode", 0);
-        s->setRackFlag(L"rack.auto_retract", true);
-        if (rackDisplayModeDdl) {
-            rackDisplayModeDdl->setText(Lang::get(L"setting.rackDisplayModeHover"));
-        }
-        PluginHost::instance().onSettingChanged(L"rack.display_mode");
-        tbRefreshRestore();
-        return;
-    }
     // 「软件外观」页：恢复贴图边框与托盘图标到默认值，并回写控件显示
     if (tabIndex == 1) {
         auto* s = Setting::get();
