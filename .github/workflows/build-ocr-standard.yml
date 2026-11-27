@@ -13,6 +13,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # 标准档 det/rec 用官方 small 模型，cls 与轻量档共用；转换器已放开 small 哈希校验。
+      # 放在最前面：模型转换失败时无需下载依赖、编译 ZXing 和工程，最快拿到反馈。
+      - name: Convert standard OCR models to LWM
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check numpy==1.26.4 onnx==1.22.0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Push-Location Native/deps/lw.PPOCR.C
+          New-Item -ItemType Directory -Force -Path build/models-standard | Out-Null
+          python -m converter.convert_det --input models/ppocrv6-small/det.onnx --output build/models-standard/det.lwm
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m converter.convert_cls --input models/ppocrv6-tiny/cls.onnx --output build/models-standard/cls.lwm
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m converter.convert_rec --input models/ppocrv6-small/rec.onnx --output build/models-standard/rec.lwm
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Pop-Location
+
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
@@ -73,22 +90,6 @@ jobs:
           cmake --build Native/deps/lw.PPOCR.C/build --config Release --target lw_ppocr_c_shared --parallel
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (-not (Test-Path 'Native/deps/lw.PPOCR.C/build/Release/lw_ppocr_c.dll')) { throw 'lw_ppocr_c.dll not found' }
-
-      # 标准档 det/rec 用官方 small 模型，cls 与轻量档共用；转换器已放开 small 哈希校验。
-      - name: Convert standard OCR models to LWM
-        shell: pwsh
-        run: |
-          python -m pip install --disable-pip-version-check numpy==1.26.4 onnx==1.22.0
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Push-Location Native/deps/lw.PPOCR.C
-          New-Item -ItemType Directory -Force -Path build/models-standard | Out-Null
-          python -m converter.convert_det --input models/ppocrv6-small/det.onnx --output build/models-standard/det.lwm
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python -m converter.convert_cls --input models/ppocrv6-tiny/cls.onnx --output build/models-standard/cls.lwm
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python -m converter.convert_rec --input models/ppocrv6-small/rec.onnx --output build/models-standard/rec.lwm
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Pop-Location
 
       - name: Stage standard package
         shell: pwsh
