@@ -299,8 +299,10 @@
     <ClCompile Include="Win\WinSettingAppearance.cpp" />
     <ClCompile Include="Win\WinSettingFeatures.cpp" />
     <ClCompile Include="Win\WinSettingHotkeys.cpp" />
+    <ClCompile Include="Win\WinSettingTrayMenu.cpp" />
     <ClCompile Include="Win\WinSettingSystemKeys.cpp" />
     <ClCompile Include="Win\WinSettingQuickTranslate.cpp" />
+    <ClCompile Include="Win\WinQuickTranslate.cpp" />
     <ClCompile Include="Win\cgif\cgif.c">
       <CompileAs>CompileAsC</CompileAs>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
@@ -425,8 +427,10 @@
     <ClInclude Include="Win\WinSettingAppearance.h" />
     <ClInclude Include="Win\WinSettingFeatures.h" />
     <ClInclude Include="Win\WinSettingHotkeys.h" />
+    <ClInclude Include="Win\WinSettingTrayMenu.h" />
     <ClInclude Include="Win\WinSettingSystemKeys.h" />
     <ClInclude Include="Win\WinSettingQuickTranslate.h" />
+    <ClInclude Include="Win\WinQuickTranslate.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Res\Resource.rc" />

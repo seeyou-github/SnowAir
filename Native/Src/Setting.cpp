@@ -15,6 +15,7 @@
 #include <UIAutomationClient.h>
 #include "Setting.h"
 #include "BlacklistMatch.h"
+#include "CommandKeys.h"
 #include "ConfigMerge.h"
 #include "Util.h"
 #include "Lang.h"
@@ -23,6 +24,7 @@
 #include "Win/ClipPin.h"
 #include "Win/HotkeyHook.h"
 #include "Win/WinSetting.h"
+#include "Win/WinQuickTranslate.h"
 #include "Win/WinImageEdit.h"
 #include "App.h"
 #include <algorithm>
@@ -37,30 +39,37 @@ namespace {
     // 只有**真正绑定了动作**的行才在此处；设置页里其余几行（show_cursor / quick_translate /
     //   open_clipboard）目前没有对应实现，不注册 —— 否则会出现"按键被消费但没有任何效果"。
     struct HotkeyEntry { const wchar_t* id; UINT msgId; };
+    // 顺序即注册顺序：同一把组合键被两条热键占用时「先到先得」（见 applyHotkeys 的去重），
+    // 所以把「右键菜单」页管的这几条排在最前面 —— 冲突时以右键菜单为准。
     const HotkeyEntry kHotkeys[] = {
         { L"capture",                100 },
+        { L"ocr",                    114 },
+        { L"ocr_translate",          115 },
+        { L"quick_translate",        108 },
+        { L"record",                 104 },
+        { L"fullscreen_canvas",      103 },
+        { L"make_collage",           113 },
         { L"capture_fullscreen",     101 },
         { L"capture_focused_window", 102 },
-        { L"fullscreen_canvas",      103 },
-        { L"record",                 104 },
         { L"toggle_pins",            105 },
         { L"show_main",              106 },
         { L"open_screenshot_dir",    107 },
         { L"capture_repeat",         109 },
         { L"quick_pin",              110 },
-        { L"make_collage",           113 },
     };
     bool isGlobalHotkeyId(const std::wstring& id)
     {
         for (const auto& hk : kHotkeys) if (id == hk.id) return true;
         return false;
     }
-    // 全局热键的内置默认键位：配置里没有这一项（从没设过）时用它
+    // 全局热键的内置默认键位：配置里没有这一项（从没设过）时用它。
+    // 托盘右键菜单是这几条键位的主要入口（截图 F1 / OCR F2 / 翻译 F3），其余项出厂不绑 ——
+    // 录屏、演示画布以前默认 F2 / F3，与 OCR / 翻译撞车，已按「右键菜单为准」让位。
     const wchar_t* defaultShortcutOf(const std::wstring& type)
     {
         if (type == L"capture") return L"F1";
-        if (type == L"record") return L"F2";
-        if (type == L"fullscreen_canvas") return L"F3";
+        if (type == L"ocr") return L"F2";
+        if (type == L"ocr_translate") return L"F3";
         return L"";
     }
     constexpr UINT_PTR kHotkeyRetryTimerId{ 0x5A18 };
@@ -808,6 +817,153 @@ bool Setting::shortcutKeyAtDefaults()
 {
     auto obj = configObj.GetNamedObject(L"shortcutKey", nullptr);
     return !obj || obj.Size() == 0;
+}
+
+// —— 键位冲突（跨页）——
+// 「右键菜单」页与「全局热键」页共用同一套键位，两页各自只看到自己那几行，
+// 所以冲突要在全局热键表上判定：同一把组合键只能给一条热键，否则注册时必然有一条失效。
+std::wstring Setting::findShortcutOwner(const std::wstring& chord, const std::wstring& selfId)
+{
+    if (chord.empty()) return {};
+    const std::wstring target = CommandKeys::canonicalChord(chord);
+    for (const auto& hk : kHotkeys) {
+        const std::wstring id{ hk.id };
+        if (id == selfId) continue;
+        const std::wstring other = getShortcutKey(id);
+        if (other.empty()) continue;
+        if (_wcsicmp(CommandKeys::canonicalChord(other).c_str(), target.c_str()) == 0) return id;
+    }
+    return {};
+}
+
+// —— 托盘右键菜单：项序 / 开关 ——
+// 存 features.trayMenuOrder（逗号分隔的 id，顺序即菜单顺序）与 features.trayMenuOff
+// （逗号分隔的「已关闭」id）。只存差异，出厂状态在代码里定义，新增菜单项自动出现在末尾。
+namespace {
+    // 出厂菜单顺序：设置、退出固定在最下方
+    const wchar_t* kTrayMenuFixedTail[] = { L"settings", L"exit" };
+    // 出厂默认开启的项（其余默认关闭）
+    bool trayMenuDefaultOn(const std::wstring& id)
+    {
+        return id == L"capture" || id == L"ocr" || id == L"ocr_translate";
+    }
+    std::vector<std::wstring> splitIds(const std::wstring& s)
+    {
+        std::vector<std::wstring> out;
+        for (auto& part : Ling::Util::splitStr(s, L',')) {
+            if (!part.empty()) out.push_back(part);
+        }
+        return out;
+    }
+}
+
+std::vector<std::wstring> Setting::defaultTrayMenuOrder()
+{
+    return {
+        L"capture", L"ocr", L"ocr_translate", L"quick_translate",
+        L"record", L"fullscreen_canvas", L"make_collage",
+        kTrayMenuFixedTail[0], kTrayMenuFixedTail[1],
+    };
+}
+
+bool Setting::trayMenuItemFixed(const std::wstring& id)
+{
+    return id == kTrayMenuFixedTail[0] || id == kTrayMenuFixedTail[1];
+}
+
+std::vector<std::wstring> Setting::getTrayMenuOrder()
+{
+    const auto def = defaultTrayMenuOrder();
+    auto known = [&def](const std::wstring& id) {
+        for (const auto& d : def) if (d == id) return true;
+        return false;
+    };
+    // 固定项（设置 / 退出）永远排在最后，且顺序固定
+    std::vector<std::wstring> out;
+    for (const auto& id : splitIds(featStr(L"trayMenuOrder", L""))) {
+        if (!known(id) || trayMenuItemFixed(id)) continue;
+        if (std::find(out.begin(), out.end(), id) != out.end()) continue;
+        out.push_back(id);
+    }
+    // 配置里没有的项（新增功能 / 第一次运行）按出厂顺序补在固定项之前
+    for (const auto& id : def) {
+        if (trayMenuItemFixed(id)) continue;
+        if (std::find(out.begin(), out.end(), id) == out.end()) out.push_back(id);
+    }
+    for (const auto& id : def) {
+        if (trayMenuItemFixed(id)) out.push_back(id);
+    }
+    return out;
+}
+
+void Setting::setTrayMenuOrder(const std::vector<std::wstring>& order)
+{
+    std::wstring s;
+    for (const auto& id : order) {
+        if (trayMenuItemFixed(id)) continue;   // 固定项不参与自定义顺序，永远在最后
+        if (!s.empty()) s += L',';
+        s += id;
+    }
+    setFeatStr(L"trayMenuOrder", s);
+}
+
+bool Setting::getTrayMenuItemEnabled(const std::wstring& id)
+{
+    if (trayMenuItemFixed(id)) return true;   // 设置 / 退出：无法关闭
+    for (const auto& off : splitIds(featStr(L"trayMenuOff", L""))) {
+        if (off == id) return false;
+    }
+    return trayMenuDefaultOn(id);
+}
+
+void Setting::setTrayMenuItemEnabled(const std::wstring& id, bool on)
+{
+    if (trayMenuItemFixed(id)) return;   // 固定项不接受关闭
+    std::vector<std::wstring> off;
+    for (const auto& o : splitIds(featStr(L"trayMenuOff", L""))) {
+        if (o != id) off.push_back(o);
+    }
+    const bool defaultOn = trayMenuDefaultOn(id);
+    // 只记与出厂不同的项：默认开启的要关就进 off，默认关闭的要开就从 off 里去掉
+    if (defaultOn && !on) off.push_back(id);
+    std::wstring s;
+    for (const auto& o : off) {
+        if (!s.empty()) s += L',';
+        s += o;
+    }
+    setFeatStr(L"trayMenuOff", s);
+}
+
+void Setting::restoreTrayMenuDefaults()
+{
+    // 项序 / 开关只是两个 features 字段，删掉即回到出厂
+    auto f = featuresObj();
+    f.Remove(L"trayMenuOrder");
+    f.Remove(L"trayMenuOff");
+    save();
+    // 这几条菜单项的键位也一起回到内置默认表（删掉覆盖项，getShortcutKey 就会回落默认值）
+    auto obj = configObj.GetNamedObject(L"shortcutKey", nullptr);
+    if (obj) {
+        for (const auto& id : defaultTrayMenuOrder()) {
+            if (obj.HasKey(id.c_str())) obj.Remove(id.c_str());
+        }
+        save();
+    }
+    applyHotkeys();
+}
+
+bool Setting::trayMenuAtDefaults()
+{
+    const auto f = featuresObj();
+    if (f.HasKey(L"trayMenuOrder") || f.HasKey(L"trayMenuOff")) return false;
+    // 键位：这几条菜单项若存过覆盖值，也已经不是出厂状态
+    auto obj = configObj.GetNamedObject(L"shortcutKey", nullptr);
+    if (obj) {
+        for (const auto& id : defaultTrayMenuOrder()) {
+            if (obj.HasKey(id.c_str())) return false;
+        }
+    }
+    return true;
 }
 
 // 全局热键「重复截图」的上次选区（屏幕坐标）保存在 local.json 的 state.lastCaptureRect。
@@ -2060,9 +2216,19 @@ void Setting::applyHotkeys()
     for (const auto& hk : kHotkeys) lingApp->unRegHotKey(hk.msgId);
 
     std::vector<HotkeyHook::Binding> fallback;
+    // 同一把组合键只注册一次（先到先得）：两处配了同一个键时，RegisterHotKey 只有一条能成功，
+    // 另一条会退到钩子上 —— 结果是一下按键触发两个动作。这里直接跳过重复项。
+    std::vector<std::wstring> usedChords;
     for (const auto& hk : kHotkeys) {
         const std::wstring chord = getShortcutKey(hk.id);
         if (chord.empty()) continue;   // 用户清空过这一行 = 不绑
+        const std::wstring canonical = CommandKeys::canonicalChord(chord);
+        bool dup = false;
+        for (const auto& c : usedChords) {
+            if (_wcsicmp(c.c_str(), canonical.c_str()) == 0) { dup = true; break; }
+        }
+        if (dup) continue;
+        usedChords.push_back(canonical);
         if (lingApp->regHotKey(chord, hk.msgId)) continue;
         const std::wstring id{ hk.id };
         fallback.push_back({ chord, [id]() {
@@ -2381,6 +2547,10 @@ void Setting::runHotkeyAction(const std::wstring& id)
         // 但用户改过键位后必须按新的生效 —— 两者语义不同，不能在这里按 id 兜底转派。
     }
     if (id == L"capture") { WinCap::init(); return; }
+    // 托盘「OCR / 翻译」：先截图，框选完成后自动识别（+ 翻译）
+    if (id == L"ocr") { WinCap::beginOcrPick(false); return; }
+    if (id == L"ocr_translate") { WinCap::beginOcrPick(true); return; }
+    if (id == L"quick_translate") { WinQuickTranslate::toggle(); return; }
     if (id == L"capture_repeat") { if (auto* app = App::get()) app->captureLastRegionSilent(); return; }
     if (id == L"capture_fullscreen") { if (auto* app = App::get()) app->captureFullScreenSilent(); return; }
     if (id == L"capture_focused_window") { if (auto* app = App::get()) app->captureFocusedWindowSilent(); return; }

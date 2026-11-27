@@ -7,11 +7,11 @@
 #include "Lang.h"
 #include "Win/WinCap.h"
 #include "Win/WinSetting.h"
+#include "Win/WinQuickTranslate.h"
 #include "Win/WinImageEdit.h"
 #include "Setting.h"
 #include "Win/SettingTheme.h"
 #include "Win/MenuTheme.h"
-#include "Util.h"
 #include <string>
 #include <vector>
 
@@ -21,26 +21,47 @@ namespace {
 	// 托盘菜单：用户要 180 宽 + 圆角 + 原间距/配色 + 右侧显示已设热键。
 	// 系统 HMENU 宽度不可控，自绘 HMENU 又拿不到 Win11 圆角，故自建圆角弹层；
 	// 配色/字体全部取自菜单主题（GetThemeColor），行高按系统菜单（30）。不抢前台，鼠标钩子点外关闭。
+	//
+	// 菜单的项序、显隐、右侧键位全部由「设置 → 右键菜单」驱动（见 Setting::getTrayMenuOrder），
+	// 这里只保留一张 id → 命令 / 文案的静态表。
 	enum MenuCmd : UINT {
-		kCmdCapture = 1, kCmdCaptureFullscreen, kCmdRecord, kCmdDemoCanvas,
-		kCmdMakeCollage, kCmdOpenDir, kCmdSettings, kCmdExit,
+		kCmdCapture = 1, kCmdOcr, kCmdTranslate, kCmdQuickTranslate,
+		kCmdRecord, kCmdDemoCanvas, kCmdMakeCollage, kCmdSettings, kCmdExit,
 	};
 
+	// id 与「右键菜单」页的项 id、全局热键 id 三者同名（键位就是 getShortcutKey(id)）
+	struct MenuItemDef { const wchar_t* id; UINT cmd; const wchar_t* langKey; const wchar_t* shortcutId; };
+	const MenuItemDef kMenuItems[] = {
+		{ L"capture",           kCmdCapture,        L"tray.capture",        L"capture" },
+		{ L"ocr",               kCmdOcr,            L"tray.ocr",            L"ocr" },
+		{ L"ocr_translate",     kCmdTranslate,      L"tray.translate",      L"ocr_translate" },
+		{ L"quick_translate",   kCmdQuickTranslate, L"tray.quickTranslate", L"quick_translate" },
+		{ L"record",            kCmdRecord,         L"tray.record",         L"record" },
+		{ L"fullscreen_canvas", kCmdDemoCanvas,     L"tray.demoCanvas",     L"fullscreen_canvas" },
+		{ L"make_collage",      kCmdMakeCollage,    L"tray.makeCollage",    L"make_collage" },
+		{ L"settings",          kCmdSettings,       L"tray.setting",        nullptr },
+		{ L"exit",              kCmdExit,           L"tray.exit",           nullptr },
+	};
+
+	// 一行菜单：id == 0 表示分割线
 	struct MenuRow { UINT id; const wchar_t* langKey; const wchar_t* shortcutId; };
 
-	const MenuRow kMenuRows[] = {
-		{ kCmdCapture,           L"tray.capture",           L"capture" },
-		{ kCmdCaptureFullscreen, L"tray.captureFullscreen", L"capture_fullscreen" },
-		{ kCmdRecord,            L"tray.record",            L"record" },
-		{ kCmdDemoCanvas,        L"tray.demoCanvas",        L"fullscreen_canvas" },
-		{ 0,                     nullptr,                   nullptr },
-		{ kCmdMakeCollage,       L"tray.makeCollage",       L"make_collage" },
-		{ 0,                     nullptr,                   nullptr },
-		{ kCmdOpenDir,           L"tray.openDir",           L"open_screenshot_dir" },
-		{ 0,                     nullptr,                   nullptr },
-		{ kCmdSettings,          L"tray.setting",           L"show_main" },
-		{ kCmdExit,              L"tray.exit",              nullptr },
-	};
+	// 按设置生成菜单行：关掉的项跳过；「设置」上方固定插一条分割线
+	void buildRowsFromSettings(std::vector<MenuRow>& out)
+	{
+		out.clear();
+		auto* s = Setting::get();
+		if (!s) return;
+		for (const auto& id : s->getTrayMenuOrder()) {
+			if (!s->getTrayMenuItemEnabled(id)) continue;
+			for (const auto& def : kMenuItems) {
+				if (id != def.id) continue;
+				if (def.cmd == kCmdSettings) out.push_back({ 0, nullptr, nullptr });
+				out.push_back({ def.cmd, def.langKey, def.shortcutId });
+				break;
+			}
+		}
+	}
 
 	// 菜单外观（配色/尺寸）统一由 Win/MenuTheme.h 提供，托盘与贴图右键菜单共用。
 	using MenuPalette = MenuTheme::Palette;
@@ -58,6 +79,8 @@ namespace {
 		{
 			dpi = (float)GetDpiForSystem() / 96.f;
 			if (dpi <= 0.f) dpi = 1.f;
+			// 行在开菜单时就已经定了（窗口建好后再改行数没法跟着变高度）
+			buildRowsFromSettings(rowsDef);
 			createNativeWindow(WS_EX_TOPMOST | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW, WS_POPUP);
 		}
 		~TrayMenuWindow() { if (hwnd) close(); }
@@ -65,7 +88,7 @@ namespace {
 		float logicalHeight() const
 		{
 			float h = kMenuPadY * 2.f;
-			for (const auto& row : kMenuRows) {
+			for (const auto& row : rowsDef) {
 				h += (row.id == 0 ? (float)kSepH : (float)kRowH);
 			}
 			return h;
@@ -115,7 +138,7 @@ namespace {
 			shell->setBorder(1.f, p.border);
 			shell->setBorderRadius((float)kMenuRadius);
 
-			for (const auto& row : kMenuRows) {
+			for (const auto& row : rowsDef) {
 				if (row.id == 0) {
 					auto* line = shell->makeChild<Ling::Node>();
 					line->setHeight(1.f);
@@ -189,6 +212,7 @@ namespace {
 
 private:
 	struct RowHit { Ling::Button* btn; UINT cmd; };
+	std::vector<MenuRow> rowsDef;   // 本次菜单的行（由设置生成）
 	std::vector<RowHit> rows;
 	Ling::Button* pressedRow{ nullptr };
 	UINT pressedCmd{ 0 };
@@ -245,27 +269,19 @@ private:
 		return 1;
 	}
 
-	void openOutputDir()
-	{
-		const auto dir = Util::outputDir();
-		if (dir.empty()) return;
-		// outputDir 不再顺手建目录（见 Util::outputDir 注释），打开前在这里补建
-		std::error_code ec;
-		if (!std::filesystem::exists(dir, ec)) std::filesystem::create_directories(dir, ec);
-		ShellExecuteW(nullptr, L"open", dir.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
-	}
-
 	void runTrayCommand(UINT cmd)
 	{
 		switch (cmd) {
-		case kCmdCapture:            WinCap::init(); break;
-		case kCmdCaptureFullscreen:  if (auto* app = App::get()) app->captureFullScreenSilent(); break;
-		case kCmdRecord:             WinCap::beginRecordPick(); break;
-		case kCmdDemoCanvas:         WinCap::beginDemoCanvas(); break;
-		case kCmdMakeCollage:        WinImageEdit::init(); break;
-		case kCmdOpenDir:            openOutputDir(); break;
-		case kCmdSettings:           WinSetting::init(0); break;
-		case kCmdExit:               if (auto* app = Ling::App::get()) app->quit(0); break;
+		case kCmdCapture:        WinCap::init(); break;
+		// OCR / 翻译：先进截图，框选完成后自动识别（翻译是识别完接着翻）
+		case kCmdOcr:            WinCap::beginOcrPick(false); break;
+		case kCmdTranslate:      WinCap::beginOcrPick(true); break;
+		case kCmdQuickTranslate: WinQuickTranslate::toggle(); break;
+		case kCmdRecord:         WinCap::beginRecordPick(); break;
+		case kCmdDemoCanvas:     WinCap::beginDemoCanvas(); break;
+		case kCmdMakeCollage:    WinImageEdit::init(); break;
+		case kCmdSettings:       WinSetting::init(0); break;
+		case kCmdExit:           if (auto* app = Ling::App::get()) app->quit(0); break;
 		default: break;
 		}
 	}

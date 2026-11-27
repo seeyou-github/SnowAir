@@ -31,6 +31,25 @@ public:
 	void restoreShortcutKeyDefaults();
 	// 全局热键是否仍是出厂键位（没有任何覆盖项）
 	bool shortcutKeyAtDefaults();
+	// 键位冲突：chord 已被另一条全局热键占用时返回那条的 id（空 = 没冲突）。
+	// 托盘右键菜单页与「全局热键」页共用同一套键位，跨页判定靠它。
+	std::wstring findShortcutOwner(const std::wstring& chord, const std::wstring& selfId);
+
+	// —— 托盘右键菜单（设置 → 右键菜单）——
+	// 菜单项 id 与全局热键 id 同名：capture / ocr / ocr_translate / quick_translate /
+	// record / fullscreen_canvas / make_collage / settings / exit
+	static std::vector<std::wstring> defaultTrayMenuOrder();
+	// 当前项序（读盘顺序 + 补齐缺失项 + 丢弃未知项）
+	std::vector<std::wstring> getTrayMenuOrder();
+	void setTrayMenuOrder(const std::vector<std::wstring>& order);
+	// 该菜单项是否出现在托盘菜单里（settings / exit 恒为 true：固定项不能关闭）
+	bool getTrayMenuItemEnabled(const std::wstring& id);
+	void setTrayMenuItemEnabled(const std::wstring& id, bool on);
+	// settings / exit：不能关、不能拖动、不能设快捷键
+	static bool trayMenuItemFixed(const std::wstring& id);
+	// 「右键菜单」页的「恢复默认」：项序 + 开关 + 这几条菜单项的键位一起回到出厂
+	void restoreTrayMenuDefaults();
+	bool trayMenuAtDefaults();
 	// 全局热键「重复截图」：记住的上一块选区（屏幕坐标）。无记录返回 false。
 	bool getLastCaptureRect(int& x, int& y, int& w, int& h);
 	void setLastCaptureRect(int x, int y, int w, int h);

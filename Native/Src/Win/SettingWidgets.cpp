@@ -832,6 +832,52 @@ void adoptChild(Ling::Node* parent, Ling::Node* child)
     SettingUi::NodeFriendAccess::Adopt(parent, child);
 }
 
+// ─── 首帧底色垫层：把 GDI 重定向表面先刷成窗口自身的底色 ──────────────
+// 为什么需要：窗口第一次显示时，DWM 先呈现的是窗口的 GDI 重定向表面，
+// 而 DirectComposition 的内容（body 的底色 + 各控件）要晚一两帧才上屏。
+// 这一段空窗期里，未绘制的表面按窗口类背景刷（COLOR_WINDOW = 白）呈现，
+// 于是"进设置页先白一下、再出内容"。合成内容上屏前看到的就是这层表面，
+// 先把它刷成画布色，白闪就退化成与界面同色的垫层，肉眼看不出来。
+void primeWindowBackground(HWND hwnd, uint32_t rgba)
+{
+    if (!hwnd || !IsWindow(hwnd)) return;
+    const COLORREF cr = RGB((rgba >> 24) & 0xFF, (rgba >> 16) & 0xFF, (rgba >> 8) & 0xFF);
+
+    // ① 直接把客户区刷一遍（GDI 重定向表面）。
+    //    工程内颜色是 0xRRGGBBAA，COLORREF 是 0x00BBGGRR，这里逐通道取，别直接移位。
+    RECT rc{};
+    if (GetClientRect(hwnd, &rc) && rc.right > rc.left && rc.bottom > rc.top) {
+        if (HDC dc = GetDC(hwnd)) {
+            if (HBRUSH brush = CreateSolidBrush(cr)) {
+                FillRect(dc, &rc, brush);
+                DeleteObject(brush);
+            }
+            ReleaseDC(hwnd, dc);
+        }
+    }
+
+    // ② 顺带换掉窗口类背景刷。
+    //    DWM 在"窗口已经出现、合成内容还没到"的那几帧里，是按窗口类背景色给窗口铺底的
+    //    （也就是代码里注释过的"未绘制表面 = 白底"）；只刷 ① 盖不住这条路径。
+    //    类背景刷是进程内共用的（"Ling" 类），只有带原生标题栏、有重定向表面的窗口会用到它，
+    //    其它窗口都是 WS_EX_NOREDIRECTIONBITMAP 的弹层，不受影响。
+    static HBRUSH s_classBrush = nullptr;
+    static uint32_t s_classColor = 0;
+    if (s_classColor != rgba) {
+        HBRUSH fresh = CreateSolidBrush(cr);
+        if (fresh) {
+            // 先装上新的再删旧的：类里不能留悬空句柄
+            SetClassLongPtrW(hwnd, GCLP_HBRBACKGROUND, (LONG_PTR)fresh);
+            if (s_classBrush) DeleteObject(s_classBrush);
+            s_classBrush = fresh;
+            s_classColor = rgba;
+        }
+    }
+    else if (s_classBrush) {
+        SetClassLongPtrW(hwnd, GCLP_HBRBACKGROUND, (LONG_PTR)s_classBrush);
+    }
+}
+
 // ─── 末尾留白修剪：沿"视觉最底边"逐层清空末尾节点的底部 margin ──
 void trimTrailingGap(Ling::Node* content)
 {

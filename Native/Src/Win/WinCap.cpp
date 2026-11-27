@@ -359,6 +359,9 @@ namespace {
 	// 静默截图关闭时的一次性预置选区（屏幕坐标），由 initNow 消费。
 	bool g_pendingRectValid = false;
 	RECT g_pendingRect{};
+	// 托盘「OCR / 翻译」入口的一次性动作（0 无 / 1 识别 / 2 识别+翻译），由 initNow 消费。
+	// 与「屏幕录制」的 pendingRecord 同一套路：框选完成后由 onUp 自动打开对应面板。
+	int g_pendingPanel = 0;
 }
 
 WinCap::WinCap() : AnnotHost()
@@ -452,6 +455,7 @@ void WinCap::init(StartMode mode)
     // 双击托盘图标会连着来两下，已经开着就不再建第二个
     if (winCap) {
         g_pendingRectValid = false;
+        g_pendingPanel = 0;
         return;
     }
 
@@ -466,7 +470,6 @@ void WinCap::init(StartMode mode)
             app->args.erase(it);
         }
     }
-
     // --enter=demo（别名 canvas）不是「框选后进入某个工具」，而是整屏实时画布：
     // 没有框选阶段，也没有要带进会话的一次性动作。这里直接把起始形态改成 Demo，
     // 值不必留到 enterByArg（那边只认框选完成后才生效的工具）。
@@ -510,6 +513,11 @@ void WinCap::initNow(StartMode mode, std::shared_ptr<std::vector<BYTE>> grab,
     // 选区挪动 → 通知录制侧把裁剪框一起平移（拖拽/鼠标跟随/方向键/滚轮全走 CutMask 这一处）
     ptr->cutMask->onRectMoved = [p = ptr]() { p->onMaskRectChanged(); };
     ptr->pendingGrab_ = std::move(grab);
+    // 托盘「OCR / 翻译」：一次性动作随本次会话，框选完成后在 onUp 里消费
+    if (g_pendingPanel) {
+        ptr->pendingPanel_ = g_pendingPanel;
+        g_pendingPanel = 0;
+    }
     // 预置选区：跳过框选，直接进入 Adjust 并显示工具栏
     bool hasPreset = false;
     if (mode == StartMode::Normal && g_pendingRectValid) {
@@ -579,6 +587,15 @@ WinCap* WinCap::get()
 void WinCap::beginRecordPick()
 {
     init(StartMode::Record);
+}
+
+// 托盘「OCR / 翻译」：照常进截图态，框选完成后自动弹出识别 / 翻译面板
+//（工具栏照常出现，等价于框完立刻替你点了工具栏上的「识别 / 翻译」）
+void WinCap::beginOcrPick(bool translate)
+{
+    if (winCap) return;
+    g_pendingPanel = translate ? 2 : 1;
+    init(StartMode::Normal);
 }
 
 // 托盘「演示画布 / 演示模式」：
@@ -3912,6 +3929,13 @@ void WinCap::onUp(POINT pos, bool isRight)
             return;
         }
         makeToolCap();
+        // 托盘「OCR / 翻译」进来的一次会话：工具栏照常出，并替用户点一下识别 / 翻译
+        if (pendingPanel_) {
+            const int panel = pendingPanel_;
+            pendingPanel_ = 0;
+            if (panel == 2) startTranslate();
+            else startOcr();
+        }
     }
     else if (stage == CapStage::Adjust) {
         isPress = false;
@@ -4027,6 +4051,7 @@ bool WinCap::enterByArg()
     if (val == L"long") startLong();
     else if (val == L"video") startVideo();
     else if (val == L"ocr") startOcr();
+    else if (val == L"translate") startTranslate();
     else if (val == L"pin") startPin();
     else return false;
     return true;

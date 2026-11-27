@@ -29,6 +29,9 @@ public:
 	static void stopIfRecording();
 	// 托盘「屏幕录制」：照常进截图态（悬停找元素 → 拖框选），框完直接换成录屏工具栏
 	static void beginRecordPick();
+	// 托盘「OCR / 翻译」：照常进截图态，框选完成后自动弹出识别 / 翻译面板
+	// （translate=true 时识别完接着翻译，等价于手点工具栏的「翻译」）
+	static void beginOcrPick(bool translate);
 	// 托盘「演示画布」：整屏实时画布 + 顶部居中工具栏（全屏画布/演示模式）
 	static void beginDemoCanvas();
 	// 静默截图关闭时：跳过框选，按给定屏幕矩形直接进入标注并显示截图工具栏，由用户手动完成
@@ -333,6 +336,8 @@ private:
 	bool toolHidden{ false };
 	// 托盘「屏幕录制」：本次会话框选完成后直接进录屏（不再弹截图工具栏）
 	bool pendingRecord{ false };
+	// 托盘「OCR / 翻译」：本次会话框选完成后自动打开对应面板（0 无 / 1 识别 / 2 识别+翻译）
+	int pendingPanel_{ 0 };
 	// 命令行 --enter=... 的一次性入口：建会话时从 args 取走，只保留在本次会话里。
 	// （若一直留在 args 中，进程生命周期内每次框选都会再次进入录屏/长截图等模式）
 	std::wstring enterArg_;

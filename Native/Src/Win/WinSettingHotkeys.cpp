@@ -95,14 +95,13 @@ namespace {
     // 免得出现"能录入、能保存、按下去却不生效"的迷惑行为。
     bool isPendingHotkey(const std::wstring& id)
     {
-        return id == L"quick_translate" || id == L"open_clipboard";
+        return id == L"open_clipboard";
     }
 
-    // 每一项的「?」说明（目前快速贴屏、图片编辑 Beta 需要；其余行不给问号）
+    // 每一项的「?」说明（目前只有快速贴屏需要；其余行不给问号）
     std::wstring hotkeyHelpTipOf(const std::wstring& id)
     {
         if (id == L"quick_pin") return Lang::get(L"shortcut.quickPinTip");
-        if (id == L"make_collage") return Lang::get(L"shortcut.imageEditBetaTip");
         return std::wstring{};
     }
 
@@ -157,32 +156,25 @@ WinSettingHotkeys::WinSettingHotkeys(Ling::WinBase* parent) :Ling::Node(parent)
         restoreBtn->setMarginLeft(SettingTheme::sp3);
     }
 
-    // 4 分组 13 项（AI 对话组已随 AI 功能一并移除）
+    // 3 分组 8 项。与托盘右键菜单重复的几项（区域截图 / 屏幕录制 / 演示画布 / 快捷翻译 /
+    // 图片编辑）已移到「右键菜单」页统一管理 —— 同一套键位只在一处设置，避免两边打架。
     // 注：滚动已由外层 WinSetting 的内容 ScrollerBox 统一管理，本页不再自建滚动容器。
     struct Group { std::wstring title; std::vector<std::pair<std::wstring, std::wstring>> items; };
     std::vector<Group> groups = {
-        // 0 截图组 6 项
+        // 0 截图组 3 项
         {Lang::get(L"setting.hotkeyGrpCapture"),{
-            { L"capture",               Lang::get(L"shortcut.capture") },
-            { L"record",                Lang::get(L"shortcut.record") },
-            { L"fullscreen_canvas",     Lang::get(L"shortcut.fullscreen_canvas") },
             { L"capture_fullscreen",    Lang::get(L"shortcut.capture_fullscreen") },
             { L"capture_repeat",        Lang::get(L"shortcut.capture_repeat") },
             { L"capture_focused_window",Lang::get(L"shortcut.capture_focused_window") },
         }},
-        // 1 剪切板组 2 项（紧跟在截图下面）：「快速贴屏」已转正，「打开剪切板」暂缓
+        // 1 剪切板组 2 项：「快速贴屏」已转正，「打开剪切板」暂缓
         {Lang::get(L"setting.hotkeyGrpClipboard"),{
             { L"quick_pin",             Lang::get(L"shortcut.quick_pin") },
             { L"open_clipboard",        Lang::get(L"shortcut.open_clipboard") },
         }},
-        // 2 翻译组 1 项
-        {Lang::get(L"setting.hotkeyGrpTranslate"),{
-            { L"quick_translate",       Lang::get(L"shortcut.quick_translate") },
-        }},
-        // 3 其他组 5 项
+        // 2 其他组 3 项
         {Lang::get(L"setting.hotkeyGrpOther"),{
             { L"show_main",             Lang::get(L"shortcut.show_main") },
-            { L"make_collage",          Lang::get(L"shortcut.make_collage") + L" Beta" },
             { L"open_screenshot_dir",   Lang::get(L"shortcut.open_screenshot_dir") },
             { L"toggle_pins",           Lang::get(L"shortcut.toggle_pins") },
         }},

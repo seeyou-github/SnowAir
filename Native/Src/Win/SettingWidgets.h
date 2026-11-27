@@ -198,9 +198,14 @@ private:
 };
 
 // ─── 挂接裸节点（等价于 makeChild<T> 的后半段）。
-//   用途：当外部 `new T(win)` 得到一个 Node*，但因模板约束无法走 Node::makeChild<T>()
+//   用途：当外部 `new T(win)` 得到一个 Node*，但因模板约束无法走 Ling::Node::makeChild<T>()
 //   时，调用 adoptChild(parent, child) 完成父-子挂接 + 所有权转移。
 void adoptChild(Ling::Node* parent, Ling::Node* child);
+
+// ─── 首帧底色垫层：窗口显示前把客户区（GDI 重定向表面）刷成底色 ──────────
+//   合成内容（DirectComposition）上屏前，屏幕上是这层表面；不刷就是系统白底，
+//   表现为"打开窗口先白一下，再出内容"。rgba 用工程统一的 0xRRGGBBAA。
+void primeWindowBackground(HWND hwnd, uint32_t rgba);
 
 // ─── Section Header：页面标题 + 描述 ────────────────────────────────────
 //   PageHeader → h1(22/28 bold) + p(muted)

@@ -196,12 +196,12 @@ inputArea->setPadding(0.f, 8.f, 0.f, 0.f);
 |---|---|---|
 | 直接运行 exe（无参数） | 仅托盘待命 | `App::App()` |
 | 开机自启（无参数启动）/ 升级后重启 / `--enter=tray` | 同上，仅托盘待命 | `App::App()` |
-| `--enter=pin\|long\|video\|ocr\|qr` | 直接进入对应模式（`WinCap::init()` → `enterByArg()`）；该参数**一次性**，只作用于进程内第一个会话，取走后 F1 / 托盘截图恢复普通截图 | `App::App()` / `WinCap::init()` / `WinCap::enterByArg()` |
+| `--enter=pin\|long\|video\|ocr\|translate\|qr` | 直接进入对应模式（`WinCap::init()` → `enterByArg()`）；该参数**一次性**，只作用于进程内第一个会话，取走后 F1 / 托盘截图恢复普通截图。托盘「OCR / 翻译」菜单项**不走**这条路：它要保留截图工具栏，用 `beginOcrPick()` 的 `pendingPanel_` | `App::App()` / `WinCap::init()` / `WinCap::enterByArg()` |
 | `--enter=demo`（别名 `canvas`） | 直接进入演示画布：`WinCap::init()` 识别到该值后改按 `StartMode::Demo` 建会话（实时桌面、无框选、不抓静帧），值不透传给 `enterByArg()`；同样一次性 | `App::App()` / `WinCap::init()` |
 | `--enter=edit`（别名 `image`） | 直接打开图片编辑窗口（`WinImageEdit::init()`），与托盘「图片编辑」同一入口；不进入截图会话，参数取走后清掉 | `App::App()` |
 | `--auto-quit=true` | 立即进入截图、截完即退（脚本 / 命令行用） | `App::App()` / `WinCap`、`WinPin` |
 | 托盘图标**左键单击** | 按设置 `Setting::getTrayClickAction()`：0 截图 / 1 打开设置 / 2 无操作 | `Tray::Tray()` |
-| 托盘图标**右键** | 弹出菜单：截图 / 截取全屏 / 屏幕录制 / 演示画布 / 快捷翻译 / 打开目录 / 设置 / 退出（见第 9 节） | `Tray::onTrayRightClick()` |
+| 托盘图标**右键** | 弹出菜单，项序 / 显隐 / 键位由「设置 → 右键菜单」决定（默认：截图 / OCR / 翻译 ┊ 设置 / 退出）（见第 9 节） | `Tray::onTrayRightClick()` |
 | 全局热键（默认 `F1`） | 进入截图 | `Setting::initShortcutKeys()` |
 | **再次运行 exe**（已有实例在托盘） | 打开设置中心（`WinSetting::init()`） | `Setting::initShortcutKeys()` 的 `onSecondInstance` |
 
@@ -219,28 +219,37 @@ inputArea->setPadding(0.f, 8.f, 0.f, 0.f);
 - 不使用计划任务、启动文件夹快捷方式、服务，也不调用 `reg.exe`
 - 「以管理员身份运行」是独立的提权设置，与开机自启登记无关
 
-## 9. 托盘右键菜单（源：Src\Tray.cpp）
+## 9. 托盘右键菜单（源：Src\Tray.cpp + Src\Win\WinSettingTrayMenu.cpp）
 
-菜单项顺序固定：**截图 / 截取全屏 / 屏幕录制 / 演示画布 ┊ 快捷翻译 ┊ 打开目录 ┊ 设置 / 退出**（`kMenuRows[]`，文案在语言文件 `tray.*`）
+菜单项、顺序、显隐、右侧显示的键位全部由「设置 → 右键菜单」页驱动（存在 `features.trayMenuOrder` /
+`features.trayMenuOff` + `shortcutKey` 里），Tray.cpp 只保留一张「id → 命令 / 文案」表（`kMenuItems[]`）。
 
-| 菜单项 | 行为 | 入口 |
+出厂形态：**截图 / OCR / 翻译 ┊ 设置 / 退出**（┊ 表示「设置」上方那条分割线）。
+「设置」「退出」是固定项：不能关闭、不能拖动、不能设快捷键，永远排在最下方。
+
+| 菜单项 id | 行为 | 入口 |
 |---|---|---|
-| 截图 | 进截图态（悬停找元素 → 框选 → 截图工具栏） | `WinCap::init()` |
-| 截取全屏 | 静默整屏抓图：存 `AppData\save\<全屏模板>.png` → 剪贴板（勾选「以文件形式复制」则复制文件） | `App::captureFullScreenSilent()` |
-| 屏幕录制 | 进入截图态（找元素 → 框选），框完直接切换为录屏工具栏 | `WinCap::beginRecordPick()`（内部 `pendingRecord`，在 `WinCap::onUp` 的 Select→Adjust 分支生效） |
-| 演示画布 | 整屏作为画布：选区自动铺满，并按「功能设置 → 演示 → 默认工具」选好画笔（0 渐隐画笔 / 1 画笔 / 2 无） | `WinCap::beginDemoCanvas()`（`selectFullScreenRect()` + `startAnnotate(L"pen")`） |
-| 快捷翻译 / 设置 | 打开设置中心并切到对应页（1 / 0） | `WinSetting::init(pageIndex)` / `WinSetting::showPage()` |
-| 打开目录 | 打开 `AppData\save` | `Util::outputDir()` + `ShellExecute` |
-| 退出 | 退出程序 | `Ling::App::quit(0)` |
+| `capture` | 进截图态（悬停找元素 → 框选 → 截图工具栏） | `WinCap::init()` |
+| `ocr` | 先照常截图，框选完成后自动识别文字（工具栏照常出现） | `WinCap::beginOcrPick(false)`（`pendingPanel_`，在 `WinCap::onUp` 的 Select→Adjust 分支里调 `startOcr()`） |
+| `ocr_translate` | 先照常截图，框选完成后自动识别 + 翻译 | `WinCap::beginOcrPick(true)`（同上，调 `startTranslate()`） |
+| `quick_translate` | 弹出独立的快捷翻译窗口（就是设置页那一页，没有左侧分类栏） | `WinQuickTranslate::toggle()` |
+| `record` | 进入截图态（找元素 → 框选），框完直接切换为录屏工具栏 | `WinCap::beginRecordPick()`（内部 `pendingRecord`，在 `WinCap::onUp` 的 Select→Adjust 分支生效） |
+| `fullscreen_canvas` | 整屏作为画布：选区自动铺满，并按「功能设置 → 演示 → 默认工具」选好画笔 | `WinCap::beginDemoCanvas()` |
+| `make_collage` | 打开图片编辑窗口 | `WinImageEdit::init()` |
+| `settings` | 打开设置中心（默认页） | `WinSetting::init(0)` |
+| `exit` | 退出程序 | `Ling::App::quit(0)` |
+
+键位：托盘菜单右侧显示的就是这几条全局热键（`Setting::getShortcutKey(id)`，id 与菜单项 id 同名），
+出厂默认 `截图 F1 / OCR F2 / 翻译 F3`，其余不绑。键位与「设置 → 全局热键」页共用同一套，
+所以重复的几项（截图 / 录屏 / 演示画布 / 快捷翻译 / 图片编辑）只在「右键菜单」页出现，
+跨页撞键由 `Setting::findShortcutOwner()` 判定。
 
 实现要点：
 
-- 观感完全跟随系统菜单：自绘（`MF_OWNERDRAW` + `WM_MEASUREITEM` / `WM_DRAWITEM`）只控制整体宽度 180（`kMenuW`，itemWidth = 180 − 系统菜单窗自带的 20）与文字左内缩（`kItemPadX` 10）。行高取 `GetSystemMetrics(SM_CYMENU)`，配色取 `GetSysColor(COLOR_MENU / MENUTEXT / HIGHLIGHT / HIGHLIGHTTEXT / 3DSHADOW)`，高亮为整行实心，分割线为 1px 系统色线
-- 菜单宿主是自己的隐藏顶层窗口（类名 `ScreenShutTrayMenuOwner`，`ensureMenuOwner()`）：Ling 的消息窗口是 message-only，跨进程不可枚举，不适合作为菜单宿主；`WM_MEASUREITEM` / `WM_DRAWITEM` 都由它接收
-- 尺寸通过 `AppendMenu(..., (LPCWSTR)&MEASUREITEMSTRUCT)` 直接给出，`WM_MEASUREITEM` 分支仅作兜底。`g_measures` 必须先 `reserve`，指针需存活到菜单销毁。勾选列用 `MNS_NOCHECK` 去掉，底色用 `SetMenuInfo(MIM_BACKGROUND)`
-- 右键在抬起时弹出菜单，按下即弹会被同一次抬键点掉
-- 不使用 `AttachThreadInput` 抢前台：把本进程输入队列挂到光标下窗口（如 explorer）所在线程后，菜单开启期间任务栏无法点击。当前只做 `SetForegroundWindow`（失败不处理），代价是键盘（Esc / 方向键）不保证可操作菜单，鼠标点击与点菜单外关闭由系统菜单自身保证
-- 静默整屏截图：`App::captureFullScreenSilent()` 使用 `Util::captureScreen()` + `Util::buildSavePath()`（支持 `{{YYYY}}` 等时间标记展开，根目录 `AppData\save`）+ `Setting::addHistoryItem()`；`Util::saveToFile()` 目前只做 PNG 编码，因此固定 `.png`
+- 自建圆角弹层（`TrayMenuWindow`），配色/尺寸取自 `Win/MenuTheme.h` 的 `MenuTheme`，不用系统 `HMENU`
+- 行在窗口创建前按设置生成（`buildRowsFromSettings`），行数变化随之改窗口高度
+- 「抬起才派发」：Ling 的按钮在按下时就派发 onClick，若那时就执行命令，菜单销毁后的抬起会落到托盘图标上再触发一次截图；所以按下只记行，抬起才执行
+- 点菜单外关闭由全局低级鼠标钩子负责（吞掉那一下，不让它漏到托盘图标）
 
 ## 10. 演示模式 / 全屏画布（源：Src\Win\WinCap.cpp + Src\Tool\ToolCap.cpp）
 

@@ -12,6 +12,7 @@
 #include "./Win/WinCap.h"
 #include "./Win/WinPin.h"
 #include "./Win/WinSetting.h"
+#include "./Win/WinQuickTranslate.h"
 #include "./Win/WinImageEdit.h"
 #include "./Win/ScreenCapture.h"
 #include "./Win/ClipPin.h"
@@ -136,6 +137,7 @@ void App::dispose()
     // 所以趁这里把还开着的窗口先放掉
     WinPin::dispose();
     WinCap::dispose();
+    WinQuickTranslate::dispose();
     WinSetting::dispose();
     // 标注复制缓冲里的形状可能还挂着设备资源，Ling::dispose 拆设备前先清掉
     AnnotHost::clearShapeClipboard();

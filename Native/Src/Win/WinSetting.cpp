@@ -1,10 +1,5 @@
 #include "pch.h"
 #include <dwmapi.h>
-
-// DWM 隐身开关（Win8+）：属性值为 TRUE 时窗口照常合成但不显示到屏幕上。
-#ifndef DWMWA_CLOAK
-#define DWMWA_CLOAK 13
-#endif
 #include <include/D2D.h>
 #include "../App.h"
 #include "../Lang.h"
@@ -15,6 +10,7 @@
 #include "SettingWidgets.h"
 
 // 子页面头文件（集中 include，避免 WinSetting.h 膨胀）
+#include "WinSettingTrayMenu.h"
 #include "WinSettingHotkeys.h"
 #include "WinSettingSystemKeys.h"
 #include "WinSettingQuickTranslate.h"
@@ -255,7 +251,7 @@ void WinSetting::onCreated()
 		subLabel->setColor(SettingTheme::textSecondary);
 	}
 
-	// ② 中部：5 菜单
+	// ② 中部：6 菜单（右键菜单 → 全局热键 → 快捷翻译 → 系统按键 → 外观 → 功能）
 	initMenuItems(sideNav);
 
 	// ③ 底部：版本号（zinc-400 弱文字）。数字从当前 exe 的内存版本资源取，与「关于」页同源；后缀带 Lite 版本标记。
@@ -319,7 +315,7 @@ void WinSetting::onCreated()
 	content->setFlexGrow(1.f);   // 撑满 contentScroll->content（扣除 padding 后的内容区），子页才能贴底
 	// 关键：允许 content 被父容器（contentScroll->content）压缩。
 	//   Yoga 默认 flexShrink=0，且 min-height:auto / min-content 会把 content 的下限锁在
-	//   "子页内容高度"。这只在父容器为 definite height 时才体现（Quick 页 case 1 把
+	//   "子页内容高度"。这只在父容器为 definite height 时才体现（Quick 页 case 2 把
 	//   contentScroll->content 锁 100% 视口高）：若不解除，消息越高 content 越高，整个页面
 	//   被内容撑出视口、外层 contentScroll 出现滚动条、把固定高度的输入区顶到折叠区之下
 	//   —— 正是"拉高再缩矮被裁剪"的根因（composer 固定高度 + 消息流 stretch=1）。
@@ -331,35 +327,41 @@ void WinSetting::onCreated()
 	YGNodeStyleSetMinWidth(content->node, 0.f);
 	content->setFlexDirection(Ling::FlexDirection::Column);
 
-	// 加载默认页（热键页 index=0）
+	// 加载默认页（首个菜单「右键菜单」）
 	loadPage(menuIndex);
 
 	// onCreated 早于 createNativeWindow 的 layout()，先手动排版，避免首帧节点都在 (0,0)
 	layout();
 
-	// cloak 期间窗口照常合成但不可见；首帧内容上屏后再解除，避免只露出边框/投影
-	BOOL cloak = TRUE;
-	DwmSetWindowAttribute(hwnd, DWMWA_CLOAK, &cloak, sizeof(cloak));
+	// ★ 首帧底色垫层：见 SettingUi::primeWindowBackground。
+	//   合成内容（DirectComposition）是异步上屏的，窗口先出现、内容后到，中间那几帧
+	//   看到的是窗口的 GDI 表面。先刷成画布色，就不会有"进设置页先白一下"。
+	SettingUi::primeWindowBackground(hwnd, SettingTheme::canvas);
+
+	// 不再用 DWMWA_CLOAK 藏首帧：被 DWM 隐藏的窗口不参与合成，解除隐藏后合成器要从头
+	// 上传内容，这段时间露出来的恰好是没内容的空白面（也就是原来的白闪来源）。
+	// 现在窗口在"内容已建好 + 底色已刷"之后才显示，首帧就是完整的。
 	SetWindowPos(hwnd, nullptr, x, y, (int)w, (int)h,
 		SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOREDRAW);
 	show();
 	UpdateWindow(hwnd);
 	DwmFlush();
-	cloak = FALSE;
-	DwmSetWindowAttribute(hwnd, DWMWA_CLOAK, &cloak, sizeof(cloak));
 }
 
-// 5 菜单：按键顺序 Hotkeys → Quick → SystemKeys → Appearance → Features
+// 6 菜单：按键顺序 TrayMenu → Hotkeys → Quick → SystemKeys → Appearance → Features
+//（「右键菜单」在「全局热键」上方：托盘菜单是这几条热键的主入口）
 void WinSetting::initMenuItems(Ling::Node* sideNav)
 {
-	const std::wstring keys[5] = {
+	const std::wstring keys[6] = {
+		L"setting.trayMenu",
 		L"setting.hotkeys",
 		L"setting.quick",
 		L"setting.systemKeys",
 		L"setting.appearance",
 		L"setting.function",
 	};
-	const wchar_t* icons[5] = {
+	const wchar_t* icons[6] = {
+		Icon::Dropdown,    // 右键菜单（下拉式菜单清单）
 		Icon::Hotkey,      // 全局热键
 		Icon::Quick,       // 快捷翻译
 		Icon::SystemKeys,  // 系统按键
@@ -367,14 +369,14 @@ void WinSetting::initMenuItems(Ling::Node* sideNav)
 		Icon::Function,    // 功能设置
 	};
 	menus.clear();
-	gMenuData.assign(5, MenuItemData{});
+	gMenuData.assign(6, MenuItemData{});
 
 	auto menuBox = sideNav->makeChild<Ling::Node>();
 	menuBox->setFlexGrow(1.0);
 	menuBox->setFlexDirection(Ling::FlexDirection::Column);
 	menuBox->setJustifyContent(Ling::Justify::Start);
 
-	for (int i = 0; i < 5; ++i) {
+	for (int i = 0; i < 6; ++i) {
 		auto menuItem = menuBox->makeChild<Ling::Button>();
 		menuItem->setWidthPercent(100.f);
 		menuItem->setText(L""); // 内部 Text 置空，由手动 Label 控制
@@ -465,7 +467,7 @@ void WinSetting::loadPage(int index)
 	// 切走前必须先把 contentScroll 恢复显示、并把页面从 cardNode 摘除，
 	// 否则页面残留为 cardNode 子节点、contentScroll 被 display:none 钉死。
 	contentScroll->show();
-	// 内容卡默认用背景色；快捷翻译页会把它改成画布色（见 case 1）
+	// 内容卡默认用背景色；快捷翻译页会把它改成画布色（见 case 2）
 	if (cardNode) cardNode->setBg(SettingTheme::background);
 	if (pageQuick) {
 		cardNode->removeChild(pageQuick);   // 立即销毁 pageQuick（返回值丢弃 == 解构）
@@ -473,6 +475,7 @@ void WinSetting::loadPage(int index)
 	}
 
 	// 清理旧子页：先手动置空指针（避免访问悬空），再清空 content 的所有子节点
+	pageTrayMenu   = nullptr;
 	pageHotkeys    = nullptr;
 	pageQuick      = nullptr;
 	pageSysKeys    = nullptr;
@@ -505,13 +508,17 @@ void WinSetting::loadPage(int index)
 		SettingUi::adoptChild(content, child);
 	};
 
-	// 菜单顺序：0=Hotkeys 1=Quick 2=SystemKeys 3=Appearance 4=Features
+	// 菜单顺序：0=TrayMenu 1=Hotkeys 2=Quick 3=SystemKeys 4=Appearance 5=Features
 	switch (index) {
 	case 0:
+		pageTrayMenu = new WinSettingTrayMenu(this);
+		adopt(pageTrayMenu); makeFullFill(pageTrayMenu);
+		break;
+	case 1:
 		pageHotkeys = new WinSettingHotkeys(this);
 		adopt(pageHotkeys); makeFullFill(pageHotkeys);
 		break;
-	case 1:
+	case 2:
 		// 快捷翻译页自管理布局（仅页内 msgScroll/histScroll 滚动），
 		// 直接把该页塞进视口容器、不包外层整页滚动面板。
 		// 做法：隐藏整页滚动的 contentScroll，把 pageQuick 直接挂到 cardNode（=视口容器）。
@@ -530,16 +537,16 @@ void WinSetting::loadPage(int index)
 		// 让内容卡自己也用画布色：页面画布铺满后，圆角处的抗锯齿两侧同色，不再出现颗粒
 		cardNode->setBg(SettingTheme::canvas);
 		break;
-	case 2:
+	case 3:
 		// 系统按键：命令表内容铺出来（见 CommandKeys / WinSettingSystemKeys）
 		pageSysKeys = new WinSettingSystemKeys(this);
 		adopt(pageSysKeys); makeFullFill(pageSysKeys);
 		break;
-	case 3:
+	case 4:
 		pageAppearance = new WinSettingAppearance(this);
 		adopt(pageAppearance); makeFullFill(pageAppearance);
 		break;
-	case 4:
+	case 5:
 		pageFeatures = new WinSettingFeatures(this);
 		adopt(pageFeatures); makeFullFill(pageFeatures);
 		break;
