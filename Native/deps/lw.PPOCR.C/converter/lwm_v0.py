@@ -663,8 +663,18 @@ def convert_rec_model(input_path: Path, output_path: Path) -> ConversionInfo:
     if len(model.graph.input) != 1 or len(model.graph.output) != 1:
         raise ValueError("REC converter requires exactly one graph input and one graph output")
 
+    # 先在原始图上推断形状：small 模型的动态 Reshape 依赖 Shape/Slice/Concat
+    # 生成的形状输入，_materialize_slice_inputs 会移除这些输入，之后再推断会因
+    # Reshape 输入个数不足而失败。原始图已通过 checker，推断结果按张量名复用即可。
+    try:
+        inferred = onnx.shape_inference.infer_shapes(
+            model, strict_mode=True, data_prop=False
+        )
+    except Exception:
+        inferred = onnx.shape_inference.infer_shapes(
+            model, strict_mode=False, data_prop=False
+        )
     model = _materialize_slice_inputs(model)
-    inferred = onnx.shape_inference.infer_shapes(model, strict_mode=True, data_prop=False)
     return _write_model(_fold_conv_batch_normalization(model), output_path, inferred)
 
 
