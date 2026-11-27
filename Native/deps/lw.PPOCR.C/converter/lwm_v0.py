@@ -14,11 +14,7 @@ import numpy as np
 import onnx
 from onnx import numpy_helper
 
-from converter.ppocr_contracts import (
-    PP_OCRV6_SMALL_DET_SHA256,
-    PP_OCRV6_SMALL_REC_SHA256,
-    PP_OCRV6_TINY_CLS_SHA256,
-)
+from converter.ppocr_contracts import PP_OCRV6_TINY_CLS_SHA256
 
 MAGIC = b"LWM0"
 FORMAT_MAJOR = 0
@@ -31,16 +27,9 @@ MAX_DIMS = 8
 MAX_NODE_INPUTS = 8
 MAX_NODE_OUTPUTS = 4
 UINT64_MAX = (1 << 64) - 1
-# 本项目同时分发轻量与标准档，转换器对两档官方资产都放行。
-SUPPORTED_REC_SHA256 = {
-    "9ef676d6ed3c88256a2d92c640c44f25b0c40947e111b14b8be8f594091563e6",
-    PP_OCRV6_SMALL_REC_SHA256,
-}
-SUPPORTED_CLS_SHA256 = PP_OCRV6_TINY_CLS_SHA256  # 两档共用同一份 CLS
-SUPPORTED_DET_SHA256 = {
-    "193bab7a04fca699a6c82e6abb5b81bdb28177f0abd4062552b04908dafb19f8",
-    PP_OCRV6_SMALL_DET_SHA256,
-}
+SUPPORTED_REC_SHA256 = "9ef676d6ed3c88256a2d92c640c44f25b0c40947e111b14b8be8f594091563e6"
+SUPPORTED_CLS_SHA256 = PP_OCRV6_TINY_CLS_SHA256
+SUPPORTED_DET_SHA256 = "193bab7a04fca699a6c82e6abb5b81bdb28177f0abd4062552b04908dafb19f8"
 
 HEADER_FLAG_NO_MEMORY_PLAN = 1 << 0
 TENSOR_FLAG_CONSTANT = 1 << 0
@@ -648,95 +637,12 @@ def _materialize_slice_inputs(model: onnx.ModelProto) -> onnx.ModelProto:
     return converted
 
 
-def _materialize_auto_pad(
-    model: onnx.ModelProto, inferred: onnx.ModelProto
-) -> onnx.ModelProto:
-    """Turn Conv auto_pad into explicit pads; LWM stores only explicit pads."""
-    values = {
-        value.name: value
-        for value in (*inferred.graph.input, *inferred.graph.value_info, *inferred.graph.output)
-    }
-    for node in model.graph.node:
-        if node.op_type not in ("Conv", "MaxPool", "AveragePool"):
-            continue
-        attrs = _attribute_map(node)
-        auto_pad = attrs.get("auto_pad", b"NOTSET")
-        if isinstance(auto_pad, bytes):
-            auto_pad = auto_pad.decode("ascii", "replace")
-        if auto_pad in ("NOTSET", ""):
-            continue
-        if auto_pad not in ("VALID", "SAME_UPPER", "SAME_LOWER"):
-            raise ValueError(f"unsupported Conv auto_pad {auto_pad!r}")
-        kernel = _require_count(_int_list(attrs, "kernel_shape", []), 2, "Conv kernel_shape")
-        strides = _require_count(_int_list(attrs, "strides", [1, 1]), 2, "Conv strides")
-        dilations = _require_count(_int_list(attrs, "dilations", [1, 1]), 2, "Conv dilations")
-        effective = [(k - 1) * d + 1 for k, d in zip(kernel, dilations)]
-
-        totals: list[int] = []
-        for axis, stride, k_eff in zip((2, 3), strides, effective):
-            value_info = values.get(node.input[0])
-            dims = value_info.type.tensor_type.shape.dim if value_info is not None else None
-            in_size = (dims[axis].dim_value if dims is not None and len(dims) > axis
-                       and dims[axis].HasField("dim_value") else None)
-            if in_size and in_size > 0:
-                out_size = (in_size + stride - 1) // stride
-                totals.append(max(0, (out_size - 1) * stride + k_eff - in_size))
-            elif stride == 1:
-                # SAME with stride 1 is independent of the input size.
-                totals.append(k_eff - 1)
-            else:
-                raise ValueError("cannot materialize auto_pad with dynamic input size")
-
-        if auto_pad == "VALID":
-            pads = [0, 0, 0, 0]
-        else:
-            pads = []
-            for total in totals:
-                head = total // 2
-                pads.extend((head, total - head) if auto_pad == "SAME_UPPER"
-                            else (total - head, head))
-
-        kept = [attr for attr in node.attribute if attr.name not in ("auto_pad", "pads")]
-        del node.attribute[:]
-        node.attribute.extend(kept)
-        node.attribute.append(onnx.helper.make_attribute("pads", pads))
-    return model
-
-
-def _drop_unused_nodes(model: onnx.ModelProto) -> onnx.ModelProto:
-    """Drop nodes that no longer contribute to any graph output.
-
-    REC models build Reshape shape inputs with Shape/Slice/Concat metadata ops.
-    Once the Reshape shape inputs are removed, those chains are dead and contain
-    operators that the LWM IR does not support.
-    """
-    live = {item.name for item in model.graph.output}
-    kept: list[onnx.NodeProto] = []
-    for node in reversed(model.graph.node):
-        if any(name in live for name in node.output):
-            kept.append(node)
-            live.update(node.input)
-            for name in node.output:
-                live.discard(name)
-    kept.reverse()
-    del model.graph.node[:]
-    model.graph.node.extend(kept)
-
-    used = {name for node in model.graph.node for name in node.input}
-    used.update(item.name for item in model.graph.input)
-    used.update(item.name for item in model.graph.output)
-    retained = [item for item in model.graph.initializer if item.name in used]
-    del model.graph.initializer[:]
-    model.graph.initializer.extend(retained)
-    return model
-
-
 def convert_rec_model(input_path: Path, output_path: Path) -> ConversionInfo:
     digest = hashlib.sha256(input_path.read_bytes()).hexdigest()
-    if digest not in SUPPORTED_REC_SHA256:
+    if digest != SUPPORTED_REC_SHA256:
         raise ValueError(
-            "REC converter only supports the bundled PP-OCRv6 tiny/small REC models; "
-            f"expected one of {sorted(SUPPORTED_REC_SHA256)}, got {digest}"
+            "REC converter only supports the bundled PP-OCRv6 tiny REC model; "
+            f"expected SHA-256 {SUPPORTED_REC_SHA256}, got {digest}"
         )
     model = onnx.load(str(input_path), load_external_data=True)
     onnx.checker.check_model(model, full_check=True)
@@ -746,22 +652,9 @@ def convert_rec_model(input_path: Path, output_path: Path) -> ConversionInfo:
     if len(model.graph.input) != 1 or len(model.graph.output) != 1:
         raise ValueError("REC converter requires exactly one graph input and one graph output")
 
-    # 先在原始图上推断形状：small 模型的动态 Reshape 依赖 Shape/Slice/Concat
-    # 生成的形状输入，_materialize_slice_inputs 会移除这些输入，之后再推断会因
-    # Reshape 输入个数不足而失败。原始图已通过 checker，推断结果按张量名复用即可。
-    try:
-        inferred = onnx.shape_inference.infer_shapes(
-            model, strict_mode=True, data_prop=False
-        )
-    except Exception:
-        inferred = onnx.shape_inference.infer_shapes(
-            model, strict_mode=False, data_prop=False
-        )
     model = _materialize_slice_inputs(model)
-    model = _materialize_auto_pad(model, inferred)
-    folded = _fold_conv_batch_normalization(model)
-    folded = _drop_unused_nodes(folded)
-    return _write_model(folded, output_path, inferred)
+    inferred = onnx.shape_inference.infer_shapes(model, strict_mode=True, data_prop=False)
+    return _write_model(_fold_conv_batch_normalization(model), output_path, inferred)
 
 
 def _prepare_cls_model(
@@ -943,10 +836,10 @@ def _prepare_det_model(
 
 def convert_det_model(input_path: Path, output_path: Path) -> ConversionInfo:
     digest = hashlib.sha256(input_path.read_bytes()).hexdigest()
-    if digest not in SUPPORTED_DET_SHA256 and "LW_ALLOW_ANY_DET" not in os.environ:
+    if digest != SUPPORTED_DET_SHA256 and "LW_ALLOW_ANY_DET" not in os.environ:
         raise ValueError(
-            "DET converter only supports the bundled PP-OCRv6 tiny/small DET models; "
-            f"expected one of {sorted(SUPPORTED_DET_SHA256)}, got {digest}"
+            "DET converter only supports the bundled PP-OCRv6 tiny DET model; "
+            f"expected SHA-256 {SUPPORTED_DET_SHA256}, got {digest}"
         )
     model = onnx.load(str(input_path), load_external_data=True)
     onnx.checker.check_model(model, full_check=True)
