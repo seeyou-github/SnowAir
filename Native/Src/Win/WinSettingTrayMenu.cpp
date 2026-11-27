@@ -350,10 +350,11 @@ void WinSettingTrayMenu::buildRow(Ling::Node* list, const std::wstring& id)
 		else {
 			auto* sw = box->makeChild<Ling::Button>();
 			SettingUi::styleToggle(sw, on);
-			sw->onClick.add([this, id, on](Ling::Button* b) mutable {
-				on = !on;
-				SettingUi::styleToggle(b, on);
-				Setting::get()->setTrayMenuItemEnabled(id, on);
+			// on 是 const 局部量，MSVC 会把按值捕获的成员也视为 const（C2166），
+			// 所以不改捕获值，直接按「取反」的结果刷新。
+			sw->onClick.add([this, id, on](Ling::Button* b) {
+				SettingUi::styleToggle(b, !on);
+				Setting::get()->setTrayMenuItemEnabled(id, !on);
 				// 该行的快捷键框（只读/可录）与文字色随开关变化 —— 交给下一轮重建
 				this->scheduleRebuild();
 				});

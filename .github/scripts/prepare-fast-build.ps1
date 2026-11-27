@@ -4,14 +4,18 @@
     Fast-build 前置步骤：用 prebuilt-libs 里的预编译静态库替代「从 Native\deps 源码编译」。
 
   .DESCRIPTION
-    1) 校验 prebuilt-libs 下的 4 个 .lib 是否存在，并按链接器的搜索路径摆放：
+    1) 只跑一次 CMake configure（不编译）生成 ZXing 的 build/core/Version.h：
+       该头是 configure_file 产物，源码树里没有，而 BarcodeFormat.h 会 #include "Version.h"，
+       少了它直接 C1083。configure 参数与 build.yml 完全一致，保证与预编译 ZXing.lib 的宏匹配。
+
+    2) 校验 prebuilt-libs 下的 4 个 .lib 是否存在，并按链接器的搜索路径摆放：
          prebuilt-libs/libwebp/libwebp.lib       -> Native/x64/Release/libwebp.lib
          prebuilt-libs/Ling/Ling.lib             -> Native/x64/Release/Ling.lib
          prebuilt-libs/Ling/yoga/yoga.lib        -> Native/x64/Release/yoga.lib
          prebuilt-libs/zxing-cpp-311/ZXing.lib   -> Native/deps/zxing-cpp-311/build/core/Release/ZXing.lib
        （ScreenShut.vcxproj 的 AdditionalLibraryDirectories 正好指向这两个目录）
 
-    2) 就地改写 CI 工作区里的 Native/Src/ScreenShut.vcxproj：
+    3) 就地改写 CI 工作区里的 Native/Src/ScreenShut.vcxproj：
          - 移除对 libwebp / yoga / Ling 的 ProjectReference（否则 msbuild 会去源码编译它们）
          - 在所有 Link/AdditionalDependencies 前面补上 Ling.lib;yoga.lib;
            （libwebp.lib / ZXing.lib 原本就在列表里）
@@ -29,9 +33,42 @@ Push-Location $RepoRoot
 try {
     $outDir = Join-Path $RepoRoot 'Native/x64/Release'
     $zxDir  = Join-Path $RepoRoot 'Native/deps/zxing-cpp-311/build/core/Release'
-    New-Item -ItemType Directory -Force -Path $outDir, $zxDir | Out-Null
+    New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 
-    # ---------- 1. 摆放预编译库 ----------
+    # ---------- 1. ZXing 的 Version.h（configure 产物） ----------
+    $zxRoot  = 'Native/deps/zxing-cpp-311'
+    $zxBuild = "$zxRoot/build"
+    $zxVer   = "$zxBuild/core/Version.h"
+
+    if (-not (Test-Path -LiteralPath $zxVer)) {
+        $vsInstance = 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise'
+        if (-not (Test-Path $vsInstance)) {
+            $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+            if (Test-Path $vswhere) {
+                $vsInstance = & $vswhere -latest -version '[17.0,18.0)' -products * `
+                    -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+            }
+        }
+        if (-not $vsInstance -or -not (Test-Path $vsInstance)) { throw 'Visual Studio 2022 with VC tools was not found.' }
+        $vsInstance = $vsInstance -replace '\\', '/'
+
+        Write-Host '[cmake] configuring ZXing (versions.h only, no compile) ...'
+        $env:VS170COMNTOOLS = "$vsInstance/Common7/Tools"
+        $env:CMAKE_GENERATOR_INSTANCE = $vsInstance
+        # 与 build.yml 的 configure 参数保持一致：Version.h 里的 ZXING_* 宏必须和预编译 ZXing.lib 一致
+        cmake -S $zxRoot -B $zxBuild -G 'Visual Studio 17 2022' -A x64 `
+            "-DCMAKE_GENERATOR_INSTANCE=$vsInstance" `
+            -DBUILD_SHARED_LIBS=OFF -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded `
+            -DZXING_WRITERS=OFF -DZXING_EXAMPLES=OFF `
+            -DZXING_UNIT_TESTS=OFF -DZXING_BLACKBOX_TESTS=OFF
+        if ($LASTEXITCODE -ne 0) { throw 'CMake configure for zxing failed' }
+        if (-not (Test-Path -LiteralPath $zxVer)) { throw "Version.h not generated: $zxVer" }
+    }
+    Write-Host ("[cmake] Version.h -> {0}" -f $zxVer)
+
+    New-Item -ItemType Directory -Force -Path $zxDir | Out-Null
+
+    # ---------- 2. 摆放预编译库 ----------
     $libMap = @(
         @{ Src = 'prebuilt-libs/libwebp/libwebp.lib';     Dst = Join-Path $outDir 'libwebp.lib' },
         @{ Src = 'prebuilt-libs/Ling/Ling.lib';           Dst = Join-Path $outDir 'Ling.lib'    },
