@@ -648,6 +648,34 @@ def _materialize_slice_inputs(model: onnx.ModelProto) -> onnx.ModelProto:
     return converted
 
 
+def _drop_unused_nodes(model: onnx.ModelProto) -> onnx.ModelProto:
+    """Drop nodes that no longer contribute to any graph output.
+
+    REC models build Reshape shape inputs with Shape/Slice/Concat metadata ops.
+    Once the Reshape shape inputs are removed, those chains are dead and contain
+    operators that the LWM IR does not support.
+    """
+    live = {item.name for item in model.graph.output}
+    kept: list[onnx.NodeProto] = []
+    for node in reversed(model.graph.node):
+        if any(name in live for name in node.output):
+            kept.append(node)
+            live.update(node.input)
+            for name in node.output:
+                live.discard(name)
+    kept.reverse()
+    del model.graph.node[:]
+    model.graph.node.extend(kept)
+
+    used = {name for node in model.graph.node for name in node.input}
+    used.update(item.name for item in model.graph.input)
+    used.update(item.name for item in model.graph.output)
+    retained = [item for item in model.graph.initializer if item.name in used]
+    del model.graph.initializer[:]
+    model.graph.initializer.extend(retained)
+    return model
+
+
 def convert_rec_model(input_path: Path, output_path: Path) -> ConversionInfo:
     digest = hashlib.sha256(input_path.read_bytes()).hexdigest()
     if digest not in SUPPORTED_REC_SHA256:
@@ -675,7 +703,9 @@ def convert_rec_model(input_path: Path, output_path: Path) -> ConversionInfo:
             model, strict_mode=False, data_prop=False
         )
     model = _materialize_slice_inputs(model)
-    return _write_model(_fold_conv_batch_normalization(model), output_path, inferred)
+    folded = _fold_conv_batch_normalization(model)
+    folded = _drop_unused_nodes(folded)
+    return _write_model(folded, output_path, inferred)
 
 
 def _prepare_cls_model(
