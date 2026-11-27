@@ -468,7 +468,7 @@ void CapVideo::startMp4(bool useSpeaker, bool useMic)
     default: codecs = { MFVideoFormat_HEVC, MFVideoFormat_H264 }; break;
     }
     // 文案在这里先取出来按值带进线程：langObj 是 WinRT 对象，不往采集线程里带
-    auto errTitle = Lang::get(L"about.sysTip");
+    auto errTitle = Lang::get(L"common.sysTip");
     auto hevcText = Lang::get(L"video.hevcUnavailable");
     auto capText = Lang::get(L"video.recordFailedCapture");
     auto fileText = Lang::get(L"video.recordFailedFile");

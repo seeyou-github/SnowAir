@@ -19,10 +19,6 @@ public:
 	std::wstring getCacheDir();
 	bool setCacheDir(const std::wstring& dir);
 	std::filesystem::path getDefaultCacheRoot();
-	// 「关于」页：把当前配置另存为指定文件；把选中的配置文件导入并覆盖现有配置。
-	// 导入后本次运行转入只读（不再回写内存里的旧配置），重启后生效。
-	bool exportConfigTo(const std::filesystem::path& path);
-	bool importConfigFrom(const std::filesystem::path& path);
 	// 插件（OCR / 翻译模型等）根目录。留空 = 自动：exe 同目录下已有 plugin 文件夹就用它
 	// （绿色包 / 不想占用 C 盘），否则退回 AppData\config\plugin。见 Ocr/PluginPaths.h。
 	std::wstring getPluginDir();

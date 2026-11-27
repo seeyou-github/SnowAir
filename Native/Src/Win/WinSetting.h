@@ -10,14 +10,13 @@ class WinSettingHistory;
 class WinSettingPlugins;
 class WinSettingAppearance;
 class WinSettingFeatures;
-class WinSettingAbout;
 
 class WinSetting :public Ling::WinBase
 {
 public:
 	~WinSetting();
 	static void init();
-	// 打开设置中心并切到指定菜单页（0 全局热键 / 1 快捷翻译 / 2 系统按键 / 3 外观 / 4 功能 / 5 截图历史 / 6 插件 / 7 关于）
+	// 打开设置中心并切到指定菜单页（0 全局热键 / 1 快捷翻译 / 2 系统按键 / 3 外观 / 4 功能 / 5 截图历史 / 6 插件）
 	static void init(int pageIndex);
 	static void dispose();
 	// 全局快捷键用：已在该页且在前台就关掉，否则打开/切到该页并抢前台
@@ -55,5 +54,4 @@ private:
 	WinSettingPlugins*        pagePlugins{ nullptr };
 	WinSettingAppearance*     pageAppearance{ nullptr };
 	WinSettingFeatures*       pageFeatures{ nullptr };
-	WinSettingAbout*          pageAbout{ nullptr };
 };

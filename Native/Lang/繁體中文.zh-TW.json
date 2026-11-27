@@ -1,4 +1,8 @@
 ﻿{
+  "common": {
+    "sysTip": "系統提示",
+    "copySuccess": "複製成功"
+  },
   "cap": {
     "mark": "圖像標籤",
     "long": "抓長圖",
@@ -89,7 +93,6 @@
     "title": "輕雪截圖設定",
     "common": "通用設定",
     "shortcut": "快捷鍵",
-    "about": "關於",
     "autoStart": "開機自啟動：",
     "language": "語言：",
     "getMoreLang": "獲取更多語言",
@@ -249,7 +252,6 @@
     "features": "功能設定",
     "featuresDesc": "截圖、錄影、輸出、OCR、翻譯參數",
     "pluginsDesc": "按需下載本機元件與依賴；下拉僅選擇要安裝的方案，實際啟用請到「功能設定」",
-    "aboutDesc": "版本資訊與相關連結",
     "commonDesc": "一般設定",
     "shortcutDesc": "快捷鍵設定",
     "fnTabBasic": "基本功能",
@@ -360,14 +362,6 @@
     "error": "翻譯失敗",
     "send": "翻譯",
     "untitled": "未命名翻譯"
-  },
-  "about": {
-    "version": "版本：",
-    "project": "項目：",
-    "author": "作者：",
-    "wechat": "微信：liulun_007",
-    "copySuccess": "複製成功",
-    "sysTip": "系統提示"
   },
   "shortcut": {
     "pressKey": "按下快捷鍵…",

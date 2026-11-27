@@ -3571,7 +3571,7 @@ void WinSettingHistory::showCopyToast(Ling::Node* thumbHost)
 	layer->setAlignItems(Ling::Align::Center);
 
 	auto* badge = layer->makeChild<Ling::Label>();
-	badge->setText(Lang::get(L"about.copySuccess"));
+	badge->setText(Lang::get(L"common.copySuccess"));
 	badge->setFontSize(SettingTheme::fontSm);
 	badge->setColor(0xFFFFFFFF);
 	badge->setBg(0x0FDC78FF);        // #0FDC78

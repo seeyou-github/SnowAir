@@ -1,4 +1,8 @@
 {
+  "common": {
+    "sysTip": "提示",
+    "copySuccess": "复制成功"
+  },
   "instance": {
     "takeOver": "检测到旧版本的 ScreenShut 正在运行（可能正在截图或录屏）。\n关闭它并使用当前版本继续吗？\n\n若旧版本里有未保存的内容，请先取消、手动处理。"
   },
@@ -274,7 +278,6 @@
     "title": "ScreenShut 设置中心",
     "common": "常规",
     "shortcut": "快捷键",
-    "about": "关于",
     "autoStart": "开机自启",
     "runAsAdmin": "以管理员身份运行",
     "runAsAdminLockedTip": "当前为 Administrator 账户，已拥有管理员权限，暂无法关闭",
@@ -456,7 +459,6 @@
     "finishSaveCopyFile": "保存并复制文件",
     "finishSaveCutFile": "保存并剪切文件",
     "finishCopyOnly": "仅复制图片",
-
     "captureFinishActionTip": "选择「仅复制图片」时，不保存文件、截图仅进剪贴板",
     "cancelConfirmDialog": "“取消”弹窗",
     "dateVar": "日期变量",
@@ -485,7 +487,6 @@
     "featuresDesc": "截图、录屏、输出、OCR、翻译参数",
     "pluginsDesc": "按需下载本地组件与依赖；下拉仅选择要安装的方案，实际启用请到「功能设置」",
     "pluginsTip": "用于下载本地能力所需的运行时与模型资源，下拉只选择要安装的内容，不会切换当前方案。组件体积较大，进度短暂停滞属正常；长时间无进展请检查网络后重试",
-    "aboutDesc": "版本信息与相关链接",
     "commonDesc": "常规设置",
     "shortcutDesc": "快捷键设置",
     "fnTabBasic": "基本功能",
@@ -724,25 +725,6 @@
     "send": "翻译",
     "untitled": "新翻译"
   },
-  "about": {
-    "version": "版本：",
-    "project": "项目：",
-    "author": "作者：",
-    "wechat": "微信：liulun_007",
-    "copySuccess": "复制成功",
-    "sysTip": "提示",
-    "appName": "ScreenShut 轻雪",
-    "versionFmt": "版本 %1",
-    "slogan": "高效自由，尽在轻雪",
-    "dataDir": "配置目录",
-    "openDataDir": "打开配置目录",
-    "importConfig": "导入配置",
-    "exportConfig": "导出配置",
-    "importOk": "导入成功",
-    "importDone": "配置已导入，请手动重启软件。",
-    "importFailed": "导入失败：请选择有效的配置文件。",
-    "exportFailed": "导出失败：无法写入所选位置。"
-  },
   "shortcut": {
     "pressKey": "等待按键…",
     "setToBind": "点击设置",
@@ -842,6 +824,3 @@
     "partial": "部分行翻译失败，已保留原文"
   }
 }
-
-
-

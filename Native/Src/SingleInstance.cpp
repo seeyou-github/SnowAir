@@ -307,7 +307,7 @@ InstanceDecision enforceSingleInstance()
 		}
 		// 本进程更新：请它让位；它开着界面时先问一句
 		if (top->busy && MessageBoxW(nullptr, Lang::get(L"instance.takeOver").c_str(),
-				Lang::get(L"about.sysTip").c_str(),
+				Lang::get(L"common.sysTip").c_str(),
 				MB_YESNO | MB_ICONQUESTION | MB_TOPMOST | MB_SETFOREGROUND) != IDYES) {
 			decision.continueLaunch = false;
 			return decision;

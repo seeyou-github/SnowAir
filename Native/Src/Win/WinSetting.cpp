@@ -23,7 +23,6 @@
 #include "WinSettingPlugins.h"
 #include "WinSettingAppearance.h"
 #include "WinSettingFeatures.h"
-#include "WinSettingAbout.h"
 #include "../Tool/IconCodes.h"
 
 // 说明：
@@ -367,10 +366,10 @@ void WinSetting::onCreated()
 	DwmSetWindowAttribute(hwnd, DWMWA_CLOAK, &cloak, sizeof(cloak));
 }
 
-// 8 菜单：按键顺序 Hotkeys → Quick → SystemKeys → Appearance → Features → History → Plugins → About
+// 7 菜单：按键顺序 Hotkeys → Quick → SystemKeys → Appearance → Features → History → Plugins
 void WinSetting::initMenuItems(Ling::Node* sideNav)
 {
-	const std::wstring keys[8] = {
+	const std::wstring keys[7] = {
 		L"setting.hotkeys",
 		L"setting.quick",
 		L"setting.systemKeys",
@@ -378,9 +377,8 @@ void WinSetting::initMenuItems(Ling::Node* sideNav)
 		L"setting.function",
 		L"setting.history",
 		L"setting.plugins",
-		L"setting.about",
 	};
-	const wchar_t* icons[8] = {
+	const wchar_t* icons[7] = {
 		Icon::Hotkey,      // 全局热键
 		Icon::Quick,       // 快捷翻译
 		Icon::SystemKeys,  // 系统按键
@@ -388,17 +386,16 @@ void WinSetting::initMenuItems(Ling::Node* sideNav)
 		Icon::Function,    // 功能设置
 		Icon::Folder,      // 截图历史
 		Icon::Plugin,      // 插件集成
-		Icon::Logo,        // 关于
 	};
 	menus.clear();
-	gMenuData.assign(8, MenuItemData{});
+	gMenuData.assign(7, MenuItemData{});
 
 	auto menuBox = sideNav->makeChild<Ling::Node>();
 	menuBox->setFlexGrow(1.0);
 	menuBox->setFlexDirection(Ling::FlexDirection::Column);
 	menuBox->setJustifyContent(Ling::Justify::Start);
 
-	for (int i = 0; i < 8; ++i) {
+	for (int i = 0; i < 7; ++i) {
 		auto menuItem = menuBox->makeChild<Ling::Button>();
 		menuItem->setWidthPercent(100.f);
 		menuItem->setText(L""); // 内部 Text 置空，由手动 Label 控制
@@ -488,7 +485,7 @@ void WinSetting::loadPage(int index)
 {
 	if (!content) return;
 
-	// 若上一页是「直挂视口容器」的页（QuickTranslate / History / Plugins / About）：它们不经 contentScroll，
+	// 若上一页是「直挂视口容器」的页（QuickTranslate / History / Plugins）：它们不经 contentScroll，
 	// 切走前必须先把 contentScroll 恢复显示、并把页面从 cardNode 摘除，
 	// 否则页面残留为 cardNode 子节点、contentScroll 被 display:none 钉死。
 	contentScroll->show();
@@ -501,10 +498,6 @@ void WinSetting::loadPage(int index)
 	if (pageHistory) {
 		cardNode->removeChild(pageHistory);
 		pageHistory = nullptr;
-	}
-	if (pageAbout) {
-		cardNode->removeChild(pageAbout);
-		pageAbout = nullptr;
 	}
 	if (pagePlugins) {
 		cardNode->removeChild(pagePlugins);
@@ -519,7 +512,6 @@ void WinSetting::loadPage(int index)
 	pagePlugins    = nullptr;
 	pageAppearance = nullptr;
 	pageFeatures   = nullptr;
-	pageAbout      = nullptr;
 	content->removeAllChildren();
 
 	// 恢复外层 content 为「内容驱动 + 允许整页滚动」的默认态，供普通内容页使用。
@@ -547,7 +539,7 @@ void WinSetting::loadPage(int index)
 		SettingUi::adoptChild(content, child);
 	};
 
-	// 菜单顺序：0=Hotkeys 1=Quick 2=SystemKeys 3=Appearance 4=Features 5=History 6=Plugins 7=About
+	// 菜单顺序：0=Hotkeys 1=Quick 2=SystemKeys 3=Appearance 4=Features 5=History 6=Plugins
 	switch (index) {
 	case 0:
 		pageHotkeys = new WinSettingHotkeys(this);
@@ -605,17 +597,6 @@ void WinSetting::loadPage(int index)
 		SettingUi::adoptChild(cardNode, pagePlugins);
 		makeFullFill(pagePlugins);
 		pagePlugins->setPadding(SettingTheme::contentPadX, SettingTheme::contentPadY,
-			SettingTheme::contentPadX, SettingTheme::contentPadY);
-		break;
-	case 7:
-		// 关于页：设计稿要求分隔线与目录信息贴卡片底 → 页面高度必须恒等于卡片高度。
-		// 与「快捷翻译 / 截图历史」同策略：隐藏整页滚动容器，页面直接挂到视口容器 cardNode，
-		// 页面再用 margin-top:auto 把按钮组顶到底部、目录信息压在最下面。
-		contentScroll->hide();
-		pageAbout = new WinSettingAbout(this);
-		SettingUi::adoptChild(cardNode, pageAbout);
-		makeFullFill(pageAbout);
-		pageAbout->setPadding(SettingTheme::contentPadX, SettingTheme::contentPadY,
 			SettingTheme::contentPadX, SettingTheme::contentPadY);
 		break;
 	}

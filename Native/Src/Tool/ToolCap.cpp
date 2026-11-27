@@ -499,7 +499,7 @@ std::wstring ToolCap::resolveToolId(const std::wstring& slotId) const
 
 void ToolCap::showComingSoon()
 {
-	MessageBoxW(hwnd, Lang::get(L"cap.comingSoon").c_str(), Lang::get(L"about.sysTip").c_str(),
+	MessageBoxW(hwnd, Lang::get(L"cap.comingSoon").c_str(), Lang::get(L"common.sysTip").c_str(),
 		MB_OK | MB_ICONINFORMATION);
 }
 

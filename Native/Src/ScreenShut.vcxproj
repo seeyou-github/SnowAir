@@ -299,7 +299,6 @@
     <ClCompile Include="Win\ImageEditMerge.cpp" />
     <ClCompile Include="Win\WinImageEdit.cpp" />
     <ClCompile Include="Win\WinSetting.cpp" />
-    <ClCompile Include="Win\WinSettingAbout.cpp" />
     <ClCompile Include="Win\WinSettingAppearance.cpp" />
     <ClCompile Include="Win\WinSettingFeatures.cpp" />
     <ClCompile Include="Win\WinSettingHistory.cpp" />
@@ -430,7 +429,6 @@
     <ClInclude Include="Win\ImageEditMerge.h" />
     <ClInclude Include="Win\WinImageEdit.h" />
     <ClInclude Include="Win\WinSetting.h" />
-    <ClInclude Include="Win\WinSettingAbout.h" />
     <ClInclude Include="Win\WinSettingAppearance.h" />
     <ClInclude Include="Win\WinSettingFeatures.h" />
     <ClInclude Include="Win\WinSettingHistory.h" />

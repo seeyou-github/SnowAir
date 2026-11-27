@@ -186,21 +186,6 @@ bool App::restartAsAdmin()
     return true;
 }
 
-// 以当前权限重新启动：导入配置后调用，配置在新实例启动时自然会重新读一遍
-bool App::restart()
-{
-    const auto params = relaunchParams(false);
-    wchar_t exePath[MAX_PATH];
-    GetModuleFileNameW(nullptr, exePath, MAX_PATH);
-    SHELLEXECUTEINFOW sei{ sizeof(sei) };
-    sei.lpFile = exePath;
-    sei.lpParameters = params.c_str();
-    sei.nShow = SW_SHOWNORMAL;
-    if (!ShellExecuteExW(&sei)) return false;
-    if (auto* la = Ling::App::get()) la->quit(0);
-    return true;
-}
-
 void App::createBitmapFromBGRA(int w, int h, const std::vector<BYTE>& data, ID2D1Bitmap1** img)
 {
     if (!img || w <= 0 || h <= 0) return;

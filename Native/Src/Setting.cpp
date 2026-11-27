@@ -748,28 +748,6 @@ std::filesystem::path Setting::getDataPath()
     return dataPath; //复制一份路径对象，不允许就地修改
 }
 
-// 「关于」页导出：把内存中的当前配置（含本次运行改过、还没落盘的值）写到用户选的文件
-bool Setting::exportConfigTo(const std::filesystem::path& path)
-{
-    if (path.empty()) return false;
-    return writeConfigAtomic(path, std::wstring{ configObj.Stringify() });
-}
-
-// 「关于」页导入：选中的文件必须是可解析的配置对象。
-// 覆盖配置文件后把本次运行切成只读，否则内存里的旧配置会在下一次 save() 时把刚导入的内容冲掉。
-bool Setting::importConfigFrom(const std::filesystem::path& path)
-{
-    if (path.empty() || configPath.empty()) return false;
-    std::wstring text;
-    if (!readConfigContent(path, text) || isBlankConfig(text)) return false;
-    JsonObject parsed{ nullptr };
-    if (!JsonObject::TryParse(text, parsed)) return false;
-    backupConfigFile();
-    if (!writeConfigAtomic(configPath, text)) return false;
-    configReadOnly = true;
-    return true;
-}
-
 std::wstring Setting::getPluginDir()
 {
     auto common = configObj.GetNamedObject(L"common", nullptr);

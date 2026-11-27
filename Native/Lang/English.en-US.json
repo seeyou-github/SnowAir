@@ -1,4 +1,8 @@
 {
+  "common": {
+    "sysTip": "Information",
+    "copySuccess": "Copied successfully"
+  },
   "instance": {
     "takeOver": "An older ScreenShut version is still running (possibly capturing or recording).\nClose it and continue with this version?\n\nIf it has unsaved work, cancel and handle it there first."
   },
@@ -274,7 +278,6 @@
     "title": "ScreenShut Settings",
     "common": "General",
     "shortcut": "Shortcuts",
-    "about": "About",
     "autoStart": "Launch at startup",
     "runAsAdmin": "Run as administrator",
     "runAsAdminLockedTip": "You are signed in as the built-in Administrator, which already has full administrator rights. This cannot be turned off for now",
@@ -456,7 +459,6 @@
     "finishSaveCopyFile": "Save and copy file",
     "finishSaveCutFile": "Save and Cut File",
     "finishCopyOnly": "Copy image only",
-
     "captureFinishActionTip": "When \"Copy image only\" is selected, no file is saved and the capture goes to the clipboard only",
     "cancelConfirmDialog": "Cancel confirmation dialog",
     "dateVar": "Date variable",
@@ -485,7 +487,6 @@
     "featuresDesc": "Screenshot, record, output, OCR and translate options",
     "pluginsDesc": "Download local components and dependencies on demand; select a plan to install. Enable them in Settings → Features",
     "pluginsTip": "Downloads the runtimes and model resources required by local features. The dropdown only selects what to install and does not switch the active plan. Components are large; brief progress stalls are normal—check your network and retry if there is no progress for a long time",
-    "aboutDesc": "Version info and links",
     "commonDesc": "General",
     "shortcutDesc": "Shortcut settings",
     "fnTabBasic": "Basic",
@@ -724,25 +725,6 @@
     "send": "Translate",
     "untitled": "New translation"
   },
-  "about": {
-    "version": "Version:",
-    "project": "Project:",
-    "author": "Author:",
-    "wechat": "WeChat: liulun_007",
-    "copySuccess": "Copied successfully",
-    "sysTip": "Information",
-    "appName": "ScreenShut",
-    "versionFmt": "Version %1",
-    "slogan": "Fast and free, all in ScreenShut",
-    "dataDir": "Data folder",
-    "openDataDir": "Open config folder",
-    "importConfig": "Import config",
-    "exportConfig": "Export config",
-    "importOk": "Import succeeded",
-    "importDone": "Config imported. Please restart ScreenShut manually.",
-    "importFailed": "Import failed: please choose a valid config file.",
-    "exportFailed": "Export failed: cannot write to the selected location."
-  },
   "shortcut": {
     "pressKey": "Waiting for key…",
     "setToBind": "Click to set",
@@ -842,4 +824,3 @@
     "partial": "Some lines failed to translate; original text kept"
   }
 }
-
