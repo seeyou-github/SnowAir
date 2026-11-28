@@ -1076,7 +1076,7 @@ void WinSettingFeatures::buildOutput(Ling::Node* p)
 	outputRow(p, Lang::get(L"setting.fnRecordDir"), s->getRecordDir(), defDir,
 		OutputRowKind::Dir,
 		[](const std::wstring& v) { Setting::get()->setRecordDir(v); }, L"");
-	// 缓存文件路径：默认 AppData\config\Cache，可自定义
+	// 缓存文件路径：默认 AppData\temp，可自定义
 	outputRow(p, Lang::get(L"setting.cachePath"), s->getCacheDir(), s->getDefaultCacheRoot().wstring(),
 		OutputRowKind::Dir,
 		[](const std::wstring& v) { Setting::get()->setCacheDir(v); },

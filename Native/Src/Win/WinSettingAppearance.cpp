@@ -7,7 +7,6 @@
 #include "WinSetting.h"
 #include "WinSettingAppearance.h"
 #include "WinPin.h"                 // 贴图边框改完立即推给已开着的贴图
-#include "ClipPin.h"                // 贴屏卡片同理（「显示边框」走的是同一套贴图边框样式）
 #include "SettingTheme.h"
 #include "SettingWidgets.h"
 #include "../Tool/IconCodes.h"
@@ -668,7 +667,6 @@ void WinSettingAppearance::initPinBorderCtrls(Ling::Node* p)
         if (this->pinWidthVal) this->pinWidthVal->setText(std::to_wstring(iv) + L"px");
         this->refreshPinPreview();
         WinPin::refreshBorderAppearance();
-        ClipPin::refreshBorderAppearance();
         this->tbRefreshRestore();
         });
     rSlider->onValueChanged.add([this](Ling::Slider*, float v) {
@@ -677,7 +675,6 @@ void WinSettingAppearance::initPinBorderCtrls(Ling::Node* p)
         if (this->pinRadiusVal) this->pinRadiusVal->setText(std::to_wstring(iv) + L"px");
         this->refreshPinPreview();
         WinPin::refreshBorderAppearance();
-        ClipPin::refreshBorderAppearance();
         this->tbRefreshRestore();
         });
 
@@ -732,7 +729,6 @@ void WinSettingAppearance::pickPinColor()
     }
     refreshPinPreview();
     WinPin::refreshBorderAppearance();
-    ClipPin::refreshBorderAppearance();
     tbRefreshRestore();
 }
 
@@ -838,7 +834,6 @@ void WinSettingAppearance::tbRestoreDefaults()
         if (pinRadiusVal) pinRadiusVal->setText(L"6px");
         refreshPinPreview();
         WinPin::refreshBorderAppearance();
-        ClipPin::refreshBorderAppearance();
         TrayIcon::apply();
         tbRefreshRestore();
         win->refresh();

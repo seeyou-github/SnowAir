@@ -505,7 +505,6 @@ std::wstring WinSettingTrayMenu::labelOf(const std::wstring& id) const
 	if (id == L"capture_fullscreen") return Lang::get(L"shortcut.capture_fullscreen");
 	if (id == L"capture_repeat") return Lang::get(L"shortcut.capture_repeat");
 	if (id == L"capture_focused_window") return Lang::get(L"shortcut.capture_focused_window");
-	if (id == L"quick_pin") return Lang::get(L"shortcut.quick_pin");
 	if (id == L"open_clipboard") return Lang::get(L"shortcut.open_clipboard");
 	if (id == L"show_main") return Lang::get(L"shortcut.show_main");
 	if (id == L"open_screenshot_dir") return Lang::get(L"shortcut.open_screenshot_dir");

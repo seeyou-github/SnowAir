@@ -1,12 +1,12 @@
 #pragma once
 #include <windows.h>
 
-// 贴图 / 贴屏「内容重复」提示：把窗口抬到最前，再左右抖几下。
+// 贴图「内容重复」提示：把窗口抬到最前，再左右抖几下。
 // 抖动走窗口定时器分步移动（不 Sleep 阻塞 UI 线程），调用方只需在 onTimer 里转发 tick：
 //   if (id == PinShake::kTimerId) PinShake::tick(shakeState, hwnd);
 // 鼠标按下时调用 cancel()，避免用户已经开始拖动、抖动收尾又把窗口弹回原位。
 namespace PinShake {
-	// 贴在别的窗口里，窗口内定时器 id 与 WinPin（101/102、210~214）/ ClipPin（0x71）都不冲突
+	// 贴在别的窗口里，窗口内定时器 id 与 WinPin（101/102、210~214）都不冲突
 	constexpr UINT kTimerId = 103;
 	constexpr UINT kIntervalMs = 26;
 	constexpr int kAmplitude = 8;   // 起始左右偏移（物理像素）

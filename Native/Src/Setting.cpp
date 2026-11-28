@@ -6,13 +6,6 @@
 #include <fstream>
 #include <mutex>
 #include <atomic>
-// 快速贴屏要读「资源管理器当前选中项」（Shell COM）与「前台窗口里拖选的文字」（UIA）
-#include <servprov.h>
-#include <shlguid.h>
-#include <exdisp.h>
-// 顺序有讲究：oleacc.h 必须在 UIAutomation*.h 之前，否则 ITextProvider 会重复定义
-#include <oleacc.h>
-#include <UIAutomationClient.h>
 #include "Setting.h"
 #include "BlacklistMatch.h"
 #include "CommandKeys.h"
@@ -21,7 +14,6 @@
 #include "Lang.h"
 #include "Win/WinCap.h"
 #include "Win/WinPin.h"
-#include "Win/ClipPin.h"
 #include "Win/HotkeyHook.h"
 #include "Win/WinSetting.h"
 #include "Win/WinQuickTranslate.h"
@@ -55,7 +47,6 @@ namespace {
         { L"show_main",              106 },
         { L"open_screenshot_dir",    107 },
         { L"capture_repeat",         109 },
-        { L"quick_pin",              110 },
     };
     bool isGlobalHotkeyId(const std::wstring& id)
     {
@@ -643,7 +634,7 @@ namespace {
 
         if (snap.hasFiles) s->addClipboardFiles(snap.files);
         else if (snap.hasText) s->addClipboardText(snap.text);
-        else if (snap.hasImage) s->addClipboardImage(snap.width, snap.height, snap.pixels);
+        // 图片不再落盘，剪贴板历史只记文本与文件路径
     }
 
     LRESULT CALLBACK clipboardWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
@@ -718,9 +709,6 @@ void Setting::init()
     // 将旧版本分散在 config.json、clipboard.json、history.json、state.json 中的本机数据
     // 迁移到 local.json。此后本机数据只写入 local.json，用户设置只写入 config.json。
     setting->migrateLocalDataToFile();
-    // 缩略图/封面与剪贴板图片集中到 AppData\config\Cache；旧目录搬走并改写索引里的路径。
-    // 必须在 pruneOrphanThumbCache 之前做，否则旧目录还按旧路径找不到文件会被当孤儿清掉。
-    setting->migrateCacheDirs();
     // 启动时清理旧版本遗留的 AI 配置（AI 对话 / AI 视觉 OCR / AI 翻译）
     setting->purgeRemovedAiSettings();
     // 启动时清理旧程序（ScreenCapture）留下的历史键位
@@ -1152,9 +1140,9 @@ std::filesystem::path Setting::initConfigPath()
 
 std::filesystem::path Setting::initCachePath()
 {
-    // 缓存（缩略图/封面、剪贴板图片）与配置一起放在 AppData\config\Cache，
-    // 不使用系统 LocalAppData / Roaming。
-    return dataPath / L"Cache";
+    // 缓存默认放在 exe 同目录的 AppData\temp（只放图标缓存等临时数据），
+    // 不再写到 AppData\config\Cache，也不使用系统 LocalAppData / Roaming。
+    return Util::tempDir();
 }
 
 std::filesystem::path Setting::getCacheRoot()
@@ -1176,11 +1164,6 @@ std::filesystem::path Setting::resolveCachePath()
 std::wstring Setting::getCacheDir() { return featStr(L"cacheDir", L""); }
 
 std::filesystem::path Setting::getDefaultCacheRoot() { return initCachePath(); }
-
-namespace {
-void rewriteJsonPaths(const std::filesystem::path& file,
-    const std::vector<std::pair<std::wstring, std::wstring>>& pairs);
-}
 
 bool Setting::setCacheDir(const std::wstring& dir)
 {
@@ -1216,7 +1199,7 @@ bool Setting::setCacheDir(const std::wstring& dir)
     if (_wcsicmp(target.wstring().c_str(), cachePath.wstring().c_str()) == 0) return true;
 
     const auto oldRoot = cachePath;
-    // 不允许把新目录放到旧缓存目录里面，否则复制会递归自己
+    // 不允许把新目录放到旧缓存目录里面
     {
         const std::wstring oldPrefix = oldRoot.wstring() + L"\\";
         const std::wstring newPath = target.wstring();
@@ -1229,298 +1212,9 @@ bool Setting::setCacheDir(const std::wstring& dir)
     std::filesystem::create_directories(target, ec);
     if (ec && !std::filesystem::is_directory(target, ec)) return false;
 
-    // 先复制旧缓存到新目录（保留 Images / Misc 以及旧版扁平目录的结构），
-    // 成功后再改写 local.json / 晾衣架 JSON 里的绝对路径，最后才删旧目录。
-    static const wchar_t* kSubdirs[] = {
-        L"Images", L"Misc", L"Thumb", L"Clipboard", L"PinHistory", L"RackQuick", L"IconCache"
-    };
-    bool copied = true;
-    auto copyDir = [&](auto&& self, const std::filesystem::path& from,
-                       const std::filesystem::path& to) -> bool {
-        std::error_code ce;
-        std::filesystem::create_directories(to, ce);
-        if (ce) return false;
-        for (const auto& entry : std::filesystem::directory_iterator(from, ce)) {
-            if (ce) return false;
-            const auto dest = to / entry.path().filename();
-            if (entry.is_directory(ce)) {
-                if (!self(self, entry.path(), dest)) return false;
-            } else if (entry.is_regular_file(ce)) {
-                std::error_code fe;
-                std::filesystem::copy_file(entry.path(), dest,
-                    std::filesystem::copy_options::overwrite_existing, fe);
-                if (fe) return false;
-            }
-        }
-        return true;
-    };
-    for (const wchar_t* rel : kSubdirs) {
-        const auto from = oldRoot / rel;
-        std::error_code se;
-        if (!std::filesystem::is_directory(from, se)) continue;
-        if (!copyDir(copyDir, from, target / rel)) { copied = false; break; }
-    }
-    if (!copied) return false;
-
-    const std::vector<std::pair<std::wstring, std::wstring>> pairs{
-        { oldRoot.wstring(), target.wstring() },
-    };
-    rewriteJsonPaths(getLocalDataPath(), pairs);
-
-    for (const wchar_t* rel : kSubdirs) {
-        std::error_code re;
-        std::filesystem::remove_all(oldRoot / rel, re);
-    }
-    {
-        std::error_code re;
-        if (std::filesystem::is_directory(oldRoot, re) &&
-            std::filesystem::is_empty(oldRoot, re))
-            std::filesystem::remove(oldRoot, re);
-        // 默认缓存根是 AppData\config\Cache；Cache 搬空后父层若也空了就一起删掉，
-        // 只处理名字确实是 ScreenShut 的父目录，不碰用户自定义目录。
-        const auto parent = oldRoot.parent_path();
-        re.clear();
-        if (_wcsicmp(parent.filename().c_str(), L"ScreenShut") == 0 &&
-            std::filesystem::is_directory(parent, re) &&
-            std::filesystem::is_empty(parent, re))
-            std::filesystem::remove(parent, re);
-    }
-
     setFeatStr(L"cacheDir", stored);
     cachePath = target;
     return true;
-}
-
-namespace {
-std::string toUtf8(const std::wstring& w)
-{
-    if (w.empty()) return {};
-    const int need = WideCharToMultiByte(CP_UTF8, 0, w.c_str(), (int)w.size(), nullptr, 0, nullptr, nullptr);
-    if (need <= 0) return {};
-    std::string s((size_t)need, '\0');
-    WideCharToMultiByte(CP_UTF8, 0, w.c_str(), (int)w.size(), s.data(), need, nullptr, nullptr);
-    return s;
-}
-
-// 把插件 JSON 数据里的旧绝对路径前缀换成新位置（原样替换，不解析 JSON）：
-// rack_items.json 里存的是 hung 卡片的 path，路径搬了不改就会变死卡。
-void rewriteJsonPaths(const std::filesystem::path& file,
-    const std::vector<std::pair<std::wstring, std::wstring>>& pairs)
-{
-    std::error_code ec;
-    if (!std::filesystem::exists(file, ec)) return;
-    std::ifstream in(file, std::ios::binary);
-    if (!in) return;
-    std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-    in.close();
-    if (text.empty()) return;
-
-    bool changed = false;
-    auto replaceAll = [&](const std::string& from, const std::string& to) {
-        if (from.empty() || from == to) return;
-        size_t pos = 0;
-        while ((pos = text.find(from, pos)) != std::string::npos) {
-            text.replace(pos, from.size(), to);
-            pos += to.size();
-            changed = true;
-        }
-    };
-    for (const auto& [oldW, newW] : pairs) {
-        if (oldW.empty()) continue;
-        const std::string oldU = toUtf8(oldW);
-        const std::string newU = toUtf8(newW);
-        if (oldU.empty()) continue;
-        std::string oldEsc, newEsc;
-        for (char c : oldU) { if (c == '\\') oldEsc += "\\\\"; else oldEsc += c; }
-        for (char c : newU) { if (c == '\\') newEsc += "\\\\"; else newEsc += c; }
-        replaceAll(oldEsc, newEsc);
-        replaceAll(oldU, newU);
-    }
-    if (!changed) return;
-
-    auto bak = file; bak += L".cache-move.bak";
-    if (!std::filesystem::exists(bak, ec))
-        std::filesystem::copy_file(file, bak, std::filesystem::copy_options::overwrite_existing, ec);
-    std::ofstream out(file, std::ios::binary | std::ios::trunc);
-    if (out) out.write(text.data(), (std::streamsize)text.size());
-}
-}
-
-void Setting::migrateCacheDirs()
-{
-    const auto newThumb = getHistoryThumbDir();
-    const auto newClip = getClipboardDir();
-    const auto newPin = getPinHistoryDir();
-    const auto newRackQuick = getRackQuickDir();
-    const auto newIcon = getIconCacheDir();
-    const auto oldThumb = dataPath / L"ThumbCache";
-    const auto oldClip = dataPath / L"Clipboard";
-    const auto oldPin = dataPath / L"PinHistory";
-    const auto oldRackQuick = dataPath / L"RackQuick";
-    const auto oldIcon = dataPath / L"IconCache";
-    // 0.1.27 早期版本已经把缓存放到 Cache 根下，但还没分组；这次一并收进 Images / Misc。
-    const auto flatThumb = getCacheRoot() / L"Thumb";
-    const auto flatClip = getCacheRoot() / L"Clipboard";
-    const auto flatPin = getCacheRoot() / L"PinHistory";
-    const auto flatRackQuick = getCacheRoot() / L"RackQuick";
-    const auto flatIcon = getCacheRoot() / L"IconCache";
-
-    std::error_code ec;
-    auto isDir = [&](const std::filesystem::path& p) {
-        std::error_code e;
-        return std::filesystem::is_directory(p, e);
-    };
-    const bool hasOldThumb = isDir(oldThumb) || isDir(flatThumb);
-    const bool hasOldClip = isDir(oldClip) || isDir(flatClip);
-    const bool hasOldPin = isDir(oldPin) || isDir(flatPin);
-    const bool hasOldRackQuick = isDir(oldRackQuick) || isDir(flatRackQuick);
-    const bool hasOldIcon = isDir(oldIcon) || isDir(flatIcon);
-    if (!hasOldThumb && !hasOldClip && !hasOldPin && !hasOldRackQuick && !hasOldIcon) return;
-
-    // 先确认 local.json 能读：损坏/被占用时暂不搬，否则文件搬走了、索引里的旧路径还在，
-    // 反而全变失效。读不出来就保持原样，下次启动再试。
-    const auto local = getLocalDataPath();
-    std::error_code le;
-    const bool localHasContent =
-        std::filesystem::exists(local, le) && std::filesystem::file_size(local, le) > 0;
-    auto data = loadLocalData();
-    if (localHasContent && !data) return;
-
-    std::map<std::wstring, std::wstring> moved;   // lower(旧路径) -> 新路径
-    auto moveDir = [&](const std::filesystem::path& from, const std::filesystem::path& to) {
-        std::error_code e;
-        if (!std::filesystem::is_directory(from, e)) return;
-        std::filesystem::create_directories(to, e);
-        for (const auto& entry : std::filesystem::directory_iterator(from, e)) {
-            if (e || !entry.is_regular_file(e)) continue;
-            const auto target = to / entry.path().filename();
-            std::error_code te;
-            if (std::filesystem::exists(target, te)) {
-                std::filesystem::remove(entry.path(), te);   // 新位置已有同名文件：旧的是重复
-            } else {
-                std::filesystem::rename(entry.path(), target, te);
-                if (te) {
-                    te.clear();
-                    std::filesystem::copy_file(entry.path(), target,
-                        std::filesystem::copy_options::overwrite_existing, te);
-                    if (te) continue;
-                    std::filesystem::remove(entry.path(), te);
-                }
-            }
-            std::wstring key = entry.path().wstring();
-            for (auto& c : key) c = (wchar_t)towlower(c);
-            moved[key] = target.wstring();
-        }
-        std::error_code re;
-        if (std::filesystem::is_empty(from, re)) std::filesystem::remove(from, re);
-    };
-    moveDir(oldThumb, newThumb);
-    moveDir(oldClip, newClip);
-    moveDir(oldPin, newPin);
-    moveDir(oldRackQuick, newRackQuick);
-    moveDir(oldIcon, newIcon);
-    moveDir(flatThumb, newThumb);
-    moveDir(flatClip, newClip);
-    moveDir(flatPin, newPin);
-    moveDir(flatRackQuick, newRackQuick);
-    moveDir(flatIcon, newIcon);
-    if (moved.empty()) return;
-
-    // 路径要改写，先留一份 local.json 备份
-    if (localHasContent) {
-        auto bak = local; bak += L".cache-move.bak";
-        if (!std::filesystem::exists(bak, ec))
-            std::filesystem::copy_file(local, bak, std::filesystem::copy_options::overwrite_existing, ec);
-    }
-
-    bool changed = false;
-    auto mapOne = [&](std::wstring& p) {
-        if (p.empty()) return;
-        std::wstring key = p;
-        for (auto& c : key) c = (wchar_t)towlower(c);
-        auto it = moved.find(key);
-        if (it == moved.end()) return;
-        p = it->second;
-        changed = true;
-    };
-
-    // 剪贴板条目：filePath 与 files[]
-    if (data.HasKey(L"clipboard") && data.GetNamedValue(L"clipboard").ValueType() == JsonValueType::Object) {
-        auto store = data.GetNamedObject(L"clipboard");
-        if (store.HasKey(L"items") && store.GetNamedValue(L"items").ValueType() == JsonValueType::Array) {
-            auto arr = store.GetNamedArray(L"items");
-            for (UINT32 i = 0; i < arr.Size(); ++i) {
-                if (arr.GetAt(i).ValueType() != JsonValueType::Object) continue;
-                auto o = arr.GetAt(i).GetObjectW();
-                bool itemChanged = false;
-                if (o.HasKey(L"filePath") && o.GetNamedValue(L"filePath").ValueType() == JsonValueType::String) {
-                    std::wstring p = o.GetNamedString(L"filePath", L"").c_str();
-                    mapOne(p);
-                    if (!p.empty()) {
-                        o.SetNamedValue(L"filePath", JsonValue::CreateStringValue(p));
-                        itemChanged = true;
-                    }
-                }
-                if (o.HasKey(L"files") && o.GetNamedValue(L"files").ValueType() == JsonValueType::Array) {
-                    auto files = o.GetNamedArray(L"files");
-                    for (UINT32 j = 0; j < files.Size(); ++j) {
-                        if (files.GetAt(j).ValueType() != JsonValueType::String) continue;
-                        std::wstring p = files.GetAt(j).GetString().c_str();
-                        mapOne(p);
-                        if (!p.empty()) {
-                            files.SetAt(j, JsonValue::CreateStringValue(p));
-                            itemChanged = true;
-                        }
-                    }
-                    o.SetNamedValue(L"files", files);
-                }
-                if (itemChanged) arr.SetAt(i, o);
-            }
-            store.SetNamedValue(L"items", arr);
-        }
-        data.SetNamedValue(L"clipboard", store);
-    }
-
-    // 历史条目 / 标签：贴图历史可能引用剪贴板图片
-    if (data.HasKey(L"history") && data.GetNamedValue(L"history").ValueType() == JsonValueType::Object) {
-        auto store = data.GetNamedObject(L"history");
-        if (store.HasKey(L"items") && store.GetNamedValue(L"items").ValueType() == JsonValueType::Array) {
-            auto arr = store.GetNamedArray(L"items");
-            for (UINT32 i = 0; i < arr.Size(); ++i) {
-                if (arr.GetAt(i).ValueType() != JsonValueType::Object) continue;
-                auto o = arr.GetAt(i).GetObjectW();
-                if (o.HasKey(L"filePath") && o.GetNamedValue(L"filePath").ValueType() == JsonValueType::String) {
-                    std::wstring p = o.GetNamedString(L"filePath", L"").c_str();
-                    mapOne(p);
-                    if (!p.empty()) {
-                        o.SetNamedValue(L"filePath", JsonValue::CreateStringValue(p));
-                        arr.SetAt(i, o);
-                    }
-                }
-            }
-            store.SetNamedValue(L"items", arr);
-        }
-        if (store.HasKey(L"tags") && store.GetNamedValue(L"tags").ValueType() == JsonValueType::Array) {
-            auto arr = store.GetNamedArray(L"tags");
-            for (UINT32 i = 0; i < arr.Size(); ++i) {
-                if (arr.GetAt(i).ValueType() != JsonValueType::Object) continue;
-                auto o = arr.GetAt(i).GetObjectW();
-                if (o.HasKey(L"path") && o.GetNamedValue(L"path").ValueType() == JsonValueType::String) {
-                    std::wstring p = o.GetNamedString(L"path", L"").c_str();
-                    mapOne(p);
-                    if (!p.empty()) {
-                        o.SetNamedValue(L"path", JsonValue::CreateStringValue(p));
-                        arr.SetAt(i, o);
-                    }
-                }
-            }
-            store.SetNamedValue(L"tags", arr);
-        }
-        data.SetNamedValue(L"history", store);
-    }
-
-    if (changed) saveLocalData(data);
-
 }
 
 void Setting::save()
@@ -2275,299 +1969,6 @@ void Setting::applyHotkeys()
     else stopHotkeyRetry();
 }
 
-// —— 快速贴屏：优先贴「当前上下文」，没有上下文时贴剪贴板 ——
-//   ① 资源管理器里单击选中的文件 / 文件夹 / 图片 / 视频（不需要先复制）
-//   ② 前台窗口里拖选的一段文字（UIA 选区，不需要先复制）
-//   ③ 否则贴当前剪贴板内容（文字 / 图片 / 文件）
-namespace {
-    unsigned clipboardHash(const std::vector<BYTE>& data);
-
-    bool quickPinIsImagePath(const std::wstring& path)
-    {
-        const auto dot = path.find_last_of(L'.');
-        if (dot == std::wstring::npos) return false;
-        std::wstring e = path.substr(dot + 1);
-        for (auto& c : e) c = (wchar_t)towlower(c);
-        return e == L"png" || e == L"jpg" || e == L"jpeg" || e == L"webp"
-            || e == L"bmp" || e == L"gif" || e == L"avif" || e == L"jxl";
-    }
-
-    // 图片贴到工作区中央（与历史页「贴图」按钮同一套落点）
-    void quickPinImage(int w, int h, std::vector<BYTE>& px,
-                       const std::wstring& sourcePath = L"")
-    {
-        if (w <= 0 || h <= 0 || px.empty()) return;
-        RECT rc{};
-        SystemParametersInfo(SPI_GETWORKAREA, 0, &rc, 0);
-        const int areaW = (int)rc.right - (int)rc.left;
-        const int areaH = (int)rc.bottom - (int)rc.top;
-        WinPin::initFromData(rc.left + (std::max)(0, (areaW - w) / 2),
-            rc.top + (std::max)(0, (areaH - h) / 2), w, h, px, sourcePath);
-    }
-
-    // 贴一组文件：单张图片按图片贴图，其余（文件夹 / 视频 / 其它文件）贴成文件贴屏
-    void quickPinPaths(const std::vector<std::wstring>& paths)
-    {
-        if (paths.empty()) return;
-        if (paths.size() == 1 && quickPinIsImagePath(paths.front())) {
-            auto [w, h, px] = Util::loadImagePixels(paths.front());
-            if (w > 0 && h > 0 && !px.empty()) {
-                quickPinImage(w, h, px, paths.front());
-                return;
-            }
-        }
-        ClipPin::showFiles(paths);
-    }
-
-    // 从某个 shell 文件夹视图里取出选中项的磁盘路径
-    void appendSelectionPaths(IFolderView* folderView, std::vector<std::wstring>& out)
-    {
-        if (!folderView) return;
-        Microsoft::WRL::ComPtr<IShellItemArray> items;
-        if (FAILED(folderView->Items(SVGIO_SELECTION,
-            IID_PPV_ARGS(items.GetAddressOf()))) || !items) return;
-        DWORD n = 0;
-        items->GetCount(&n);
-        for (DWORD k = 0; k < n; ++k) {
-            Microsoft::WRL::ComPtr<IShellItem> item;
-            if (FAILED(items->GetItemAt(k, item.GetAddressOf())) || !item) continue;
-            PWSTR path = nullptr;
-            if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &path)) && path) {
-                out.emplace_back(path);
-                CoTaskMemFree(path);
-            }
-        }
-    }
-
-    // 桌面图标选区：桌面不是前台资源管理器窗口，按 SWC_DESKTOP 单独找桌面 shell 视图
-    std::vector<std::wstring> desktopSelection()
-    {
-        std::vector<std::wstring> out;
-        Microsoft::WRL::ComPtr<IShellWindows> windows;
-        if (FAILED(CoCreateInstance(CLSID_ShellWindows, nullptr, CLSCTX_ALL,
-            IID_PPV_ARGS(windows.GetAddressOf()))) || !windows) return out;
-        VARIANT loc{};
-        loc.vt = VT_I4;
-        loc.lVal = CSIDL_DESKTOP;
-        VARIANT root{};
-        root.vt = VT_EMPTY;
-        long shellHwnd = 0;
-        Microsoft::WRL::ComPtr<IDispatch> disp;
-        if (FAILED(windows->FindWindowSW(&loc, &root, SWC_DESKTOP, &shellHwnd,
-            SWFO_NEEDDISPATCH, disp.GetAddressOf())) || !disp) return out;
-        Microsoft::WRL::ComPtr<IServiceProvider> provider;
-        if (FAILED(disp.As(&provider)) || !provider) return out;
-        Microsoft::WRL::ComPtr<IShellBrowser> browser;
-        if (FAILED(provider->QueryService(SID_STopLevelBrowser,
-            IID_PPV_ARGS(browser.GetAddressOf()))) || !browser) return out;
-        Microsoft::WRL::ComPtr<IShellView> view;
-        if (FAILED(browser->QueryActiveShellView(view.GetAddressOf())) || !view) return out;
-        Microsoft::WRL::ComPtr<IFolderView> folderView;
-        if (FAILED(view.As(&folderView)) || !folderView) return out;
-        appendSelectionPaths(folderView.Get(), out);
-        return out;
-    }
-
-    // 资源管理器 / 桌面当前选中的项目
-    std::vector<std::wstring> explorerSelection()
-    {
-        std::vector<std::wstring> out;
-        HWND fg = GetForegroundWindow();
-        if (!fg) return out;
-        wchar_t cls[64]{};
-        if (!GetClassNameW(fg, cls, 64)) return out;
-        // 桌面（壁纸 / 图标）也算一次「选中文件」的来源
-        if (_wcsicmp(cls, L"Progman") == 0 || _wcsicmp(cls, L"WorkerW") == 0
-            || _wcsicmp(cls, L"SysListView32") == 0)
-            return desktopSelection();
-        if (_wcsicmp(cls, L"CabinetWClass") != 0 && _wcsicmp(cls, L"ExploreWClass") != 0)
-            return out;
-
-        Microsoft::WRL::ComPtr<IShellWindows> windows;
-        if (FAILED(CoCreateInstance(CLSID_ShellWindows, nullptr, CLSCTX_ALL,
-            IID_PPV_ARGS(windows.GetAddressOf()))) || !windows) return out;
-        long count = 0;
-        windows->get_Count(&count);
-        const HWND target = GetAncestor(fg, GA_ROOT);
-        for (long i = 0; i < count; ++i) {
-            VARIANT index{};
-            index.vt = VT_I4;
-            index.lVal = i;
-            Microsoft::WRL::ComPtr<IDispatch> disp;
-            if (FAILED(windows->Item(index, disp.GetAddressOf())) || !disp) continue;
-            Microsoft::WRL::ComPtr<IServiceProvider> provider;
-            if (FAILED(disp.As(&provider)) || !provider) continue;
-            Microsoft::WRL::ComPtr<IShellBrowser> browser;
-            if (FAILED(provider->QueryService(SID_STopLevelBrowser,
-                IID_PPV_ARGS(browser.GetAddressOf()))) || !browser) continue;
-            // 只认前台那一个浏览窗口：多开资源管理器时不能贴错窗口的选中项。
-            // 两边都归一到顶层窗再比，兼容不同系统版本里浏览器窗口挂在不同层级的情况。
-            Microsoft::WRL::ComPtr<IOleWindow> oleWindow;
-            HWND viewHwnd{};
-            if (FAILED(browser.As(&oleWindow)) || !oleWindow
-                || FAILED(oleWindow->GetWindow(&viewHwnd)) || !viewHwnd)
-                continue;
-            if (GetAncestor(viewHwnd, GA_ROOT) != target) continue;
-            Microsoft::WRL::ComPtr<IShellView> view;
-            if (FAILED(browser->QueryActiveShellView(view.GetAddressOf())) || !view) continue;
-            Microsoft::WRL::ComPtr<IFolderView> folderView;
-            if (FAILED(view.As(&folderView)) || !folderView) continue;
-            appendSelectionPaths(folderView.Get(), out);
-            break;
-        }
-        return out;
-    }
-
-    // 前台窗口里拖选的文字：UIA TextPattern 的当前选区（不改动剪贴板）
-    std::wstring foregroundSelectedText()
-    {
-        HWND fg = GetForegroundWindow();
-        if (!fg) return {};
-        DWORD pid = 0;
-        GetWindowThreadProcessId(fg, &pid);
-        if (pid == 0 || pid == GetCurrentProcessId()) return {};   // 自己的窗口不算
-        Microsoft::WRL::ComPtr<IUIAutomation> automation;
-        if (FAILED(CoCreateInstance(CLSID_CUIAutomation, nullptr, CLSCTX_INPROC_SERVER,
-            IID_PPV_ARGS(automation.GetAddressOf()))) || !automation) return {};
-        // 个别程序的 UIA 提供者响应很慢：为跨进程调用设置上限，避免阻塞热键回调
-        Microsoft::WRL::ComPtr<IUIAutomation2> automation2;
-        if (SUCCEEDED(automation.As(&automation2)) && automation2) {
-            automation2->put_ConnectionTimeout(200);
-            automation2->put_TransactionTimeout(400);
-        }
-
-        // 从某个元素上读 TextPattern 选区；不支持就返回空
-        auto selectionOf = [](IUIAutomationElement* element) -> std::wstring {
-            if (!element) return {};
-            Microsoft::WRL::ComPtr<IUnknown> patternUnknown;
-            if (FAILED(element->GetCurrentPattern(UIA_TextPatternId,
-                patternUnknown.GetAddressOf())) || !patternUnknown) return {};
-            Microsoft::WRL::ComPtr<IUIAutomationTextPattern> pattern;
-            if (FAILED(patternUnknown.As(&pattern)) || !pattern) return {};
-            Microsoft::WRL::ComPtr<IUIAutomationTextRangeArray> ranges;
-            if (FAILED(pattern->GetSelection(ranges.GetAddressOf())) || !ranges) return {};
-            int n = 0;
-            ranges->get_Length(&n);
-            std::wstring text;
-            for (int i = 0; i < n; ++i) {
-                Microsoft::WRL::ComPtr<IUIAutomationTextRange> range;
-                if (FAILED(ranges->GetElement(i, range.GetAddressOf())) || !range) continue;
-                BSTR part = nullptr;
-                if (SUCCEEDED(range->GetText(-1, &part)) && part) {
-                    text += part;
-                    SysFreeString(part);
-                }
-            }
-            return text;
-        };
-
-        std::wstring text;
-        // 先看焦点元素：文本控件 / 浏览器文档通常把 TextPattern 挂在焦点元素上
-        Microsoft::WRL::ComPtr<IUIAutomationElement> focused;
-        if (SUCCEEDED(automation->GetFocusedElement(focused.GetAddressOf())) && focused) {
-            int elPid = 0;
-            if (SUCCEEDED(focused->get_CurrentProcessId(&elPid)) && elPid == pid)
-                text = selectionOf(focused.Get());
-        }
-        // 焦点元素不提供 TextPattern（比如焦点在整窗上）时退回窗口元素
-        if (text.empty()) {
-            Microsoft::WRL::ComPtr<IUIAutomationElement> windowElement;
-            if (SUCCEEDED(automation->ElementFromHandle(fg, windowElement.GetAddressOf())) && windowElement)
-                text = selectionOf(windowElement.Get());
-        }
-        while (!text.empty() && iswspace(text.front())) text.erase(text.begin());
-        while (!text.empty() && iswspace(text.back())) text.pop_back();
-        return text;
-    }
-
-    // 当前剪贴板内容（只读，不写历史索引）
-    struct QuickPinPayload {
-        std::wstring text;
-        std::vector<std::wstring> files;
-        int w{ 0 }, h{ 0 };
-        std::vector<BYTE> pixels;
-    };
-
-    QuickPinPayload readClipboardForPin()
-    {
-        QuickPinPayload out;
-        bool opened = false;
-        for (int attempt = 0; attempt < 10 && !opened; ++attempt) {
-            if (OpenClipboard(nullptr)) opened = true;
-            else Sleep(5);
-        }
-        if (!opened) return out;
-        if (HANDLE hf = GetClipboardData(CF_HDROP)) {
-            HDROP drop = static_cast<HDROP>(hf);
-            const UINT count = DragQueryFileW(drop, 0xFFFFFFFF, nullptr, 0);
-            for (UINT i = 0; i < count; ++i) {
-                const UINT len = DragQueryFileW(drop, i, nullptr, 0);
-                if (len == 0) continue;
-                std::wstring path(len, L'\0');
-                if (DragQueryFileW(drop, i, path.data(), len + 1) == 0) continue;
-                out.files.push_back(std::move(path));
-            }
-        }
-        else if (HANDLE h = GetClipboardData(CF_UNICODETEXT)) {
-            if (const auto* p = static_cast<const wchar_t*>(GlobalLock(h))) {
-                out.text = p;
-                GlobalUnlock(h);
-            }
-        }
-        else if (HANDLE ha = GetClipboardData(CF_TEXT)) {
-            if (const auto* p = static_cast<const char*>(GlobalLock(ha))) {
-                const int len = MultiByteToWideChar(CP_ACP, 0, p, -1, nullptr, 0);
-                if (len > 1) {
-                    std::wstring w((size_t)len - 1, L'\0');
-                    MultiByteToWideChar(CP_ACP, 0, p, -1, w.data(), len);
-                    out.text = std::move(w);
-                }
-                GlobalUnlock(ha);
-            }
-        }
-        else {
-            // 优先级与监听端一致：PNG → DIBV5/DIB → CF_BITMAP
-            static const UINT pngFmt = RegisterClipboardFormatW(L"PNG");
-            bool ok = false;
-            if (HANDLE hp = GetClipboardData(pngFmt))
-                ok = pngToBgra(hp, out.w, out.h, out.pixels);
-            if (!ok) {
-                HANDLE hb = GetClipboardData(CF_DIBV5);
-                if (!hb) hb = GetClipboardData(CF_DIB);
-                if (hb) ok = dibToBgra(hb, out.w, out.h, out.pixels);
-            }
-            if (!ok) {
-                if (HBITMAP hbm = (HBITMAP)GetClipboardData(CF_BITMAP))
-                    ok = hbitmapToBgra(hbm, out.w, out.h, out.pixels);
-            }
-            if (!ok) out.pixels.clear();
-        }
-        CloseClipboard();
-        return out;
-    }
-
-    void quickPinFromContext()
-    {
-        // ① 资源管理器选中项（单击选中，不需要复制）
-        auto files = explorerSelection();
-        if (!files.empty()) { quickPinPaths(files); return; }
-        // ② 前台窗口里拖选的文字
-        const std::wstring selected = foregroundSelectedText();
-        if (!selected.empty()) {
-            ClipPin::showText(selected);
-            return;
-        }
-        // ③ 默认：剪贴板内容
-        auto payload = readClipboardForPin();
-        if (!payload.files.empty()) { quickPinPaths(payload.files); return; }
-        if (!payload.text.empty()) {
-            ClipPin::showText(payload.text);
-            return;
-        }
-        if (payload.w > 0 && payload.h > 0) quickPinImage(payload.w, payload.h, payload.pixels);
-    }
-}
-
 // 一条全局热键要执行的动作。id 取自 kHotkeys。
 void Setting::runHotkeyAction(const std::wstring& id)
 {
@@ -2593,7 +1994,6 @@ void Setting::runHotkeyAction(const std::wstring& id)
     if (id == L"record") { WinCap::beginRecordPick(); return; }
     if (id == L"show_main") { WinSetting::toggle(); return; }
     if (id == L"make_collage") { WinImageEdit::init(); return; }
-    if (id == L"quick_pin") { quickPinFromContext(); return; }
     if (id == L"toggle_pins") { WinPin::toggleAllHidden(); return; }
     if (id == L"open_screenshot_dir") {
         const auto dir = Util::outputDir();
@@ -3036,79 +2436,6 @@ bool Setting::saveHistoryStore(const JsonObject& store)
     return saveLocalData(data);
 }
 
-std::filesystem::path Setting::getHistoryThumbDir()
-{
-    // 只存小图（含录屏封面），不是历史副本；和历史/剪贴板图片一起放在 Cache 下
-    auto dir = getCacheRoot();
-    dir.append(L"Images");
-    dir.append(L"Thumb");
-    std::error_code ec;
-    if (!std::filesystem::exists(dir, ec)) std::filesystem::create_directories(dir, ec);
-    return dir;
-}
-
-namespace {
-// 历史页缩略图的最长边：卡片显示尺寸在 200% 缩放下约 400 px，512 足够清晰；
-// 单张只有几十~两百 KB，慢盘上读 9/18 张也不再是瓶颈。
-constexpr int kHistoryThumbMax = 512;
-
-// BGRA → 小图（面积平均）：只给网格用，不需要高质量重采样。
-std::vector<BYTE> downscaleBgra(const BYTE* src, int sw, int sh, int maxDim, int& ow, int& oh)
-{
-    ow = oh = 0;
-    if (!src || sw <= 0 || sh <= 0 || maxDim <= 0) return {};
-    const int longSide = (std::max)(sw, sh);
-    const double k = (longSide > maxDim) ? (double)maxDim / longSide : 1.0;
-    ow = (std::max)(1, (int)std::lround(sw * k));
-    oh = (std::max)(1, (int)std::lround(sh * k));
-    std::vector<BYTE> out((size_t)ow * (size_t)oh * 4);
-    for (int y = 0; y < oh; ++y) {
-        const int sy0 = (int)((long long)y * sh / oh);
-        const int sy1 = (std::max)(sy0 + 1, (int)((long long)(y + 1) * sh / oh));
-        for (int x = 0; x < ow; ++x) {
-            const int sx0 = (int)((long long)x * sw / ow);
-            const int sx1 = (std::max)(sx0 + 1, (int)((long long)(x + 1) * sw / ow));
-            unsigned long long b = 0, g = 0, r = 0, a = 0;
-            unsigned n = 0;
-            for (int sy = sy0; sy < sy1; ++sy) {
-                const BYTE* p = src + ((size_t)sy * (size_t)sw + (size_t)sx0) * 4;
-                for (int sx = sx0; sx < sx1; ++sx, p += 4) {
-                    b += p[0]; g += p[1]; r += p[2]; a += p[3]; ++n;
-                }
-            }
-            BYTE* d = out.data() + ((size_t)y * (size_t)ow + (size_t)x) * 4;
-            d[0] = (BYTE)(b / n); d[1] = (BYTE)(g / n);
-            d[2] = (BYTE)(r / n); d[3] = (BYTE)(a / n);
-        }
-    }
-    return out;
-}
-}
-
-void Setting::writeHistoryThumb(const std::wstring& id, int w, int h, const BYTE* bgra)
-{
-    if (id.empty() || !bgra || w <= 0 || h <= 0) return;
-    int tw = 0, th = 0;
-    auto thumbPixels = downscaleBgra(bgra, w, h, kHistoryThumbMax, tw, th);
-    if (thumbPixels.empty()) return;
-    Util::saveToFile((getHistoryThumbDir() / (id + L".png")).wstring(), tw, th, thumbPixels.data());
-}
-
-std::wstring Setting::ensureHistoryThumb(const std::wstring& id, const std::wstring& srcPath)
-{
-    if (id.empty() || srcPath.empty() || id == srcPath) return {};
-    auto path = getHistoryThumbDir() / (id + L".png");
-    std::error_code ec;
-    if (std::filesystem::exists(path, ec)) return path.wstring();
-    // 老条目：补生成一次。只在历史页首次显示时走到这里，之后都是小图。
-    auto [w, h, px] = Util::loadImagePixels(srcPath);
-    if (w <= 0 || h <= 0 || px.size() < (size_t)w * (size_t)h * 4) return {};
-    int tw = 0, th = 0;
-    auto thumbPixels = downscaleBgra(px.data(), w, h, kHistoryThumbMax, tw, th);
-    if (thumbPixels.empty() || !Util::saveToFile(path.wstring(), tw, th, thumbPixels.data())) return {};
-    return path.wstring();
-}
-
 static JsonObject historyItemToJson(const Setting::HistoryItem& it)
 {
     JsonObject o;
@@ -3394,165 +2721,6 @@ std::vector<std::wstring> Setting::getAllHistoryTags()
     return out;
 }
 
-// 登记一条已落盘的历史文件（截图 / 长图 / 静默截图 / 录屏）：
-// 历史只记真实路径，不再复制一份图像。返回条目 id。
-std::wstring Setting::addHistoryFile(const std::wstring& filePath, int width, int height,
-    const std::wstring& source, const std::vector<BYTE>* bgra)
-{
-    if (filePath.empty()) return L"";
-    std::error_code ec;
-    if (!std::filesystem::exists(filePath, ec)) return L"";
-    historyUiCacheDirty_ = true;
-
-    static UINT64 seq = 0;
-    const auto now = std::chrono::system_clock::now();
-    const auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
-
-    HistoryItem it;
-    it.id = wfmt(L"h%lld-%d", (long long)nowMs, (int)++seq);
-    it.filePath = filePath;
-    it.source = source.empty() ? L"capture" : source;
-    it.width = width;
-    it.height = height;
-    it.createdAt = (long long)nowMs;
-
-    // 落盘时手里已经有像素：顺手生成网格用小图，历史页就不必每次整读原图
-    if (bgra && width > 0 && height > 0 && bgra->size() >= (size_t)width * (size_t)height * 4)
-        writeHistoryThumb(it.id, width, height, bgra->data());
-
-    JsonArray arr;
-    arr.Append(historyItemToJson(it));   // 新的排在前面（与 getHistoryItems 的排序一致）
-    for (auto& old : getHistoryItems()) {
-        if (old.filePath == filePath) continue;   // 同一文件只留一条
-        arr.Append(historyItemToJson(old));
-    }
-
-    auto store = loadHistoryStore();
-    store.SetNamedValue(L"items", arr);
-    saveHistoryStore(store);
-    // 有新文件落盘时顺带清理一次过期历史：程序常驻托盘时不会重启，
-    // 只靠启动/改设置那两次会漏掉"跨天"的过期文件。
-    pruneExpiredHistory();
-    return it.id;
-}
-
-std::wstring Setting::addHistoryMedia(const std::wstring& mediaPath, int width, int height,
-    const std::wstring& source, int durationSec, const std::vector<BYTE>& coverBgra)
-{
-    if (mediaPath.empty()) return L"";
-    historyUiCacheDirty_ = true;
-    HistoryItem it;
-    static UINT64 seq = 0;
-    const auto now = std::chrono::system_clock::now();
-    const auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
-    it.id = wfmt(L"h%lld-%d", (long long)nowMs, (int)++seq);
-    it.source = source.empty() ? L"record" : source;
-    it.width = width;
-    it.height = height;
-    it.durationSec = durationSec > 0 ? durationSec : 0;
-    it.createdAt = (long long)nowMs;
-    it.filePath = mediaPath;          // 原视频路径：不复制，历史只记引用
-
-    // 封面只是给网格用的缩略图，写进缓存目录；视频本体不复制
-    if (!coverBgra.empty() && width > 0 && height > 0
-        && (size_t)width * (size_t)height * 4 <= coverBgra.size()) {
-        auto dir = getHistoryThumbDir();
-        Util::saveToFile((dir / (it.id + L".png")).wstring(), width, height,
-            const_cast<BYTE*>(coverBgra.data()));
-    }
-
-    JsonArray arr;
-    arr.Append(historyItemToJson(it));   // 新的排在前面（与 getHistoryItems 的排序一致）
-    for (auto& old : getHistoryItems()) {
-        if (old.filePath == mediaPath) continue;   // 同一文件只留一条
-        arr.Append(historyItemToJson(old));
-    }
-
-    auto store = loadHistoryStore();
-    store.SetNamedValue(L"items", arr);
-    saveHistoryStore(store);
-    return it.id;
-}
-
-// 贴图缓存只用于没有源文件的截图贴图；引用源文件的贴图记录不能删源图。
-namespace {
-bool isPinHistoryFile(const std::wstring& path)
-{
-    auto* s = Setting::get();
-    if (!s || path.empty()) return false;
-    return std::filesystem::path(path).parent_path() == s->getPinHistoryDir();
-}
-}
-
-// 贴图历史：有源文件时只引用、不复制；没有源文件（截图直接贴图等）时，
-// 只在 PinHistory 里存一份按内容去重的缓存，反复贴同一张图不会重复存。
-// 同一文件重复贴图只更新贴图记录；原来的截图/录屏记录保持不动。
-std::wstring Setting::addPinHistory(const std::wstring& sourcePath, int width, int height,
-    const std::vector<BYTE>& bgra)
-{
-    if (width <= 0 || height <= 0) return L"";
-    std::wstring filePath = sourcePath;
-    std::error_code ec;
-    if (filePath.empty() || !std::filesystem::exists(filePath, ec)) {
-        if (bgra.size() < (size_t)width * 4u * (size_t)height) return L"";
-        const auto dir = getPinHistoryDir();
-        std::filesystem::create_directories(dir, ec);
-        const unsigned hash = clipboardHash(bgra);
-        filePath = (dir / wfmt(L"pin-%08x-%dx%d.png", hash, width, height)).wstring();
-        if (!std::filesystem::exists(filePath, ec)) {
-            std::vector<BYTE> copy = bgra;
-            if (!Util::saveToFile(filePath, width, height, copy.data())) return L"";
-        }
-    }
-    historyUiCacheDirty_ = true;
-
-    static UINT64 seq = 0;
-    const auto now = std::chrono::system_clock::now();
-    const auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
-
-    auto oldItems = getHistoryItems();
-    HistoryItem it;
-    // 同一张图反复贴：沿用旧记录的 id，历史条目的身份保持稳定（恢复热键按 id 判断
-    // 这张图是不是已经在桌面上）。createdAt 仍刷新，所以它仍算“新的一条”。
-    for (auto& old : oldItems) {
-        if (old.filePath == filePath && old.source == L"pin") { it.id = old.id; break; }
-    }
-    if (it.id.empty()) it.id = wfmt(L"p%lld-%d", (long long)nowMs, (int)++seq);
-    it.filePath = filePath;
-    it.source = L"pin";
-    it.width = width;
-    it.height = height;
-    it.createdAt = (long long)nowMs;
-
-    JsonArray arr;
-    arr.Append(historyItemToJson(it));
-    for (auto& old : oldItems) {
-        // 同一张图只留一条贴图记录；其它分类的记录（截图/录屏等）原样保留
-        if (old.filePath == filePath && old.source == L"pin") continue;
-        arr.Append(historyItemToJson(old));
-    }
-    auto store = loadHistoryStore();
-    store.SetNamedValue(L"items", arr);
-    saveHistoryStore(store);
-    return it.id;
-}
-
-void Setting::clearPinHistory()
-{
-    historyUiCacheDirty_ = true;
-    JsonArray arr;
-    for (auto& it : getHistoryItems()) {
-        if (it.source != L"pin") { arr.Append(historyItemToJson(it)); continue; }
-        // 只删 PinHistory 缓存；引用截图/剪贴板等源文件的记录只删记录，不动原图
-        std::error_code ec;
-        if (isPinHistoryFile(it.filePath))
-            std::filesystem::remove(it.filePath, ec);
-    }
-    auto store = loadHistoryStore();
-    store.SetNamedValue(L"items", arr);
-    saveHistoryStore(store);
-}
-
 namespace {
 bool isUnderDir(const std::wstring& file, const std::filesystem::path& dir)
 {
@@ -3570,18 +2738,9 @@ bool isCachePath(const std::wstring& path)
     if (!s || path.empty()) return false;
     const std::wstring file = std::filesystem::path(path).lexically_normal().wstring();
     const auto data = s->getDataPath();
-    return isUnderDir(file, s->getClipboardDir()) ||
-           isUnderDir(file, s->getHistoryThumbDir()) ||
-           isUnderDir(file, s->getPinHistoryDir()) ||
-           isUnderDir(file, s->getRackQuickDir()) ||
-           isUnderDir(file, s->getIconCacheDir()) ||
-           isUnderDir(file, s->getCacheRoot() / L"Clipboard") ||
-           isUnderDir(file, s->getCacheRoot() / L"Thumb") ||
-           isUnderDir(file, s->getCacheRoot() / L"RackQuick") ||
-           isUnderDir(file, s->getCacheRoot() / L"IconCache") ||
-           isUnderDir(file, data / L"Clipboard") || isUnderDir(file, data / L"ThumbCache") ||
-           isUnderDir(file, data / L"RackQuick") || isUnderDir(file, data / L"IconCache") ||
-           isPinHistoryFile(file);
+    // 旧版图标缓存已不再使用；识别这些旧路径，清理历史时直接删而不是进回收站。
+    return isUnderDir(file, s->getCacheRoot() / L"IconCache") ||
+           isUnderDir(file, data / L"IconCache");
 }
 
 void deleteHistoryFile(const std::wstring& path)
@@ -3613,16 +2772,8 @@ void Setting::pruneExpiredHistory()
             keep.push_back(it);
             continue;
         }
-        // 贴图记录：只删 PinHistory 缓存；引用截图/剪贴板等源文件的记录不动原图
-        if (it.source == L"pin") {
-            std::error_code ec;
-            if (isPinHistoryFile(it.filePath))
-                std::filesystem::remove(it.filePath, ec);
-            continue;
-        }
         std::error_code ec;
         if (!it.filePath.empty()) deleteHistoryFile(it.filePath);
-        std::filesystem::remove(getHistoryThumbDir() / (it.id + L".png"), ec);
     }
     // 没登记进索引、但确实由本软件保存的文件（清空过历史、换过索引等）也按天数清掉。
     // 只认本软件的文件名前缀，避免误删用户自己放进目录的文件。
@@ -3652,45 +2803,6 @@ void Setting::pruneExpiredHistory()
     saveHistoryStore(store);
 }
 
-void Setting::pruneOrphanThumbCache()
-{
-    auto dir = getHistoryThumbDir();
-    std::error_code ec;
-    if (!std::filesystem::is_directory(dir, ec)) return;
-
-    // 历史条目（截图/录屏/贴图）与剪贴板条目都可能带 <id>.png 小图；
-    // 用 set 比对，避免 O(缩略图 × 条目) 的线性查找。
-    std::set<std::wstring> keep;
-    for (const auto& it : getHistoryItems()) keep.insert(it.id + L".png");
-    for (const auto& c : getClipboardItems()) keep.insert(c.id + L".png");
-
-    for (const auto& entry : std::filesystem::directory_iterator(dir, ec)) {
-        if (ec || !entry.is_regular_file(ec)) continue;
-        if (_wcsicmp(entry.path().extension().c_str(), L".png") != 0) continue;
-        const std::wstring name = entry.path().filename().wstring();
-        if (keep.find(name) != keep.end()) continue;
-        std::error_code removeEc;
-        std::filesystem::remove(entry.path(), removeEc);
-    }
-
-    // 剪贴板缓存（原图 / SVG 预览）：文件名以条目 id 开头，如 <id>.png、<id>.svg3.png。
-    // 清空/删除条目后可能留下孤儿文件，这里一并按"还有没有条目引用"清掉。
-    auto clipDir = getClipboardDir();
-    if (!std::filesystem::is_directory(clipDir, ec)) return;
-    std::set<std::wstring> clipIds;
-    for (const auto& c : getClipboardItems()) clipIds.insert(c.id);
-    for (const auto& entry : std::filesystem::directory_iterator(clipDir, ec)) {
-        if (ec || !entry.is_regular_file(ec)) continue;
-        const std::wstring name = entry.path().filename().wstring();
-        const size_t dot = name.find(L'.');
-        if (dot == std::wstring::npos) continue;
-        const std::wstring id = name.substr(0, dot);
-        if (clipIds.find(id) != clipIds.end()) continue;
-        std::error_code removeEc;
-        std::filesystem::remove(entry.path(), removeEc);
-    }
-}
-
 void Setting::removeHistoryItem(const std::wstring& id, bool deleteFile)
 {
     historyUiCacheDirty_ = true;
@@ -3701,18 +2813,8 @@ void Setting::removeHistoryItem(const std::wstring& id, bool deleteFile)
         if (it.id == id) {
             found = true;
             // 历史即真实文件：deleteFile=true 时删条目就删文件（缓存直接删，用户文件走回收站）。
-            // 贴图记录：只删 PinHistory 缓存，不动截图/剪贴板等源文件。
             std::error_code ec;
-            if (deleteFile && !it.filePath.empty()) {
-                if (it.source == L"pin") {
-                    if (isPinHistoryFile(it.filePath))
-                        std::filesystem::remove(it.filePath, ec);
-                }
-                else {
-                    deleteHistoryFile(it.filePath);
-                }
-            }
-            std::filesystem::remove(getHistoryThumbDir() / (it.id + L".png"), ec);
+            if (deleteFile && !it.filePath.empty()) deleteHistoryFile(it.filePath);
         } else {
             keep.push_back(it);
         }
@@ -3738,21 +2840,15 @@ void Setting::clearAllHistory(int sourceTab)
     auto list = getHistoryItemsForUi(true);
     for (auto& it : list) {
         if (it.id == it.filePath) continue;   // 目录里用户自己放的文件，跳过
-        if (it.source == L"pin") continue;    // 贴图记录只记引用；由 clearPinHistory 单独清
         const bool isRecord = (it.source == L"record");
         if (sourceTab == 1 && isRecord) continue;   // 只清截图
         if (sourceTab == 2 && !isRecord) continue;  // 只清录屏
         std::error_code ec;
         if (!it.filePath.empty()) deleteHistoryFile(it.filePath);
-        std::filesystem::remove(getHistoryThumbDir() / (it.id + L".png"), ec);
     }
-    // 索引里保留没被清掉的分类（贴图记录始终保留，清「全部」时由调用方另调 clearPinHistory）
+    // 索引里保留没被清掉的分类
     JsonArray arr;
     for (auto& it : getHistoryItems()) {
-        if (it.source == L"pin") {
-            arr.Append(historyItemToJson(it));
-            continue;
-        }
         const bool isRecord = (it.source == L"record");
         if ((sourceTab == 1 && isRecord) || (sourceTab == 2 && !isRecord))
             arr.Append(historyItemToJson(it));
@@ -3780,15 +2876,8 @@ void Setting::clearOtherFiles()
 //  - 每次复制都会重写配置，在同步盘上会持续产生冲突；
 //  - 剪贴板内容属敏感数据，不应随配置同步至云端；
 //  - 本机剪贴板历史对其他电脑没有意义。
-// 不限条数：文本直接进索引，图片落盘到 dataPath\Clipboard（历史页用缩略图展示）。
+// 不限条数：文本与文件路径直接进索引，不往缓存目录写文件。
 namespace {
-    unsigned clipboardHash(const std::vector<BYTE>& data)
-    {
-        unsigned h = 2166136261u;
-        for (BYTE b : data) { h ^= b; h *= 16777619u; }
-        return h;
-    }
-
     std::vector<Setting::ClipboardItem> clipboardItemsFromArray(const JsonArray& arr)
     {
         std::vector<Setting::ClipboardItem> out;
@@ -3800,9 +2889,6 @@ namespace {
             it.id = o.GetNamedString(L"id", L"").c_str();
             it.type = o.GetNamedString(L"type", L"text").c_str();
             it.text = o.GetNamedString(L"text", L"").c_str();
-            it.filePath = o.GetNamedString(L"filePath", L"").c_str();
-            it.width = (int)o.GetNamedNumber(L"width", 0);
-            it.height = (int)o.GetNamedNumber(L"height", 0);
             it.createdAt = (long long)o.GetNamedNumber(L"createdAt", 0);
             it.hash = (unsigned)o.GetNamedNumber(L"hash", 0);
             if (o.HasKey(L"tags") && o.GetNamedValue(L"tags").ValueType() == JsonValueType::Array) {
@@ -3821,14 +2907,12 @@ namespace {
                     }
                 }
             }
-            if (it.type == L"image") {
-                std::error_code ec;
-                if (it.filePath.empty() || !std::filesystem::exists(it.filePath, ec)) continue;
-            }
+            // 旧版本落盘的图片条目不再支持，加载时直接跳过
+            if (it.type != L"text" && it.type != L"files") continue;
             if (it.type == L"files") {
                 if (it.files.empty()) continue;
                 // 文件条目只保存路径，不复制内容：源文件全部不存在时（例如微信临时文件被清理），
-                // 与图片条目一致，不再显示这条失效记录；文件恢复后会自动重新出现。
+                // 不再显示这条失效记录；文件恢复后会自动重新出现。
                 bool anyExists = false;
                 for (const auto& f : it.files) {
                     std::error_code ec;
@@ -3842,47 +2926,6 @@ namespace {
         return out;
     }
 
-}
-
-std::filesystem::path Setting::getClipboardDir()
-{
-    // 剪贴板原图与 SVG 预览缓存：Cache\Clipboard（和缩略图同根，但不混在一起）
-    auto dir = getCacheRoot();
-    dir.append(L"Images");
-    dir.append(L"Clipboard");
-    std::error_code ec;
-    if (!std::filesystem::exists(dir, ec)) std::filesystem::create_directories(dir, ec);
-    return dir;
-}
-
-std::filesystem::path Setting::getPinHistoryDir()
-{
-    auto dir = getCacheRoot();
-    dir.append(L"Images");
-    dir.append(L"PinHistory");
-    std::error_code ec;
-    if (!std::filesystem::exists(dir, ec)) std::filesystem::create_directories(dir, ec);
-    return dir;
-}
-
-std::filesystem::path Setting::getRackQuickDir()
-{
-    auto dir = getCacheRoot();
-    dir.append(L"Misc");
-    dir.append(L"RackQuick");
-    std::error_code ec;
-    if (!std::filesystem::exists(dir, ec)) std::filesystem::create_directories(dir, ec);
-    return dir;
-}
-
-std::filesystem::path Setting::getIconCacheDir()
-{
-    auto dir = getCacheRoot();
-    dir.append(L"Misc");
-    dir.append(L"IconCache");
-    std::error_code ec;
-    if (!std::filesystem::exists(dir, ec)) std::filesystem::create_directories(dir, ec);
-    return dir;
 }
 
 std::vector<Setting::ClipboardItem> Setting::getClipboardItems()
@@ -3931,9 +2974,6 @@ bool Setting::writeClipboardItemsToFile(const std::vector<ClipboardItem>& items)
         o.SetNamedValue(L"id", JsonValue::CreateStringValue(it.id));
         o.SetNamedValue(L"type", JsonValue::CreateStringValue(it.type));
         o.SetNamedValue(L"text", JsonValue::CreateStringValue(it.text));
-        o.SetNamedValue(L"filePath", JsonValue::CreateStringValue(it.filePath));
-        o.SetNamedValue(L"width", JsonValue::CreateNumberValue((double)it.width));
-        o.SetNamedValue(L"height", JsonValue::CreateNumberValue((double)it.height));
         o.SetNamedValue(L"createdAt", JsonValue::CreateNumberValue((double)it.createdAt));
         o.SetNamedValue(L"hash", JsonValue::CreateNumberValue((double)it.hash));
         JsonArray ts;
@@ -4013,21 +3053,8 @@ namespace {
         if (a.type == L"text" && b.type == L"text") {
             return normalizedClipboardText(a.text) == normalizedClipboardText(b.text);
         }
-        if (a.type == L"image" && b.type == L"image") {
-            return a.hash == b.hash && a.width == b.width && a.height == b.height;
-        }
         if (a.type == L"files" && b.type == L"files") {
             return clipboardFilesKey(a.files) == clipboardFilesKey(b.files);
-        }
-        // 同一个图片文件既可能以 image 记一条，也可能被外部程序当文件复制成 files；
-        // 两条指向同一路径时视为同一内容。
-        if (a.type == L"image" && b.type == L"files" && b.files.size() == 1) {
-            return !a.filePath.empty() &&
-                   normalizedClipboardPath(a.filePath) == normalizedClipboardPath(b.files.front());
-        }
-        if (a.type == L"files" && b.type == L"image" && a.files.size() == 1) {
-            return !b.filePath.empty() &&
-                   normalizedClipboardPath(b.filePath) == normalizedClipboardPath(a.files.front());
         }
         return false;
     }
@@ -4102,39 +3129,6 @@ bool Setting::setClipboardText(const std::wstring& id, const std::wstring& text)
     return false;
 }
 
-void Setting::addClipboardImage(int w, int h, const std::vector<BYTE>& bgra)
-{
-    if (w <= 0 || h <= 0 || bgra.size() < (size_t)w * 4u * h) return;
-    const unsigned hash = clipboardHash(bgra);
-    auto items = getClipboardItems();
-    const auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::system_clock::now().time_since_epoch()).count();
-    // 同一张图只挪到最前，不重复存一份 PNG
-    const int dup = promoteClipboardItem(items, (long long)nowMs, [&](const ClipboardItem& it) {
-        return it.type == L"image" && it.hash == hash && it.width == w && it.height == h;
-    });
-    if (dup >= 0) {
-        if (dup > 0) writeClipboardItems(items);
-        return;
-    }
-
-    static unsigned long long seq = 0;
-    ClipboardItem it;
-    it.id = wfmt(L"c%lld-%d", (long long)nowMs, (int)++seq);
-    it.type = L"image";
-    it.filePath = (getClipboardDir() / (it.id + L".png")).wstring();
-    it.width = w;
-    it.height = h;
-    it.createdAt = (long long)nowMs;
-    it.hash = hash;
-    if (it.filePath.empty()) return;
-    std::vector<BYTE> copy = bgra;   // saveToFile 要非 const 指针
-    if (!Util::saveToFile(it.filePath, w, h, copy.data())) return;
-    writeHistoryThumb(it.id, w, h, copy.data());   // 历史页用的小图
-    items.insert(items.begin(), std::move(it));
-    writeClipboardItems(items);
-}
-
 void Setting::addClipboardFiles(const std::vector<std::wstring>& files)
 {
     if (files.empty()) return;
@@ -4147,7 +3141,7 @@ void Setting::addClipboardFiles(const std::vector<std::wstring>& files)
     auto items = getClipboardItems();
     const auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch()).count();
-    // 同一组文件只挪到最前，不再加一条；如果是某个已存在的图片缓存文件，也并回图片条目。
+    // 同一组文件只挪到最前，不再加一条。
     ClipboardItem probe;
     probe.type = L"files";
     probe.files = files;
@@ -4195,24 +3189,6 @@ void Setting::dedupeClipboardItems()
                 kept.tags.push_back(tag);
             }
         }
-        if (it.type == L"image" && !it.filePath.empty()) {
-            // 只有确认没有别的条目还引用这个 PNG 时才删缓存。
-            bool referenced = false;
-            if (kept.type == L"image" && !kept.filePath.empty() &&
-                normalizedClipboardPath(kept.filePath) == normalizedClipboardPath(it.filePath)) {
-                referenced = true;
-            }
-            for (const auto& f : kept.files) {
-                if (normalizedClipboardPath(f) == normalizedClipboardPath(it.filePath)) {
-                    referenced = true;
-                    break;
-                }
-            }
-            if (!referenced) {
-                std::error_code ec;
-                std::filesystem::remove(it.filePath, ec);
-            }
-        }
     }
     if (changed) writeClipboardItems(out);
 }
@@ -4224,9 +3200,7 @@ void Setting::removeClipboardItem(const std::wstring& id)
     for (auto& it : items) {
         if (it.id == id) {
             std::error_code ec;
-            if (it.type == L"image" && !it.filePath.empty()) {
-                std::filesystem::remove(it.filePath, ec);
-            } else if (it.type == L"files") {
+            if (it.type == L"files") {
                 for (const auto& f : it.files) {
                     if (isCachePath(f)) std::filesystem::remove(f, ec);
                 }
@@ -4260,9 +3234,7 @@ void Setting::clearClipboardHistory()
     auto items = getClipboardItems();
     for (auto& it : items) {
         std::error_code ec;
-        if (it.type == L"image" && !it.filePath.empty()) {
-            std::filesystem::remove(it.filePath, ec);
-        } else if (it.type == L"files") {
+        if (it.type == L"files") {
             for (const auto& f : it.files) {
                 if (isCachePath(f)) std::filesystem::remove(f, ec);
             }
@@ -4270,10 +3242,6 @@ void Setting::clearClipboardHistory()
     }
     std::vector<ClipboardItem> empty;
     writeClipboardItems(empty);
-
-    // 条目清空后，缓存目录里可能还留着早先删除/去重时变成孤儿的原图或 SVG 预览；
-    // 这里立刻按"还有没有条目引用"清一遍，避免用户点了「清除全部」目录里仍有文件。
-    pruneOrphanThumbCache();
 }
 
 void Setting::markOwnClipboardWrite()

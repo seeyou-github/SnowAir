@@ -98,13 +98,6 @@ namespace {
         return id == L"open_clipboard";
     }
 
-    // 每一项的「?」说明（目前只有快速贴屏需要；其余行不给问号）
-    std::wstring hotkeyHelpTipOf(const std::wstring& id)
-    {
-        if (id == L"quick_pin") return Lang::get(L"shortcut.quickPinTip");
-        return std::wstring{};
-    }
-
     // 快捷键按钮文字与颜色：未绑定时显示「点击设置」占位（muted 色），已绑定显示组合键。
     void applyShortcutLabel(Ling::Button* btn, const std::wstring& id)
     {
@@ -167,9 +160,8 @@ WinSettingHotkeys::WinSettingHotkeys(Ling::WinBase* parent) :Ling::Node(parent)
             { L"capture_repeat",        Lang::get(L"shortcut.capture_repeat") },
             { L"capture_focused_window",Lang::get(L"shortcut.capture_focused_window") },
         }},
-        // 1 剪切板组 2 项：「快速贴屏」已转正，「打开剪切板」暂缓
+        // 1 剪切板组：「打开剪切板」暂缓
         {Lang::get(L"setting.hotkeyGrpClipboard"),{
-            { L"quick_pin",             Lang::get(L"shortcut.quick_pin") },
             { L"open_clipboard",        Lang::get(L"shortcut.open_clipboard") },
         }},
         // 2 其他组 3 项
@@ -258,9 +250,8 @@ void WinSettingHotkeys::buildGroup(const std::wstring& grpTitle,
     // 每个选项为独立的浅灰圆角卡片行，行间由 optionGap 自然留出间距
     for (size_t i = 0; i < items.size(); i++) {
         const auto& it = items[i];
-        // 行标题后的「?」说明：只有快速贴屏给了文案，其余行为空 → 不显示问号
         auto r = SettingUi::optionRow(p, it.second, L"", true,
-            SettingTheme::ctrlH, hotkeyHelpTipOf(it.first));
+            SettingTheme::ctrlH, L"");
         // 样式与其余设置页统一：白底 + 描边（去掉旧的浅灰底覆盖）；卡片高 50
         r.row->setHeight(SettingTheme::hotkeyRowH);
         // 行高改过之后，右侧内边距要跟着重算：与按钮的上下留白 (50-32)/2 取齐

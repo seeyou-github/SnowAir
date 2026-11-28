@@ -288,7 +288,6 @@
     <ClCompile Include="Win\ScreenCapture.cpp" />
     <ClCompile Include="Win\SettingWidgets.cpp" />
     <ClCompile Include="Win\WinCap.cpp" />
-    <ClCompile Include="Win\ClipPin.cpp" />
     <ClCompile Include="Win\WinPin.cpp" />
     <ClCompile Include="Win\PinMenu.cpp" />
     <ClCompile Include="Win\ImageEditCollage.cpp" />
@@ -413,7 +412,6 @@
     <ClInclude Include="Win\WinCap.h" />
     <ClInclude Include="Win\PixLens.h" />
     <ClInclude Include="Win\CursorImage.h" />
-    <ClInclude Include="Win\ClipPin.h" />
     <ClInclude Include="Win\PinShake.h" />
     <ClInclude Include="Win\WinPin.h" />
     <ClInclude Include="Win\PinMenu.h" />

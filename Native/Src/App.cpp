@@ -15,22 +15,21 @@
 #include "./Win/WinQuickTranslate.h"
 #include "./Win/WinImageEdit.h"
 #include "./Win/ScreenCapture.h"
-#include "./Win/ClipPin.h"
 #include "Ocr/LwPpOcrEngine.h"
 #include "SingleInstance.h"
 
 std::unique_ptr<App> app;
 
 namespace {
-    // —— 贴图 / 贴屏全部关掉后的空闲资源回收 ——
+    // —— 贴图全部关掉后的空闲资源回收 ——
     constexpr int kIdleReleaseDelayMs = 1200;
     // 每安排一次回收就 +1：延迟期间又贴了新东西时，旧的那次自动作废
     std::atomic<unsigned> g_idleReleaseGen{ 0 };
 
     void releaseIdleGraphicsNow()
     {
-        // 期间又贴上了新的贴图 / 贴屏：这次不收了
-        if (WinPin::hasWindow() || ClipPin::hasAny()) return;
+        // 期间又贴上了新的贴图：这次不收了
+        if (WinPin::hasWindow()) return;
         // 还有别的 Ling 窗口（截图 / 设置 / 工具条 / 菜单）开着：图形设备不能拆
         auto* lingApp = Ling::App::get();
         if (!lingApp || !lingApp->windows.empty()) return;

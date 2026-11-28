@@ -60,25 +60,6 @@ public:
 	static std::tuple<int, int, std::vector<BYTE>> loadImagePixels(const std::wstring& path);
 	// 只读图片头拿像素尺寸（不解码像素；失败返回 {0,0}）—— 停悬大图预览按宽高比定窗口用
 	static std::pair<int, int> imageSize(const std::wstring& path);
-	// 字节数 → "12.3 MB"（<1 KB 给 "512 B"）。文件大小为 0 时给 "0 B"。
-	static std::wstring formatFileSize(uintmax_t bytes);
-	// 视频元信息：宽 / 高（像素）与时长（秒）。走 Windows 属性系统，和资源管理器「详细信息」
-	// 同源；读不到的字段留 0。结果按路径缓存，同一个文件不会问第二次。
-	struct MediaInfo { int width{ 0 }; int height{ 0 }; int durationSec{ 0 }; };
-	static MediaInfo mediaInfo(const std::wstring& path);
-	// 文件夹的直接子项数量（不递归）：数到 cap 就停并返回 cap，避免大目录拖慢贴屏。
-	static int folderItemCount(const std::wstring& path, int cap = 1000);
-	// 系统「文件类型图标」：按「文件夹 / 扩展名」向 Shell 取一次图标，转成 PNG 缓存到数据目录，
-	// 返回缓存文件路径（失败返回空）。同一类型只取一次，不逐个文件问 Shell。
-	static std::wstring typeIconPng(const std::wstring& path, bool isDir);
-	// 剪切板文本是不是一段 SVG 代码（<svg …>…</svg>）
-	static bool isSvgText(const std::wstring& text);
-	// 用 Direct2D 的 SVG 能力把代码渲染成 BGRA、top-down、行紧凑（步长 = w*4）；
-	// 最长边不超过 maxDim。系统不支持 D2D SVG（Win10 1703 以前）或代码有误时返回 false
-	static bool renderSvgText(const std::wstring& svg, int maxDim, int& w, int& h, std::vector<BYTE>& pixels);
-	// 剪切板 SVG 代码 → PNG 预览缓存（放在剪贴板目录，文件名按记录 id）。
-	// 历史页和插件共用这一份结果；渲染失败返回空串。
-	static std::wstring svgPreviewPath(const std::wstring& id, const std::wstring& text);
 	// —— History 操作 —— 根据条目 id 找到 Setting 的历史条目，然后执行对应动作
 	// 把图存成缓存文件，再交给外部插件 ImageReader.exe 做文字识别。插件先在本 exe
 	// 同目录找，再找 AppData\config\plugin，都找不到就用默认浏览器打开它的

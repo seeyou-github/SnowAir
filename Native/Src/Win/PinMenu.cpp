@@ -47,7 +47,7 @@ void PinMenu::popup(std::vector<Item> items, POINT at, bool fromPlugin)
 }
 
 bool PinMenu::isOpen() { return s_root != nullptr; }
-// 插件查询「自己的菜单」用：贴图 / 贴屏的右键菜单不算插件菜单。
+// 插件查询「自己的菜单」用：贴图的右键菜单不算插件菜单。
 // 晾衣架会把 menu_open 当成展开自己的信号 —— 不限定时右键贴图会把晾衣架一并弹开。
 bool PinMenu::isPluginMenuOpen() { return s_root && s_root->fromPlugin_; }
 void PinMenu::closeMenu() { closeAll(); }

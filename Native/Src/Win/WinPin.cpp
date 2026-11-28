@@ -10,7 +10,6 @@
 #include "AnnotHost.h"
 #include "WinPin.h"
 #include "WinCap.h"
-#include "ClipPin.h"
 #include "PinMenu.h"
 #include "WinImageEdit.h"
 #include "../Tool/ToolOcr.h"
@@ -219,7 +218,7 @@ void WinPin::onClosed()
 			if (Ling::App::get()->args[L"--auto-quit"] == L"true") {
 				Ling::App::get()->quit(0);
 			}
-			// 一张贴图都不剩了：稍后把贴图/贴屏专用的资源（引擎、图形设备）还回去
+			// 一张贴图都不剩了：稍后把贴图专用的资源（引擎、图形设备）还回去
 			App::scheduleIdleRelease();
 		}
 	});
@@ -239,11 +238,9 @@ void WinPin::dispose()
 
 // 全局热键「隐藏/显示贴图」：一次把所有贴图藏起来，再按一次全部放回来。
 // 纯临时操作 —— 不落盘、不改贴图自身状态；"放回来"时一并清除专注模式遗留的隐藏标记。
-// 快速贴屏产生的贴屏卡片（文字 / 文件 / 图片）不归 WinPin 管，但用户眼里同样是「贴图」，
-// 必须一起参与，否则只按贴图那一边切，屏幕上还会剩下一堆卡片。
 void WinPin::toggleAllHidden()
 {
-	if (winPins.empty() && !ClipPin::hasAny()) return;
+	if (winPins.empty()) return;
 	pinsHidden = !pinsHidden;
 	for (auto& p : winPins) {
 		if (!p) continue;
@@ -255,8 +252,6 @@ void WinPin::toggleAllHidden()
 			p->show();
 		}
 	}
-	if (pinsHidden) ClipPin::hideAll();
-	else ClipPin::showAll();
 }
 
 // 「软件外观 → 贴图边框」改色 / 改粗细 / 改圆角后立即推给已经贴在屏幕上的贴图。

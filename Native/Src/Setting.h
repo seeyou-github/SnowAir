@@ -13,7 +13,7 @@ public:
 	static void dispose();
 	static Setting* get();
 	std::filesystem::path getDataPath();
-	// 缓存根目录（默认 AppData\config\Cache）：缩略图/录屏封面、剪贴板图片都在这里。
+	// 缓存根目录（默认 AppData\temp）：当前不存放文件，保留给用户自定义扩展使用。
 	// 用户可在「文件输出 → 保存路径 → 缓存文件路径」改成别的目录。
 	std::filesystem::path getCacheRoot();
 	std::wstring getCacheDir();
@@ -317,8 +317,6 @@ public:
 		std::wstring text;
 		std::vector<std::wstring> files;
 	};
-	// 录屏封面缩略图缓存目录（只存小图，不是历史副本）
-	std::filesystem::path getHistoryThumbDir();
 	// 索引里的条目（只含登记过的真实文件）
 	std::vector<HistoryItem> getHistoryItems();
 	// 历史页用：索引 + 扫描截图/录屏目录里已有的文件（可见即所得）
@@ -326,24 +324,6 @@ public:
 	// 文件名是否由本软件的保存模板生成（手动 / 自动保存前缀）：
 	// 这类磁盘扫描条目仍算「截图」，不归到「其他」
 	bool isOwnHistoryFile(const std::wstring& filePath);
-	// 登记一条已落盘的历史文件；文件不存在则不登记。返回条目 id。
-	// bgra 可选：给了就顺手在 ThumbCache 写一张小缩略图，历史页直接读小图，
-	// 不再每次刷新都把整张 2K/3K 原图读进内存再解码。
-	std::wstring addHistoryFile(const std::wstring& filePath, int width, int height,
-		const std::wstring& source, const std::vector<BYTE>* bgra = nullptr);
-	// 历史页用：保证 ThumbCache 里有这条目的小缩略图，返回小图路径；不适用/失败返回空。
-	// 老条目没有缩略图时首次访问补生成一次，之后都走小图。
-	std::wstring ensureHistoryThumb(const std::wstring& id, const std::wstring& srcPath);
-	// 录屏：登记视频路径，coverBgra 只写进缩略图缓存当网格缩略图
-	std::wstring addHistoryMedia(const std::wstring& mediaPath, int width, int height,
-		const std::wstring& source, int durationSec = 0,
-		const std::vector<BYTE>& coverBgra = {});
-	// 贴图历史：有源文件时只引用、不复制；没有源文件时按内容去重存一份 PinHistory 缓存。
-	// 同一路径的贴图记录只保留最新一条。
-	std::wstring addPinHistory(const std::wstring& sourcePath, int width, int height,
-		const std::vector<BYTE>& bgra = {});
-	// 清空贴图历史：只删记录，不动源图片
-	void clearPinHistory();
 	// 自定义标签：按真实文件路径存（目录扫描出来、未登记的条目也能打标签）
 	std::vector<std::wstring> getHistoryTags(const std::wstring& filePath);
 	// 批量取标签：一次读盘，按传入顺序逐条返回（信封面板批量填标签用，
@@ -354,8 +334,6 @@ public:
 	// 所有可用标签（去重 + 字典序，只保留文件仍存在的条目）
 	std::vector<std::wstring> getAllHistoryTags();
 	void pruneExpiredHistory();
-	// 视频/录屏文件已删除（或历史条目已删）时，清掉 ThumbCache 里对应的封面缓存。
-	void pruneOrphanThumbCache();
 	// deleteFile=false：只删历史记录/索引，不动磁盘上的文件（设置页单条删除用）；
 	// 目录扫描出来的用户文件没有索引，改为记入隐藏列表（同样不删文件）。
 	void removeHistoryItem(const std::wstring& id, bool deleteFile = true);
@@ -365,23 +343,16 @@ public:
 	void clearOtherFiles();
 
 	// —— 剪切板历史 ——
-	// 只记录文本与图片；图片落盘到 dataPath\Clipboard，文本直接存索引（不限条数）
+	// 只记录文本与文件路径，不入缓存目录；文本直接存索引（不限条数）
 	struct ClipboardItem {
 		std::wstring id;
-		std::wstring type;      // "text" / "image" / "files"
+		std::wstring type;      // "text" / "files"
 		std::wstring text;      // 文本内容（type=text）
-		std::wstring filePath;  // 位图落盘文件（type=image）
 		std::vector<std::wstring> files;   // 文件列表（type=files，可能多个；只记路径）
-		int width{ 0 };
-		int height{ 0 };
 		long long createdAt{ 0 };
-		unsigned hash{ 0 };     // 去重用（图片像素 / 文件路径串的 FNV-1a）
+		unsigned hash{ 0 };     // 去重用（文件路径串的 FNV-1a）
 		std::vector<std::wstring> tags;   // 自定义标签（筛选「全部」时可把剪切板条目筛出来）
 	};
-	std::filesystem::path getClipboardDir();
-	std::filesystem::path getPinHistoryDir();
-	std::filesystem::path getRackQuickDir();
-	std::filesystem::path getIconCacheDir();
 	std::vector<ClipboardItem> getClipboardItems();
 	std::vector<std::wstring> getClipboardTags(const std::wstring& id);
 	// 插件本地数据（local.json）：key 用点分路径，如 "rack.items"，值为 JSON 对象。
@@ -391,10 +362,9 @@ public:
 	void addClipboardText(const std::wstring& text, bool dedup = true);
 	// 插件便签：按 id 改写文本（挪到最前）；id 不存在或不是文本返回 false
 	bool setClipboardText(const std::wstring& id, const std::wstring& text);
-	void addClipboardImage(int w, int h, const std::vector<BYTE>& bgra);
 	// 文件列表（资源管理器 / Word / PPT 等复制的文件）：只记路径，可以一次多个
 	void addClipboardFiles(const std::vector<std::wstring>& files);
-	// 启动时收敛旧数据里同内容的重复条目（文本 / 图片 / 文件组）
+	// 启动时收敛旧数据里同内容的重复条目（文本 / 文件组）
 	void dedupeClipboardItems();
 	void removeClipboardItem(const std::wstring& id);
 	// 复制历史里的剪切板条目：把该条挪到最前面（更新时间），不生成重复条目。返回是否真的挪动了
@@ -425,8 +395,6 @@ private:
 	bool writeClipboardItemsToFile(const std::vector<ClipboardItem>& items);
 	JsonObject loadHistoryStore();
 	bool saveHistoryStore(const JsonObject& store);
-	// 把 BGRA 缩到 ≤512 px 写进 ThumbCache\<id>.png（失败静默）
-	void writeHistoryThumb(const std::wstring& id, int w, int h, const BYTE* bgra);
 	// 历史页目录扫描缓存：鼠标移动/滚动会频繁取列表，不能每次都遍历目录
 	std::vector<HistoryItem> historyUiCache_;
 	unsigned long long historyUiCacheAt_{ 0 };
@@ -448,10 +416,6 @@ private:
 	std::filesystem::path initConfigPath();
 	std::filesystem::path initCachePath();
 	std::filesystem::path resolveCachePath();
-	// 旧版把缩略图放 Roaming\ThumbCache、剪贴板图片放 Roaming\Clipboard；
-	// 统一搬到 AppData\config\Cache 下（Thumb / Clipboard），并改写 local.json
-	// 以及晾衣架数据里的旧绝对路径。只做一次，迁移前备份 local.json。
-	void migrateCacheDirs();
 	void save();
 	// config.json 的兜底：读失败不覆盖、解析失败留现场并回退到上一份可用配置
 	void backupConfigFile();

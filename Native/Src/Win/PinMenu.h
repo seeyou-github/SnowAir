@@ -31,7 +31,7 @@ public:
 
 	// 在屏幕坐标 at 处弹出菜单（左上角贴光标，放不下自动翻转/钳制）。
 	// fromPlugin：这份菜单是插件（晾衣架）通过宿主 API 打开的。插件可以用 menu_open
-	// 查询「自己的菜单还开着吗」；贴图 / 贴屏自己的右键菜单不算，否则晾衣架会在
+	// 查询「自己的菜单还开着吗」；贴图自己的右键菜单不算，否则晾衣架会在
 	// 用户右键贴图时误以为要展开自己，跟着一起弹出来。
 	static void popup(std::vector<Item> items, POINT at, bool fromPlugin = false);
 	static bool isOpen();
