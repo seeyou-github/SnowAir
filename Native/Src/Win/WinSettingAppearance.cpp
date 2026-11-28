@@ -1459,7 +1459,12 @@ void WinSettingAppearance::tbRefreshPreview()
         const bool actDone = (id == L"confirm" || id == L"clipboard");
         b->setColor(actCancel ? Icon::ColorCancel : actDone ? Icon::ColorDone : ToolbarTheme::iconNormal);
         b->setHoverColor(actCancel ? Icon::ColorCancel : actDone ? Icon::ColorDone : ToolbarTheme::iconNormal);
-        if (id == L"record-time") {
+        if (auto label = ToolbarStore::textLabelOf(id); !label.empty()) {
+            b->setText(label);
+            b->setFontFamily(L"");
+            b->setFontSize(11.f);
+        }
+        else if (id == L"record-time") {
             b->setText(L"00:00");
             b->setFontSize(11.f);
         }
@@ -1501,7 +1506,12 @@ Ling::Button* WinSettingAppearance::tbMakeChip(const std::wstring& id, bool acti
     else {
         // 工具图标统一方形
         b->setSize(36.f, 36.f);
-        if (id == L"record-time") {
+        if (auto label = ToolbarStore::textLabelOf(id); !label.empty()) {
+            b->setText(label);
+            b->setFontFamily(L"");
+            b->setFontSize(11.f);
+        }
+        else if (id == L"record-time") {
             b->setText(L"00:00");
             b->setFontSize(10.f);
         }
@@ -1616,6 +1626,11 @@ void WinSettingAppearance::tbShowGhost(const std::wstring& id, POINT pos)
         tbGhostIcon->setText(L"｜");
         tbGhostIcon->setFontFamily(L"");
         tbGhostIcon->setFontSize(14.f);
+    }
+    else if (auto label = ToolbarStore::textLabelOf(id); !label.empty()) {
+        tbGhostIcon->setText(label);
+        tbGhostIcon->setFontFamily(L"");
+        tbGhostIcon->setFontSize(11.f);
     }
     else if (id == L"record-time") {
         tbGhostIcon->setText(L"00:00");

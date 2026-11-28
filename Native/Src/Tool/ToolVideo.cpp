@@ -165,7 +165,6 @@ Ling::Button* ToolVideo::makeIconBtn(const std::wstring& code, const std::wstrin
 {
 	auto btn = contentNode->makeChild<Ling::Button>();
 	if (!id.empty()) btn->setId(id);
-	btn->setText(code);
 	const float inner{ btnSize - hoverInset * 2.f };
 	btn->setSize(inner, inner);
 	btn->setMargin(hoverInset);
@@ -175,8 +174,17 @@ Ling::Button* ToolVideo::makeIconBtn(const std::wstring& code, const std::wstrin
 	btn->setHoverBg(ToolbarTheme::hoverBg);
 	btn->setAlignItems(Ling::Align::Center);
 	btn->setJustifyContent(Ling::Justify::Center);
-	btn->setFontFamily(Icon::Family);
-	btn->setFontSize(Icon::Size);
+	// Gif 按钮用短文字代替图标字形，按钮自身的圆角矩形背景/边框保持不变。
+	if (auto label = ToolbarStore::textLabelOf(id); !label.empty()) {
+		btn->setText(label);
+		btn->setFontFamily(L"");
+		btn->setFontSize(11.f);
+	}
+	else {
+		btn->setText(code);
+		btn->setFontFamily(Icon::Family);
+		btn->setFontSize(Icon::Size);
+	}
 	btn->setColor(Icon::ColorNormal);
 	btn->setHoverColor(Icon::ColorNormal);
 	return btn;

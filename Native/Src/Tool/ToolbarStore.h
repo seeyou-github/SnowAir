@@ -49,4 +49,6 @@ namespace ToolbarStore {
 
 	// 工具 ID -> 图标字形（IconCodes.h）；split-* / record-time 返回空由 UI 特判
 	std::wstring iconOf(const std::wstring& id);
+	// 工具 ID -> 短文字标签；非空表示该按钮显示文字而非图标字形（录屏 / OCR / Gif）
+	std::wstring textLabelOf(const std::wstring& id);
 }

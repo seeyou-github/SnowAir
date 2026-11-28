@@ -1135,6 +1135,13 @@ void ToolCap::setSlotIcon(Ling::Button* btn, const std::wstring& toolId,
 	const std::wstring& fallback, uint32_t color)
 {
 	if (!btn) return;
+	// 这几个按钮用短文字代替图标字形，按钮自身的圆角矩形背景/边框保持不变。
+	if (auto label = ToolbarStore::textLabelOf(toolId); !label.empty()) {
+		btn->setText(label);
+		btn->setFontFamily(L"");
+		btn->setFontSize(11.f);
+		return;
+	}
 	for (auto it = slotOverlays.begin(); it != slotOverlays.end(); ++it) {
 		if (it->first != btn) continue;
 		if (it->second) btn->removeChild(it->second);

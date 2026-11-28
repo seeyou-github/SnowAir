@@ -303,4 +303,13 @@ namespace ToolbarStore {
 		if (id == L"opacity") return Icon::Opacity;
 		return L"";
 	}
+
+	std::wstring textLabelOf(const std::wstring& id)
+	{
+		// 这几个按钮用短文字代替图标字形；同时兼容设置页 id 与运行时 id。
+		if (id == L"extra" || id == L"video") return L"录屏";
+		if (id == L"ocr") return L"OCR";
+		if (id == L"video-gif" || id == L"gif") return L"Gif";
+		return {};
+	}
 }
