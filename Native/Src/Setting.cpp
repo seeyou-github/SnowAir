@@ -17,7 +17,6 @@
 #include "Win/HotkeyHook.h"
 #include "Win/WinSetting.h"
 #include "Win/WinQuickTranslate.h"
-#include "Win/WinImageEdit.h"
 #include "App.h"
 #include <algorithm>
 #include <cmath>
@@ -40,7 +39,6 @@ namespace {
         { L"quick_translate",        108 },
         { L"record",                 104 },
         { L"fullscreen_canvas",      103 },
-        { L"make_collage",           113 },
         { L"capture_fullscreen",     101 },
         { L"capture_focused_window", 102 },
         { L"toggle_pins",            105 },
@@ -460,7 +458,7 @@ std::vector<std::wstring> Setting::defaultTrayMenuOrder()
 {
     return {
         L"capture", L"ocr", L"ocr_translate", L"quick_translate",
-        L"record", L"fullscreen_canvas", L"make_collage",
+        L"record", L"fullscreen_canvas",
         kTrayMenuFixedTail[0], kTrayMenuFixedTail[1],
     };
 }
@@ -1549,7 +1547,6 @@ void Setting::runHotkeyAction(const std::wstring& id)
     if (id == L"fullscreen_canvas") { WinCap::beginDemoCanvas(); return; }
     if (id == L"record") { WinCap::beginRecordPick(); return; }
     if (id == L"show_main") { WinSetting::toggle(); return; }
-    if (id == L"make_collage") { WinImageEdit::init(); return; }
     if (id == L"toggle_pins") { WinPin::toggleAllHidden(); return; }
     if (id == L"open_screenshot_dir") {
         const auto dir = Util::outputDir();

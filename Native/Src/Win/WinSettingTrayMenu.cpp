@@ -77,7 +77,6 @@ namespace {
 		if (id == L"quick_translate") return L"tray.quickTranslate";
 		if (id == L"record") return L"tray.record";
 		if (id == L"fullscreen_canvas") return L"tray.demoCanvas";
-		if (id == L"make_collage") return L"tray.makeCollage";
 		if (id == L"settings") return L"tray.setting";
 		return L"tray.exit";
 	}

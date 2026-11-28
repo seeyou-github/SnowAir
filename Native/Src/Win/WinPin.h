@@ -88,8 +88,6 @@ private:
 	bool pinChromeDown(POINT pos);
 	// 点击贴图会把贴图抬到置顶组最前，识别浮层会被压住 —— 每次激活后重新把浮层抬回来
 	void raiseOcrPanel();
-	// 把当前贴图（含标注）导出成临时 PNG，交给图片编辑器导入
-	void importToImageEditor();
 	Microsoft::WRL::ComPtr<IDWriteTextLayout> makeHoverIcon(const wchar_t* code);
 	bool sizePreviewOrigin(float& cx, float& cy, float& halfSpan) const override;
 	bool annotRightClick() override;

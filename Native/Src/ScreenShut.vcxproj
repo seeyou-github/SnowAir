@@ -290,10 +290,6 @@
     <ClCompile Include="Win\WinCap.cpp" />
     <ClCompile Include="Win\WinPin.cpp" />
     <ClCompile Include="Win\PinMenu.cpp" />
-    <ClCompile Include="Win\ImageEditCollage.cpp" />
-    <ClCompile Include="Win\ImageEditAnnot.cpp" />
-    <ClCompile Include="Win\ImageEditMerge.cpp" />
-    <ClCompile Include="Win\WinImageEdit.cpp" />
     <ClCompile Include="Win\WinSetting.cpp" />
     <ClCompile Include="Win\WinSettingAppearance.cpp" />
     <ClCompile Include="Win\WinSettingFeatures.cpp" />
@@ -407,7 +403,6 @@
     <ClInclude Include="Win\KeyCapture.h" />
     <ClInclude Include="Win\ScreenCapture.h" />
     <ClInclude Include="Win\SettingTheme.h" />
-    <ClInclude Include="Win\ImageEditTheme.h" />
     <ClInclude Include="Win\SettingWidgets.h" />
     <ClInclude Include="Win\WinCap.h" />
     <ClInclude Include="Win\PixLens.h" />
@@ -416,10 +411,6 @@
     <ClInclude Include="Win\WinPin.h" />
     <ClInclude Include="Win\PinMenu.h" />
     <ClInclude Include="Win\MenuTheme.h" />
-    <ClInclude Include="Win\ImageEditCollage.h" />
-    <ClInclude Include="Win\ImageEditAnnot.h" />
-    <ClInclude Include="Win\ImageEditMerge.h" />
-    <ClInclude Include="Win\WinImageEdit.h" />
     <ClInclude Include="Win\WinSetting.h" />
     <ClInclude Include="Win\WinSettingAppearance.h" />
     <ClInclude Include="Win\WinSettingFeatures.h" />

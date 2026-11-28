@@ -51,11 +51,6 @@ public:
 	static void addFileToClipboardCut(const std::wstring& filePath);
 	// 多文件版本（剪切板历史里的「N 个文件」条目复制回剪切板）
 	static void addFilesToClipboard(const std::vector<std::wstring>& paths, bool cut = false);
-	// 剪切板里能当图片用的内容 → 文件路径列表：
-	//   · 资源管理器里复制的图片文件 → 原路径（和拖放完全一样）；
-	//   · 位图（PNG / CF_DIBV5 / CF_DIB / CF_BITMAP）→ 落到 AppData\temp 下的 PNG。
-	// 图片编辑器的 Ctrl+V 用它，拿到路径后走和拖放同一条路。剪贴板里没有图片时返回 false。
-	static bool clipboardImagePaths(std::vector<std::wstring>& paths);
 	// WIC 从文件解码成 BGRA、top-down、行紧凑（步长 = w*4）；失败返回 {0,0,空}
 	static std::tuple<int, int, std::vector<BYTE>> loadImagePixels(const std::wstring& path);
 	// 只读图片头拿像素尺寸（不解码像素；失败返回 {0,0}）—— 停悬大图预览按宽高比定窗口用

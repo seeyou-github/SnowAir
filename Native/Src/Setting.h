@@ -37,7 +37,7 @@ public:
 
 	// —— 托盘右键菜单（设置 → 右键菜单）——
 	// 菜单项 id 与全局热键 id 同名：capture / ocr / ocr_translate / quick_translate /
-	// record / fullscreen_canvas / make_collage / settings / exit
+	// record / fullscreen_canvas / settings / exit
 	static std::vector<std::wstring> defaultTrayMenuOrder();
 	// 当前项序（读盘顺序 + 补齐缺失项 + 丢弃未知项）
 	std::vector<std::wstring> getTrayMenuOrder();

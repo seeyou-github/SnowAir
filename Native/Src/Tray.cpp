@@ -8,7 +8,6 @@
 #include "Win/WinCap.h"
 #include "Win/WinSetting.h"
 #include "Win/WinQuickTranslate.h"
-#include "Win/WinImageEdit.h"
 #include "Setting.h"
 #include "Win/SettingTheme.h"
 #include "Win/MenuTheme.h"
@@ -26,7 +25,7 @@ namespace {
 	// 这里只保留一张 id → 命令 / 文案的静态表。
 	enum MenuCmd : UINT {
 		kCmdCapture = 1, kCmdOcr, kCmdTranslate, kCmdQuickTranslate,
-		kCmdRecord, kCmdDemoCanvas, kCmdMakeCollage, kCmdSettings, kCmdExit,
+		kCmdRecord, kCmdDemoCanvas, kCmdSettings, kCmdExit,
 	};
 
 	// id 与「右键菜单」页的项 id、全局热键 id 三者同名（键位就是 getShortcutKey(id)）
@@ -38,7 +37,6 @@ namespace {
 		{ L"quick_translate",   kCmdQuickTranslate, L"tray.quickTranslate", L"quick_translate" },
 		{ L"record",            kCmdRecord,         L"tray.record",         L"record" },
 		{ L"fullscreen_canvas", kCmdDemoCanvas,     L"tray.demoCanvas",     L"fullscreen_canvas" },
-		{ L"make_collage",      kCmdMakeCollage,    L"tray.makeCollage",    L"make_collage" },
 		{ L"settings",          kCmdSettings,       L"tray.setting",        nullptr },
 		{ L"exit",              kCmdExit,           L"tray.exit",           nullptr },
 	};
@@ -279,7 +277,6 @@ private:
 		case kCmdQuickTranslate: WinQuickTranslate::toggle(); break;
 		case kCmdRecord:         WinCap::beginRecordPick(); break;
 		case kCmdDemoCanvas:     WinCap::beginDemoCanvas(); break;
-		case kCmdMakeCollage:    WinImageEdit::init(); break;
 		case kCmdSettings:       WinSetting::init(0); break;
 		case kCmdExit:           if (auto* app = Ling::App::get()) app->quit(0); break;
 		default: break;

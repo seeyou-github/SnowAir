@@ -11,7 +11,6 @@
 #include "WinPin.h"
 #include "WinCap.h"
 #include "PinMenu.h"
-#include "WinImageEdit.h"
 #include "../Tool/ToolOcr.h"
 #include "../Ocr/OcrService.h"
 #include "../Ocr/LwPpOcrEngine.h"
@@ -1249,35 +1248,6 @@ void WinPin::copyToClipboard()
 	// 复制不再关闭贴图（用户确认）
 }
 
-// 右键「导入图片编辑」：底图导出成临时 PNG，贴图上的标注克隆成矢量对象一起交给编辑器。
-// 编辑器的入口只认文件路径，所以底图需要一个落盘文件；文件留在 AppData\temp。
-void WinPin::importToImageEditor()
-{
-	// 缩略图态只是显示用的缩略尺寸；导入的应该是完整贴图
-	if (thumbnail) exitThumbnail();
-	// 正在编辑：先把这一轮标注确认下来，保证导入的是屏幕上看到的内容
-	if (editing) finishEditing(true);
-
-	// 贴图上的矢量标注：全部克隆一份交给图片编辑器继续编辑
-	std::vector<std::unique_ptr<ShapeBase>> shapes;
-	if (history) shapes = cloneShapesForHost(nullptr, history->shapes);
-
-	std::vector<BYTE> pixels;
-	D2D1_SIZE_U size{};
-	// 标注以矢量搬过去，底图不能再把标注画进去，否则编辑器里会叠两层
-	if (!getAnnotPixels(pixels, size, nullptr, false)) return;
-	if (size.width == 0 || size.height == 0) return;
-
-	const std::wstring path = (Util::tempDir() /
-		wfmt(L"ScreenShut-pin-edit-%lu-%llu.png", GetCurrentProcessId(), GetTickCount64())).wstring();
-	if (!Util::saveToFile(path, (int)size.width, (int)size.height, pixels.data())) return;
-
-	WinImageEdit::init();
-	auto* editor = WinImageEdit::get();
-	if (!editor) return;
-	editor->importImageWithShapes(path, std::move(shapes), (int)size.width, (int)size.height);
-}
-
 void WinPin::saveToFile()
 {	auto foregroundBeforeDialog = GetForegroundWindow();
 	// 保存前后把窗口摆回原处：系统对话框可能带来 DPI / 焦点变化，避免贴图"移位"
@@ -1647,7 +1617,6 @@ void WinPin::showContextMenu(POINT screenPt)
 	// 缩略图态不提供识别结果（窗口只有 50px，叠加层没有意义）：整项置灰、不可点
 	items.back().enabled = !thumbnail;
 	sep();
-	add(Lang::get(L"pin.menuImportEdit"), [this]() { importToImageEditor(); });
 	add(Lang::get(L"pin.menuEdit"), [this]() { if (thumbnail) exitThumbnail(); setEditing(true); });
 	addSub(Lang::get(L"pin.menuTransform"), {
 		sub(Lang::get(L"pin.menuRotateL"), [this]() { rotateImage90(false); }),

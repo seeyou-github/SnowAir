@@ -13,7 +13,6 @@
 #include "./Win/WinPin.h"
 #include "./Win/WinSetting.h"
 #include "./Win/WinQuickTranslate.h"
-#include "./Win/WinImageEdit.h"
 #include "./Win/ScreenCapture.h"
 #include "Ocr/LwPpOcrEngine.h"
 #include "SingleInstance.h"
@@ -245,7 +244,7 @@ void App::captureFocusedWindowSilent()
 	DWORD pid = 0;
 	GetWindowThreadProcessId(fg, &pid);
 	if (!pid) return;
-	// 自己的窗口里只认「真正的窗口」：设置页 / 图片编辑页；
+	// 自己的窗口里只认「真正的窗口」：设置页；
 	// 截图遮罩、托盘菜单、工具条这些不截（截出来是废图）
 	const bool ownWindow = (pid == GetCurrentProcessId());
 	if (ownWindow) {
@@ -253,8 +252,7 @@ void App::captureFocusedWindowSilent()
 		if (auto* lapp = Ling::App::get()) {
 			for (auto* w : lapp->windows) {
 				if (!w || w->hwnd != fg) continue;
-				allowed = dynamic_cast<WinSetting*>(w) != nullptr
-					|| dynamic_cast<WinImageEdit*>(w) != nullptr;
+				allowed = dynamic_cast<WinSetting*>(w) != nullptr;
 				break;
 			}
 		}
@@ -356,14 +354,6 @@ App::App()
         const bool enterDirect = enterIt != app->args.end()
             && enterIt->second != L"tray" && enterIt->second != L"true";
         if (enterDirect) {
-            // 图片编辑不是截图会话：直接开编辑窗口（--enter=edit，别名 image）。
-            // 参数一次性，取走后清掉，后续逻辑不会再看到它。
-            const std::wstring enterVal = enterIt->second;
-            if (enterVal == L"edit" || enterVal == L"image") {
-                app->args.erase(enterIt);
-                WinImageEdit::init();
-                return;
-            }
             WinCap::init();
             return;
         }
