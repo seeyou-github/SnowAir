@@ -1078,7 +1078,7 @@ void Setting::addToolbarSizeListener(std::function<void()> listener)
 {
     if (listener) toolbarSizeListeners.push_back(std::move(listener));
 }
-bool Setting::getSilentCapture() { return featBool(L"silentCapture", true); }
+bool Setting::getSilentCapture() { return featBool(L"silentCapture", false); }
 void Setting::setSilentCapture(bool on) { setFeatBool(L"silentCapture", on); }
 bool Setting::getPauseHotkeysFullscreen() { return featBool(L"pauseHotkeysFullscreen", false); }
 void Setting::setPauseHotkeysFullscreen(bool on) { setFeatBool(L"pauseHotkeysFullscreen", on); }
@@ -1193,7 +1193,7 @@ void Setting::clearToolDesign()
 	features.SetNamedValue(L"toolDesignUsed", JsonValue::CreateBooleanValue(false));
 	save();
 }
-bool Setting::getRememberToolStyle() { return featBool(L"rememberToolStyle", false); }
+bool Setting::getRememberToolStyle() { return featBool(L"rememberToolStyle", true); }
 void Setting::setRememberToolStyle(bool on) { setFeatBool(L"rememberToolStyle", on); }
 namespace {
 	JsonObject toolLastRoot(JsonObject& features)
@@ -1313,13 +1313,13 @@ void Setting::restoreFunctionTranslateDefaults()
 	setQuickTranslateNewSession(false);
 }
 
-// 其他功能：功能提示开、快捷键提示关、记忆工具样式关、静默截图开
+// 其他功能：功能提示开、快捷键提示关、记忆工具样式开、静默截图关
 void Setting::restoreFunctionOtherDefaults()
 {
 	setFeatureTips(true);
 	setHotkeyTip(false);
-	setRememberToolStyle(false);
-	setSilentCapture(true);
+	setRememberToolStyle(true);
+	setSilentCapture(false);
 	setCaptureToolbarAlign(0);
 	setPauseHotkeysFullscreen(false);
 }
@@ -1369,8 +1369,8 @@ bool Setting::functionTranslateAtDefaults()
 bool Setting::functionOtherAtDefaults()
 {
 	return getFeatureTips() && !getHotkeyTip()
-		&& !getRememberToolStyle()
-		&& getSilentCapture() && getCaptureToolbarAlign() == 0
+		&& getRememberToolStyle()
+		&& !getSilentCapture() && getCaptureToolbarAlign() == 0
 		&& !getPauseHotkeysFullscreen();
 }
 
