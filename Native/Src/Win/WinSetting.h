@@ -15,7 +15,7 @@ public:
 	~WinSetting();
 	static void init();
 	// 打开设置中心并切到指定菜单页
-	// （0 右键菜单 / 1 快捷翻译 / 2 系统按键 / 3 外观 / 4 功能）
+	// （0 右键菜单 / 1 快捷翻译[无左侧入口] / 2 系统按键 / 3 外观 / 4 功能）
 	static void init(int pageIndex);
 	static void dispose();
 	// 全局快捷键用：已在该页且在前台就关掉，否则打开/切到该页并抢前台

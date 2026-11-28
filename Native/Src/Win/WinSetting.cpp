@@ -26,6 +26,15 @@ std::unique_ptr<WinSetting> winSetting;
 
 namespace {
 	unsigned long long gSettingUid = 0;   // 每建一个设置窗 +1
+
+	// 左侧导航只显示 4 项；页面索引沿用原编号（1=快捷翻译，保留功能但不放入口）。
+	constexpr int kPageOfMenu[] = { 0, 2, 3, 4 };
+	int menuIndexOfPage(int page)
+	{
+		for (int i = 0; i < 4; ++i)
+			if (kPageOfMenu[i] == page) return i;
+		return -1;
+	}
 }
 
 WinSetting::WinSetting() : Ling::WinBase()
@@ -250,7 +259,7 @@ void WinSetting::onCreated()
 		subLabel->setColor(SettingTheme::textSecondary);
 	}
 
-	// ② 中部：5 菜单（右键菜单 → 快捷翻译 → 系统按键 → 外观 → 功能）
+	// ② 中部：4 菜单（右键菜单 → 系统按键 → 外观 → 功能）
 	initMenuItems(sideNav);
 
 	// ③ 底部：版本号（zinc-400 弱文字）。数字从当前 exe 的内存版本资源取，与「关于」页同源；后缀带 Lite 版本标记。
@@ -355,32 +364,30 @@ void WinSetting::onCreated()
 	DwmFlush();
 }
 
-// 5 菜单：按键顺序 TrayMenu → Quick → SystemKeys → Appearance → Features
+// 4 菜单：按键顺序 TrayMenu → SystemKeys → Appearance → Features（页面索引 1=Quick 保留但无入口）
 void WinSetting::initMenuItems(Ling::Node* sideNav)
 {
-	const std::wstring keys[5] = {
+	const std::wstring keys[4] = {
 		L"setting.trayMenu",
-		L"setting.quick",
 		L"setting.systemKeys",
 		L"setting.appearance",
 		L"setting.function",
 	};
-	const wchar_t* icons[5] = {
+	const wchar_t* icons[4] = {
 		Icon::Dropdown,    // 右键菜单（下拉式菜单清单）
-		Icon::Quick,       // 快捷翻译
 		Icon::SystemKeys,  // 系统按键
 		Icon::Appearance,  // 外观设置
 		Icon::Function,    // 功能设置
 	};
 	menus.clear();
-	gMenuData.assign(5, MenuItemData{});
+	gMenuData.assign(4, MenuItemData{});
 
 	auto menuBox = sideNav->makeChild<Ling::Node>();
 	menuBox->setFlexGrow(1.0);
 	menuBox->setFlexDirection(Ling::FlexDirection::Column);
 	menuBox->setJustifyContent(Ling::Justify::Start);
 
-	for (int i = 0; i < 5; ++i) {
+	for (int i = 0; i < 4; ++i) {
 		auto menuItem = menuBox->makeChild<Ling::Button>();
 		menuItem->setWidthPercent(100.f);
 		menuItem->setText(L""); // 内部 Text 置空，由手动 Label 控制
@@ -401,7 +408,7 @@ void WinSetting::initMenuItems(Ling::Node* sideNav)
 		d.lab->setFontSize(SettingTheme::fontLg);
 		d.lab->setFlexShrink(1.f);
 
-		ApplyMenuItemStyle(menuItem, i == menuIndex, d);
+		ApplyMenuItemStyle(menuItem, i == menuIndexOfPage(menuIndex), d);
 		menuItem->onClick.add([this](auto mi) { onMenuItemClick(mi); });
 		menus.push_back(menuItem);
 	}
@@ -411,14 +418,16 @@ void WinSetting::onMenuItemClick(Ling::Button* menuItem)
 {
 	auto index = Ling::Util::getIndex(menus, menuItem);
 	if (index < 0) return;
-	if (index == menuIndex) {
+	const int page = kPageOfMenu[index];
+	if (page == menuIndex) {
 		return;
 	}
 
-	// 切换选中样式
-	ApplyMenuItemStyle(menus[menuIndex], false, gMenuData[menuIndex]);
-	menuIndex = index;
-	ApplyMenuItemStyle(menuItem, true, gMenuData[menuIndex]);
+	// 切换选中样式（菜单位与页面索引不同，需换算）
+	const int oldMenu = menuIndexOfPage(menuIndex);
+	if (oldMenu >= 0) ApplyMenuItemStyle(menus[oldMenu], false, gMenuData[oldMenu]);
+	menuIndex = page;
+	ApplyMenuItemStyle(menuItem, true, gMenuData[index]);
 
 	// 点击回调运行在 win->onMouseUp 派发中，同步销毁旧页会留下悬空回调，故延后切页
 	scheduleLoadPage(menuIndex);
@@ -451,11 +460,13 @@ void WinSetting::showPage(int index)
 {
 	if (menus.empty() || gMenuData.empty()) return;
 	if (index < 0) index = 0;
-	if (index > (int)menus.size() - 1) index = (int)menus.size() - 1;
+	if (index > kPageOfMenu[3]) index = kPageOfMenu[3];
 	if (index == menuIndex) return;
-	ApplyMenuItemStyle(menus[menuIndex], false, gMenuData[menuIndex]);
+	const int oldMenu = menuIndexOfPage(menuIndex);
+	if (oldMenu >= 0) ApplyMenuItemStyle(menus[oldMenu], false, gMenuData[oldMenu]);
 	menuIndex = index;
-	ApplyMenuItemStyle(menus[menuIndex], true, gMenuData[menuIndex]);
+	const int newMenu = menuIndexOfPage(menuIndex);
+	if (newMenu >= 0) ApplyMenuItemStyle(menus[newMenu], true, gMenuData[newMenu]);
 	loadPage(menuIndex);
 }
 
@@ -511,7 +522,7 @@ void WinSetting::loadPage(int index)
 		SettingUi::adoptChild(content, child);
 	};
 
-	// 菜单顺序：0=TrayMenu 1=Quick 2=SystemKeys 3=Appearance 4=Features
+	// 页面索引：0=TrayMenu 1=Quick(无左侧入口) 2=SystemKeys 3=Appearance 4=Features
 	switch (index) {
 	case 0:
 		pageTrayMenu = new WinSettingTrayMenu(this);
