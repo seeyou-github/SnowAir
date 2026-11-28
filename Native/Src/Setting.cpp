@@ -1267,7 +1267,7 @@ void Setting::restoreFunctionScreenshotDefaults()
 // 视频录制：编码/画质/帧率/GIF/声音/录制附加项，外加高亮圆颜色（删覆盖项 → 回落默认品牌绿）
 void Setting::restoreFunctionRecordDefaults()
 {
-	setVideoQuality(4);
+	setVideoQuality(2);
 	setVideoFps(0);
 	setGifQuality(1);
 	setGifFps(1);
@@ -1338,7 +1338,7 @@ bool Setting::functionScreenshotAtDefaults()
 
 bool Setting::functionRecordAtDefaults()
 {
-	return getVideoQuality() == 4 && getVideoFps() == 0 && getGifQuality() == 1
+	return getVideoQuality() == 2 && getVideoFps() == 0 && getGifQuality() == 1
 		&& getGifFps() == 1 && getGifFormat() == 0 && getRecordMic() == 0
 		&& getVideoEncoder() == 0 && getEncodeSpeed() == 1 && getHwAccel()
 		&& getHideToolbarInRecord() && getKeyOverlayPos() == kKeyOverlayNone && !getSelFollowMouse()
@@ -1374,7 +1374,7 @@ bool Setting::functionOtherAtDefaults()
 		&& !getPauseHotkeysFullscreen();
 }
 
-int Setting::getVideoQuality() { return featInt(L"videoQuality", 4); }
+int Setting::getVideoQuality() { return featInt(L"videoQuality", 2); }
 void Setting::setVideoQuality(int v) { setFeatInt(L"videoQuality", v); }
 int Setting::getVideoFps() { return featInt(L"videoFps", 0); }
 void Setting::setVideoFps(int v) { setFeatInt(L"videoFps", v); }
