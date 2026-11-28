@@ -1280,7 +1280,7 @@ void Setting::restoreFunctionRecordDefaults()
 	setKeyOverlayPos(kKeyOverlayNone);
 	setSelFollowMouse(false);
 	setRecordToolbarPeek(false);
-	setRecordDefaultPierce(false);
+	setRecordDefaultPierce(true);
 	setMouseTrailEffect(kMouseTrailNone);
 	setMouseClickEffect(kMouseClickNone);
 	featuresObj().Remove(L"mouseHighlightColor");
@@ -1342,7 +1342,7 @@ bool Setting::functionRecordAtDefaults()
 		&& getGifFps() == 1 && getGifFormat() == 0 && getRecordMic() == 0
 		&& getVideoEncoder() == 0 && getEncodeSpeed() == 1 && getHwAccel()
 		&& getHideToolbarInRecord() && getKeyOverlayPos() == kKeyOverlayNone && !getSelFollowMouse()
-		&& !getRecordToolbarPeek() && !getRecordDefaultPierce()
+		&& !getRecordToolbarPeek() && getRecordDefaultPierce()
 		&& getMouseTrailEffect() == kMouseTrailNone
 		&& getMouseClickEffect() == kMouseClickNone
 		&& getMouseHighlightColor() == 0x0FDC78FF;
@@ -1409,7 +1409,7 @@ bool Setting::getSelFollowMouse() { return featBool(L"selFollowMouse", false); }
 void Setting::setSelFollowMouse(bool on) { setFeatBool(L"selFollowMouse", on); }
 bool Setting::getRecordToolbarPeek() { return featBool(L"recordToolbarPeek", false); }
 void Setting::setRecordToolbarPeek(bool on) { setFeatBool(L"recordToolbarPeek", on); }
-bool Setting::getRecordDefaultPierce() { return featBool(L"recordDefaultPierce", false); }
+bool Setting::getRecordDefaultPierce() { return featBool(L"recordDefaultPierce", true); }
 void Setting::setRecordDefaultPierce(bool on) { setFeatBool(L"recordDefaultPierce", on); }
 int Setting::getMouseTrailEffect()
 {

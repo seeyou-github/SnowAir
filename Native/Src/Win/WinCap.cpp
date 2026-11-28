@@ -5664,12 +5664,12 @@ void WinCap::startOcrInternal(bool translateMode)
 					cap->close();
 				});
 			});
-			// 右键落在浮层上：先收起结果面板（右键的第一层），保留选区
+			// 右键落在浮层上：直接退出截图（不保留选区）
 			toolOcr->setOnDismiss([h]() {
 				Ling::App::get()->dq.TryEnqueue([h]() {
 					auto* cap = WinCap::get();
 					if (!cap || cap->hwnd != h || !IsWindow(h)) return;
-					cap->clearOcrPanel();
+					cap->close();
 				});
 			});
 		}

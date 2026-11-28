@@ -139,11 +139,17 @@ bool ToolCap::isPinOnly(const std::wstring& id)
 std::vector<bool> ToolCap::visibleSlots() const
 {
 	std::vector<bool> keep(btnIds.size(), true);
+	// OCR / 翻译结果面板打开时：截图工具栏只留「翻译」「关闭」，宽度随布局自适应。
+	const bool ocrPanel = winCap && winCap->hasOcrPanel();
 	// 默认布局：显示光标 / 贴图 / 保存 放在隐藏区（与设置页「截图工具栏外观」默认一致）。
 	// 用户存过布局后以设置页为准 —— 把这几项拖回显示区即可恢复。
 	const bool useDefaultHidden = !ToolbarStore::hasSavedLayout(0);
 	for (size_t i = 0; i < btnIds.size(); i++) {
 		if (btnIds[i] == L"|") continue;
+		if (ocrPanel) {
+			keep[i] = (btnIds[i] == L"translate" || btnIds[i] == L"close");
+			continue;
+		}
 		if (winPin) {
 			if (isPinHidden(btnIds[i])) keep[i] = false;
 		}
@@ -610,6 +616,9 @@ void ToolCap::syncOcrTranslateButtons()
 			if (hasPanel && isTranslate) applySelectedStyle(b); else applyNormalStyle(b);
 		}
 	}
+	// 面板开关会改变可见槽位（OCR/翻译时只留「翻译」「关闭」），按钮显隐与宽度都要跟着更新。
+	applySlotVisibility();
+	refreshSize();
 }
 
 void ToolCap::selectAnnotTool(const std::wstring& id)
