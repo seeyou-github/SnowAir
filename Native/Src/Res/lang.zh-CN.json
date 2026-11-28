@@ -8,7 +8,7 @@
   "cap": {
     "mark": "标注图片",
     "long": "长截图",
-    "video": "屏幕录制",
+    "video": "录屏",
     "ocr": "识别文字",
     "ocrClear": "清除识别结果",
     "qrcode": "二维码识别",
@@ -24,7 +24,7 @@
     "capture": "截图",
     "ocr": "OCR",
     "translate": "翻译",
-    "record": "屏幕录制",
+    "record": "录屏",
     "demoCanvas": "演示画布",
     "quickTranslate": "快捷翻译"
   },
@@ -481,7 +481,7 @@
     "capture_fullscreen": "截取全屏",
     "capture_focused_window": "截取焦点窗口",
     "fullscreen_canvas": "演示画布",
-    "record": "屏幕录制",
+    "record": "录屏",
     "show_cursor": "显示鼠标指针",
     "quick_translate": "快捷翻译",
     "translate_selection": "翻译选区",
