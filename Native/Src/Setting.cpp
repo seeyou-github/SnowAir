@@ -1043,7 +1043,7 @@ void Setting::setFeatureTips(bool on) { setFeatBool(L"featureTips", on); }
 bool Setting::getHotkeyTip() { return featBool(L"hotkeyTip", false); }
 void Setting::setHotkeyTip(bool on) { setFeatBool(L"hotkeyTip", on); }
 
-bool Setting::getFindWindowElements() { return featBool(L"findWindowElements", true); }
+bool Setting::getFindWindowElements() { return featBool(L"findWindowElements", false); }
 void Setting::setFindWindowElements(bool on) { setFeatBool(L"findWindowElements", on); }
 int Setting::getPinWheelAction()
 {

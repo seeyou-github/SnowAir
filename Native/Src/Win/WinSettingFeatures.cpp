@@ -861,9 +861,6 @@ void WinSettingFeatures::buildBasic(Ling::Node* p)
 		auto* g = SettingUi::grid2(p);
 		SettingUi::toggleRow(g, Lang::get(L"setting.findWindowElements"), s->getFindWindowElements(),
 			[](bool on) { Setting::get()->setFindWindowElements(on); }, true);
-		// 保存组已取消，其内容并入截图组
-		SettingUi::toggleRow(g, Lang::get(L"setting.autoSaveAfterCapture"), s->getAutoSaveAfterCapture(),
-			[](bool on) { Setting::get()->setAutoSaveAfterCapture(on); }, true);
 		// 名称 + 落地扩展名
 		const std::vector<std::wstring> fmts = {
 			L"PNG (*.png)", L"JPEG (*.jpg)", L"WebP (*.webp)", L"BMP (*.bmp)"
@@ -875,9 +872,7 @@ void WinSettingFeatures::buildBasic(Ling::Node* p)
 			[fmts](int i, const std::wstring&) {
 				if (i >= 0 && i < (int)fmts.size()) Setting::get()->setSaveFormat(fmts[i]);
 			}, true);
-		// 右列三行都是下拉：托盘单击行为 / 保存格式 / 截图完成执行，视觉上对齐
-		SettingUi::toggleRow(g, Lang::get(L"setting.cancelConfirmDialog"), s->getCancelConfirmDialog(),
-			[](bool on) { Setting::get()->setCancelConfirmDialog(on); }, true);
+		// 右列两行都是下拉：保存格式 / 截图完成执行，视觉上对齐
 		const std::vector<std::wstring> finishOpts{
 			Lang::get(L"setting.finishSaveCopyImage"),
 			Lang::get(L"setting.finishSaveCopyFile"),
@@ -893,9 +888,6 @@ void WinSettingFeatures::buildBasic(Ling::Node* p)
 	SettingUi::groupLabel(p, Lang::get(L"setting.fnGrpPin"));
 	{
 		auto* g = SettingUi::grid2(p);
-		// 顺序：自动文本识别在前，「滚动后执行」紧随其后（用户要求）。
-		SettingUi::toggleRow(g, Lang::get(L"setting.pinAutoOcr"), s->getPinAutoOcr(),
-			[](bool on) { Setting::get()->setPinAutoOcr(on); }, true);
 		SettingUi::selectRow(g, Lang::get(L"setting.pinWheelAction"),
 			{ Lang::get(L"setting.pinWheelZoomAtCursor"),
 			  Lang::get(L"setting.pinWheelZoomEdge"),
