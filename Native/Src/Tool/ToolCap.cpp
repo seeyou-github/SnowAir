@@ -139,12 +139,19 @@ bool ToolCap::isPinOnly(const std::wstring& id)
 std::vector<bool> ToolCap::visibleSlots() const
 {
 	std::vector<bool> keep(btnIds.size(), true);
+	// 默认布局：显示光标 / 贴图 / 保存 放在隐藏区（与设置页「截图工具栏外观」默认一致）。
+	// 用户存过布局后以设置页为准 —— 把这几项拖回显示区即可恢复。
+	const bool useDefaultHidden = !ToolbarStore::hasSavedLayout(0);
 	for (size_t i = 0; i < btnIds.size(); i++) {
 		if (btnIds[i] == L"|") continue;
 		if (winPin) {
 			if (isPinHidden(btnIds[i])) keep[i] = false;
 		}
 		else if (isPinOnly(btnIds[i])) {
+			keep[i] = false;
+		}
+		else if (useDefaultHidden &&
+			(btnIds[i] == L"show-cursor" || btnIds[i] == L"pin" || btnIds[i] == L"save")) {
 			keep[i] = false;
 		}
 	}
