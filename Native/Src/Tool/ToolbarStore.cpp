@@ -46,12 +46,14 @@ namespace ToolbarStore {
 		}
 		else if (kind == 1) {
 			// 录屏栏（kind=1）：鼠标穿透 ┊ 录制/暂停（**同一个按钮**，
-			// 不再是播放/暂停两个）・时长・系统声・麦克风 ┊ 标注… ┊ 动图/保存/取消/确认
+			// 不再是播放/暂停两个）・时长・系统声・麦克风 ┊ 标注… ┊ 动图/取消/确认。
+			// 保存默认放在隐藏区（设置页红框那一行）。
+			st.inactive = { L"save", L"split-extra" };
 			st.active = { L"mouse-through", L"split-3", L"video-play", L"record-time",
 				L"video-audio", L"video-mic",
 				L"split-0", L"rect", L"arrow", L"pen", L"text",
 				L"serial-number", L"mosaic", L"eraser", L"split-1", L"undo", L"split-2",
-				L"video-gif", L"save", L"cancel", L"confirm" };
+				L"video-gif", L"cancel", L"confirm" };
 		}
 		else if (kind == 2) {
 			// 演示画布（kind=2）：椭圆同样并入矩形，不单列；

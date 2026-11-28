@@ -236,7 +236,13 @@ void ToolVideo::buildBar()
 std::vector<std::wstring> ToolVideo::resolveSlots() const
 {
 	const auto& def = defaultVideoSlots();
-	if (!ToolbarStore::hasSavedLayout(1)) return def;
+	if (!ToolbarStore::hasSavedLayout(1)) {
+		// 默认布局：保存放隐藏区（与设置页「录屏工具栏外观」默认一致）。
+		// 用户存过布局后仍以设置页为准 —— 把保存拖回显示区即可恢复。
+		std::vector<std::wstring> out;
+		for (const auto& id : def) if (id != L"save") out.push_back(id);
+		return out;
+	}
 	auto st = ToolbarStore::loadLayout(1);
 	std::vector<std::wstring> out;
 	for (const auto& sid : st.active) {
