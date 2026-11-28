@@ -267,8 +267,6 @@ private:
 	// applyEffects=false：不要「选区圆角/阴影」这类导出效果，拿原始选区像素（OCR 叠加层要用）
 	bool exportSelection(std::vector<BYTE>& pixels, int& cw, int& ch, bool includeAnnot = true,
 		bool applyEffects = true);
-	// 记住本次选区（屏幕坐标），供全局热键「重复截图」重新抓同一块
-	void rememberLastRegion();
 	bool beginMaskResize(POINT pos);
 	void applyMaskHitCursor(MaskHit hit);
 	bool hasAnnotShapes() const;

@@ -50,9 +50,6 @@ public:
 	// 「右键菜单」页的「恢复默认」：项序 + 开关 + 这几条菜单项的键位一起回到出厂
 	void restoreTrayMenuDefaults();
 	bool trayMenuAtDefaults();
-	// 全局热键「重复截图」：记住的上一块选区（屏幕坐标）。无记录返回 false。
-	bool getLastCaptureRect(int& x, int& y, int& w, int& h);
-	void setLastCaptureRect(int x, int y, int w, int h);
 	void setAutoStart(bool autoStart);
 	bool getAutoStart();
 	// 启动时调用：按当前配置同步一次 HKCU Run 项。开启时用当前 exe 路径覆盖，
@@ -260,11 +257,6 @@ public:
 	static std::wstring defaultManualSaveFormat();
 	static std::wstring defaultAutoSaveFormat();
 	static std::wstring defaultVideoRecordFormat();
-	int getHistoryRetentionDays();
-	void setHistoryRetentionDays(int days);
-	// 「停用截图历史」：开启后设置中心不再显示「截图历史」菜单（不影响已生成的文件与索引）
-	bool getDisableCaptureHistory();
-	void setDisableCaptureHistory(bool on);
 	int getAppTheme();
 	void setAppTheme(int v);
 
@@ -302,103 +294,14 @@ public:
 	bool isWindowBlacklisted(const std::wstring& windowTitle,
 		const std::wstring& processName = L"", const std::wstring& fileDescription = L"");
 
-	// —— 历史：只索引真实存在的输出文件，不复制内容 ——
-	struct HistoryItem {
-		std::wstring id;
-		// 真实文件路径（截图/长图/静默截图在截图目录，录屏在用户保存的位置）
-		std::wstring filePath;
-		// "fullscreen" / "focused" / "capture" / "long" / "record" / "clipboard" / "pin"
-		std::wstring source;
-		int width{ 0 };
-		int height{ 0 };
-		int durationSec{ 0 };      // 录屏时长（秒）；截图/未知为 0
-		long long createdAt{ 0 };  // ms epoch
-		// 仅剪切板条目的界面数据（不落盘）
-		std::wstring text;
-		std::vector<std::wstring> files;
-	};
-	// 索引里的条目（只含登记过的真实文件）
-	std::vector<HistoryItem> getHistoryItems();
-	// 历史页用：索引 + 扫描截图/录屏目录里已有的文件（可见即所得）
-	std::vector<HistoryItem> getHistoryItemsForUi(bool forceRescan = false);
-	// 文件名是否由本软件的保存模板生成（手动 / 自动保存前缀）：
-	// 这类磁盘扫描条目仍算「截图」，不归到「其他」
-	bool isOwnHistoryFile(const std::wstring& filePath);
-	// 自定义标签：按真实文件路径存（目录扫描出来、未登记的条目也能打标签）
-	std::vector<std::wstring> getHistoryTags(const std::wstring& filePath);
-	// 批量取标签：一次读盘，按传入顺序逐条返回（信封面板批量填标签用，
-	// 避免每条都调 getHistoryTags 把整份索引重读一遍）。
-	std::vector<std::vector<std::wstring>> getHistoryTagsForPaths(
-		const std::vector<std::wstring>& paths);
-	void setHistoryTags(const std::wstring& filePath, const std::vector<std::wstring>& tags);
-	// 所有可用标签（去重 + 字典序，只保留文件仍存在的条目）
-	std::vector<std::wstring> getAllHistoryTags();
-	void pruneExpiredHistory();
-	// deleteFile=false：只删历史记录/索引，不动磁盘上的文件（设置页单条删除用）；
-	// 目录扫描出来的用户文件没有索引，改为记入隐藏列表（同样不删文件）。
-	void removeHistoryItem(const std::wstring& id, bool deleteFile = true);
-	// sourceTab：0 全部 / 1 只清截图 / 2 只清录屏（与历史页导航一致）
-	void clearAllHistory(int sourceTab = 0);
-	// 「其他」：只清目录里用户自己放进去的图片/视频（移入回收站），不碰索引里的软件产物
-	void clearOtherFiles();
-
-	// —— 剪切板历史 ——
-	// 只记录文本与文件路径，不入缓存目录；文本直接存索引（不限条数）
-	struct ClipboardItem {
-		std::wstring id;
-		std::wstring type;      // "text" / "files"
-		std::wstring text;      // 文本内容（type=text）
-		std::vector<std::wstring> files;   // 文件列表（type=files，可能多个；只记路径）
-		long long createdAt{ 0 };
-		unsigned hash{ 0 };     // 去重用（文件路径串的 FNV-1a）
-		std::vector<std::wstring> tags;   // 自定义标签（筛选「全部」时可把剪切板条目筛出来）
-	};
-	std::vector<ClipboardItem> getClipboardItems();
-	std::vector<std::wstring> getClipboardTags(const std::wstring& id);
-	// 插件本地数据（local.json）：key 用点分路径，如 "rack.items"，值为 JSON 对象。
+	// 插件本地数据：key 用点分路径，如 "rack.items"，值为 JSON 对象；存 config.json。
 	std::wstring getLocalDataText(const std::wstring& key);
 	bool setLocalDataText(const std::wstring& key, const std::wstring& json);
-	void setClipboardTags(const std::wstring& id, const std::vector<std::wstring>& tags);
-	void addClipboardText(const std::wstring& text, bool dedup = true);
-	// 插件便签：按 id 改写文本（挪到最前）；id 不存在或不是文本返回 false
-	bool setClipboardText(const std::wstring& id, const std::wstring& text);
-	// 文件列表（资源管理器 / Word / PPT 等复制的文件）：只记路径，可以一次多个
-	void addClipboardFiles(const std::vector<std::wstring>& files);
-	// 启动时收敛旧数据里同内容的重复条目（文本 / 文件组）
-	void dedupeClipboardItems();
-	void removeClipboardItem(const std::wstring& id);
-	// 复制历史里的剪切板条目：把该条挪到最前面（更新时间），不生成重复条目。返回是否真的挪动了
-	bool touchClipboardItem(const std::wstring& id);
-	void clearClipboardHistory();
-	// 本软件自己往剪切板写入内容后调用：记住当前序列号，监听端不再把这次写入记成新条目
-	void markOwnClipboardWrite();
-	// 剪切板历史变化通知：设置页停在「剪切板」页时据此即时刷新列表
-	std::function<void()> clipboardChanged;
 	std::vector<std::function<void()>> toolbarSizeListeners;
 	void addToolbarSizeListener(std::function<void()> listener);
 private:
 	Setting();
-	// 剪切板索引写回（含上限裁剪）：新条目在前
-	void writeClipboardItems(std::vector<ClipboardItem>& items);
-	// 本机数据（剪贴板历史、截图历史、上次选区）统一保存在 dataPath\local.json。
-	// config.json 保存用户设置，可能位于同步盘；local.json 仅属于本机。
-	std::filesystem::path getLocalDataPath();
-	JsonObject loadLocalData();
-	bool saveLocalData(const JsonObject& data);
-	std::wstring getLocalStateString(const wchar_t* key);
-	void setLocalStateString(const wchar_t* key, const std::wstring& value);
-	long long getLocalStateInt(const wchar_t* key, long long def);
-	void setLocalStateInt(const wchar_t* key, long long value);
-	void migrateLocalDataToFile();
 	void normalizeConfigSections();
-	void purgeNonUserConfig();
-	bool writeClipboardItemsToFile(const std::vector<ClipboardItem>& items);
-	JsonObject loadHistoryStore();
-	bool saveHistoryStore(const JsonObject& store);
-	// 历史页目录扫描缓存：鼠标移动/滚动会频繁取列表，不能每次都遍历目录
-	std::vector<HistoryItem> historyUiCache_;
-	unsigned long long historyUiCacheAt_{ 0 };
-	bool historyUiCacheDirty_{ true };
 	// —— 全局热键 ——
 	// 全局热键是否已让给同机的完整版（Lite 版专用）：为 true 时不注册任何全局热键
 	bool hotkeysYielded_{ false };

@@ -313,7 +313,6 @@ void Util::saveToClipboard(const int w, const int h, BYTE* data)
 		GlobalFree(hPng);
 	}
 	CloseClipboard();
-	if (auto* s = Setting::get()) s->markOwnClipboardWrite();
 }
 
 namespace {

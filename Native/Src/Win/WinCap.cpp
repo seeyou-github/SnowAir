@@ -6181,23 +6181,11 @@ void WinCap::applyCodeScan(uint64_t gen, std::vector<CodeBadge> badges)
 
 
 // 记住本次选区（屏幕坐标）→ 全局热键「重复截图」据此再抓一块。
-// 只在真正的截图收工时调用（keepOpen 的预览 / 演示画布不算）。
-void WinCap::rememberLastRegion()
-{
-    if (!cutMask || !cutMask->hasRect()) return;
-    const int rx = x + (int)std::lround(cutMask->maskRect.left);
-    const int ry = y + (int)std::lround(cutMask->maskRect.top);
-    const int rw = (int)std::lround(cutMask->maskRect.right - cutMask->maskRect.left);
-    const int rh = (int)std::lround(cutMask->maskRect.bottom - cutMask->maskRect.top);
-    Setting::get()->setLastCaptureRect(rx, ry, rw, rh);
-}
-
 void WinCap::saveToFile(bool keepOpen)
 {
     std::vector<BYTE> pixels;
     int cw{ 0 }, ch{ 0 };
     if (!exportSelection(pixels, cw, ch)) return;
-    if (!keepOpen) rememberLastRegion();
     auto setToolTopmost = [this](bool topmost) {
         if (!toolCap || !toolCap->hwnd) return;
         SetWindowPos(toolCap->hwnd, topmost ? HWND_TOPMOST : HWND_NOTOPMOST,
@@ -6238,7 +6226,6 @@ void WinCap::copyToClipboard(bool keepOpen)
     std::vector<BYTE> pixels;
     int cw{ 0 }, ch{ 0 };
     if (!exportSelection(pixels, cw, ch)) return;
-    if (!keepOpen) rememberLastRegion();
     // 完成动作四档：保存并复制图片 / 保存并复制文件 / 保存并剪切文件 / 仅复制图片（不落盘、不进历史）
     auto* st = Setting::get();
     const int action = st ? st->getCaptureFinishAction() : 0;

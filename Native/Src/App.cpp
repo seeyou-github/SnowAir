@@ -231,7 +231,6 @@ void App::captureFullScreenSilent()
 	if (action == 1 && saved) Util::addFileToClipboard(path);
 	else if (action == 2 && saved) Util::addFileToClipboardCut(path);
 	else Util::saveToClipboard(sw, sh, pixels.data());
-	st->setLastCaptureRect(sx, sy, sw, sh);
 	// 静默截图没有窗口可反馈：托盘图标临时换成绿色的「成功」勾，1.2s 后自动恢复
 	TrayIcon::flashSuccess();
 }
@@ -294,41 +293,6 @@ void App::captureFocusedWindowSilent()
 	if (Setting::get()->getCaptureFinishAction() == 1 && saved) Util::addFileToClipboard(path);
 	else if (Setting::get()->getCaptureFinishAction() == 2 && saved) Util::addFileToClipboardCut(path);
 	else Util::saveToClipboard(w, h, pixels.data());
-	Setting::get()->setLastCaptureRect(rc.left, rc.top, w, h);
-	// 静默截图没有窗口可反馈：托盘图标临时换成绿色的「成功」勾，1.2s 后自动恢复
-	TrayIcon::flashSuccess();
-}
-
-// 全局热键「重复截图」：静默模式按上次选区直接再抓一次；关闭「静默截图」时带该选区进入工具栏。
-void App::captureLastRegionSilent()
-{
-	int rx = 0, ry = 0, rw = 0, rh = 0;
-	if (!Setting::get()->getLastCaptureRect(rx, ry, rw, rh)) return;
-
-	// 分辨率/显示器数量变了就把选区夹回当前虚拟桌面，别抓到桌面外
-	auto [sx, sy, sw, sh] = getScreenArea();
-	if (sw <= 0 || sh <= 0) return;
-	if (rx < sx) { rw -= (sx - rx); rx = sx; }
-	if (ry < sy) { rh -= (sy - ry); ry = sy; }
-	if (rx + rw > sx + sw) rw = sx + sw - rx;
-	if (ry + rh > sy + sh) rh = sy + sh - ry;
-	if (rw <= 0 || rh <= 0) return;
-
-	// 「静默截图」关闭：跳过框选，按上次选区直接进入标注工具栏
-	if (!Setting::get()->getSilentCapture()) {
-		WinCap::beginWithRect(RECT{ rx, ry, rx + rw, ry + rh });
-		return;
-	}
-
-	auto pixels = ScreenCapture::captureOrGdi(rx, ry, rw, rh);
-	if (pixels.empty()) return;
-
-	// 与区域截图收工一致：按「截图完成执行」三档决定存不存文件、剪贴板放位图还是文件
-	const int action = Setting::get()->getCaptureFinishAction();
-	const auto saved = (action != 3) ? Util::saveCompletedCapture(pixels, rw, rh) : std::wstring{};
-	if (!saved.empty() && action == 1) Util::addFileToClipboard(saved);
-	else if (!saved.empty() && action == 2) Util::addFileToClipboardCut(saved);
-	else Util::saveToClipboard(rw, rh, pixels.data());
 	// 静默截图没有窗口可反馈：托盘图标临时换成绿色的「成功」勾，1.2s 后自动恢复
 	TrayIcon::flashSuccess();
 }
@@ -352,7 +316,7 @@ App::App()
     }
 
     // 单实例判定在读取配置之前进行：第二个实例仅通知已有实例打开设置中心，
-    // 不读写 config / local.json，避免多余的同步盘写入，以及仅应由主实例执行的迁移。
+    // 不读写 config.json，避免多余的同步盘写入，以及仅应由主实例执行的迁移。
     bool hotkeysYielded = false;
     const auto autoQuitIt = app->args.find(L"--auto-quit");
     const bool autoQuit = autoQuitIt != app->args.end() && autoQuitIt->second == L"true";

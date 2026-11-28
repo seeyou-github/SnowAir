@@ -934,7 +934,6 @@ void WinSettingQuickTranslate::appendCopyButton(Ling::Node* bubble, const std::w
 	copy->onClick.add([weak, btnWeak, copy, text](Ling::Button*) {
 		if (!weak.lock() || !btnWeak.lock()) return;
 		Ling::Util::setTextToClipboard(text);
-		if (auto* s = Setting::get()) s->markOwnClipboardWrite();
 		copy->setText(Icon::CopyOk);
 		copy->setColor(0x34C759FF);
 		copy->setHoverColor(0x34C759FF);

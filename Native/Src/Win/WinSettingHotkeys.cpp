@@ -157,7 +157,6 @@ WinSettingHotkeys::WinSettingHotkeys(Ling::WinBase* parent) :Ling::Node(parent)
         // 0 截图组 3 项
         {Lang::get(L"setting.hotkeyGrpCapture"),{
             { L"capture_fullscreen",    Lang::get(L"shortcut.capture_fullscreen") },
-            { L"capture_repeat",        Lang::get(L"shortcut.capture_repeat") },
             { L"capture_focused_window",Lang::get(L"shortcut.capture_focused_window") },
         }},
         // 1 剪切板组：「打开剪切板」暂缓

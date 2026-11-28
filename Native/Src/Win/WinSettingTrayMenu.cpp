@@ -503,7 +503,6 @@ std::wstring WinSettingTrayMenu::labelOf(const std::wstring& id) const
 	}
 	// 不在本页的全局热键：用「全局热键」页的语言键
 	if (id == L"capture_fullscreen") return Lang::get(L"shortcut.capture_fullscreen");
-	if (id == L"capture_repeat") return Lang::get(L"shortcut.capture_repeat");
 	if (id == L"capture_focused_window") return Lang::get(L"shortcut.capture_focused_window");
 	if (id == L"open_clipboard") return Lang::get(L"shortcut.open_clipboard");
 	if (id == L"show_main") return Lang::get(L"shortcut.show_main");
