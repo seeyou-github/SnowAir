@@ -1760,8 +1760,15 @@ void Setting::setFeatArray(const wchar_t* key, const JsonArray& arr)
 
 int Setting::getOcrEngine() { return featInt(L"ocrEngine", 0); }
 void Setting::setOcrEngine(int v) { setFeatInt(L"ocrEngine", v); }
-int Setting::getOcrPackVariant() { return std::clamp(featInt(L"ocrPackVariant", 0), 0, 1); }
-void Setting::setOcrPackVariant(int v) { setFeatInt(L"ocrPackVariant", std::clamp(v, 0, 1)); }
+// 没显式选过模型时按旧档位 int（0=轻量 1=标准）映射成目录名；
+// 映射出的目录若已不在，引擎侧会回落到第一个可用模型（见 LwPpOcrEngine::resolveModelDir）
+std::wstring Setting::getOcrModelDir()
+{
+	const std::wstring v = featStr(L"ocrModelDir", L"");
+	if (!v.empty()) return v;
+	return featInt(L"ocrPackVariant", 0) == 1 ? L"ppocr-v6" : L"ppocr-v6-tiny";
+}
+void Setting::setOcrModelDir(const std::wstring& v) { setFeatStr(L"ocrModelDir", v); }
 int Setting::getOcrResultMode() { return featInt(L"ocrResultMode", 0); }
 void Setting::setOcrResultMode(int v) { setFeatInt(L"ocrResultMode", std::clamp(v, 0, 1)); }
 std::wstring Setting::getTranslateProvider() { return featStr(L"translateProvider", L"youdao"); }
@@ -2035,10 +2042,12 @@ void Setting::restoreFunctionOutputDefaults()
 	setRecordDir(L"");
 }
 
-// 文本识别：回到默认的离线 PP-OCRv6（未安装时运行时会自动回落系统 OCR）
+// 文本识别：回到默认的离线 PP-OCRv6（未安装时运行时会自动回落系统 OCR），
+// 模型选择清空 = 不再认目录，由引擎从 ocr-models 里自动挑
 void Setting::restoreFunctionOcrDefaults()
 {
 	setOcrEngine(0);
+	setOcrModelDir(L"");
 	setOcrResultMode(0);
 }
 
@@ -2093,7 +2102,9 @@ bool Setting::functionOutputAtDefaults()
 
 bool Setting::functionOcrAtDefaults()
 {
-	return getOcrEngine() == 0 && getOcrResultMode() == 0;
+	// 模型目录按"没显式选过"（键为空）算默认；直接查原始键，不走旧档位映射
+	return getOcrEngine() == 0 && getOcrResultMode() == 0
+		&& featStr(L"ocrModelDir", L"").empty();
 }
 
 bool Setting::functionTranslateAtDefaults()

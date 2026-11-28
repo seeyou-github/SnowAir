@@ -335,7 +335,6 @@
     <ClInclude Include="Lang.h" />
     <ClInclude Include="Net\HttpClient.h" />
     <ClInclude Include="Ocr\OcrModelManager.h" />
-    <ClInclude Include="Ocr\OcrPackVariant.h" />
     <ClInclude Include="Ocr\OcrRuntimeManager.h" />
     <ClInclude Include="Ocr\OcrService.h" />
     <ClInclude Include="Ocr\OcrTypes.h" />

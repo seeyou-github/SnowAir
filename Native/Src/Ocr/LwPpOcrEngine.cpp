@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "LwPpOcrEngine.h"
 #include "lw_infer.h"          // lw.PPOCR.C 的公开 C ABI（头文件原样引入，见其 MIT 许可）
-#include "OcrPackVariant.h"
+#include "OcrModelManager.h"
 #include "PluginPaths.h"
 #include "../Util.h"
 
@@ -58,37 +58,26 @@ std::wstring errText(lw_status st, const lw_error& e)
 	return out.empty() ? L"未知错误" : out;
 }
 
-// 当前生效的档位（设置里选的是哪个就用哪个；没装则退到另一个已装档位）
-OcrPackVariant g_variant{ OcrPackVariant::Small };
-// 引擎里实际加载的档位：与 g_variant 不一致时释放重建
-OcrPackVariant g_loadedVariant{ OcrPackVariant::Small };
+// 当前生效的模型目录（ocr-models 下的目录名；设置里选的没了就回退第一个可用的）
+std::wstring g_modelDir;
+// 引擎里实际加载的目录：与 g_modelDir 不一致时释放重建
+std::wstring g_loadedModelDir;
 
-bool modelsReady(OcrPackVariant v)
+std::wstring resolveModelDir()
 {
-	std::error_code ec;
-	const auto dir = PluginPaths::ocrModels() / OcrPack::folderName(v);
-	for (const wchar_t* name : { L"det.lwm", L"cls.lwm", L"rec.lwm", L"ppocr_keys.txt" }) {
-		const auto p = dir / name;
-		if (!std::filesystem::is_regular_file(p, ec)) return false;
-		if (std::filesystem::file_size(p, ec) == 0) return false;
-	}
-	return true;
-}
-
-OcrPackVariant resolveVariant()
-{
-	auto* s = Setting::get();
-	const OcrPackVariant want = OcrPack::clampVariant(s ? s->getOcrPackVariant() : 0);
-	if (modelsReady(want)) return want;
-	// 用户删除了所选档位：回退到另一档，避免整个 OCR 直接不可用
-	const OcrPackVariant other = want == OcrPackVariant::Small ? OcrPackVariant::Tiny : OcrPackVariant::Small;
-	if (modelsReady(other)) return other;
+	auto& mgr = OcrModelManager::instance();
+	std::wstring want;
+	if (auto* s = Setting::get()) want = s->getOcrModelDir();
+	if (!want.empty() && mgr.isReady(want)) return want;
+	// 用户删了所选目录 / 还从没选过：回落第一个可用模型，避免整个 OCR 直接不可用
+	const auto available = mgr.listModels();
+	if (!available.empty()) return available.front();
 	return want;
 }
 
 std::filesystem::path modelsDir()
 {
-	return PluginPaths::ocrModels() / OcrPack::folderName(g_variant);
+	return PluginPaths::ocrModels() / g_modelDir;
 }
 
 bool isCjkChar(wchar_t c)
@@ -162,7 +151,7 @@ bool findLeadingIconGap(const BYTE* bgr, int imgW, int imgH,
 bool loadModule(std::wstring& err)
 {
 	if (g_mod) return true;
-	const auto dll = PluginPaths::ocrRuntime(OcrPackVariant::Tiny) / L"lw_ppocr_c.dll";
+	const auto dll = PluginPaths::ocrRuntime() / L"lw_ppocr_c.dll";
 	std::error_code ec;
 	if (!std::filesystem::is_regular_file(dll, ec)) {
 		err = L"PP-OCRv6 运行时缺失，请检查安装包是否完整";
@@ -193,15 +182,35 @@ bool loadModule(std::wstring& err)
 	return true;
 }
 
+// 释放引擎 + 卸载 DLL + 还缓冲。调用方必须已持有 g_mtx（release() 是加锁后的对外入口）
+void freeEngineLocked()
+{
+	if (g_ocr && g_api.free_) g_api.free_(g_ocr);
+	g_ocr = nullptr;
+	if (g_mod) {
+		FreeLibrary(g_mod);
+		g_mod = nullptr;
+	}
+	g_api = Api{};
+	// 缓冲区也一起还掉（不 shrink 的话那几十 KB~百 KB 会挂到进程退出）
+	std::vector<lw_ocr_line>().swap(g_lines);
+	std::vector<char>().swap(g_text);
+	std::vector<BYTE>().swap(g_bgr);
+}
+
 // 建引擎（已建则直接返回）。det/cls/rec 用随程序分发的 LWM 模型，字典是 ppocr_keys.txt
 bool ensureEngine(std::wstring& err)
 {
-	// 档位跟着设置走（设置里切了档位 → 放掉旧引擎重建）
-	g_variant = resolveVariant();
-	if (g_ocr && g_variant != g_loadedVariant) {
-		LwPpOcrEngine::release();
+	// 模型跟着设置走（设置里切了模型 → 放掉旧引擎重建）
+	g_modelDir = resolveModelDir();
+	if (g_ocr && g_modelDir != g_loadedModelDir) {
+		freeEngineLocked();   // 这里已持锁，不能再进 release() 抢非递归的 g_mtx
 	}
 	if (g_ocr) return true;
+	if (g_modelDir.empty()) {
+		err = L"ocr-models 下没有可用的模型目录";
+		return false;
+	}
 	if (!loadModule(err)) return false;
 
 	const auto dir = modelsDir();
@@ -255,7 +264,7 @@ bool ensureEngine(std::wstring& err)
 	}
 	g_lines.assign(info.max_line_capacity, lw_ocr_line{});
 	g_text.assign((size_t)info.max_text_capacity, 0);
-	g_loadedVariant = g_variant;
+	g_loadedModelDir = g_modelDir;
 	return true;
 }
 
@@ -264,10 +273,9 @@ bool ensureEngine(std::wstring& err)
 bool LwPpOcrEngine::isInstalled()
 {
 	std::error_code ec;
-	if (!std::filesystem::is_regular_file(
-		PluginPaths::ocrRuntime(OcrPackVariant::Tiny) / L"lw_ppocr_c.dll", ec))
+	if (!std::filesystem::is_regular_file(PluginPaths::ocrRuntime() / L"lw_ppocr_c.dll", ec))
 		return false;
-	return modelsReady(OcrPackVariant::Tiny) || modelsReady(OcrPackVariant::Small);
+	return !OcrModelManager::instance().listModels().empty();
 }
 
 OcrResult LwPpOcrEngine::recognize(int w, int h, const BYTE* bgra)
@@ -576,15 +584,5 @@ OcrResult LwPpOcrEngine::recognize(int w, int h, const BYTE* bgra)
 void LwPpOcrEngine::release()
 {
 	std::lock_guard<std::mutex> lock(g_mtx);
-	if (g_ocr && g_api.free_) g_api.free_(g_ocr);
-	g_ocr = nullptr;
-	if (g_mod) {
-		FreeLibrary(g_mod);
-		g_mod = nullptr;
-	}
-	g_api = Api{};
-	// 缓冲区也一起还掉（不 shrink 的话那几十 KB~百 KB 会挂到进程退出）
-	std::vector<lw_ocr_line>().swap(g_lines);
-	std::vector<char>().swap(g_text);
-	std::vector<BYTE>().swap(g_bgr);
+	freeEngineLocked();
 }

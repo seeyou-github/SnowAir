@@ -1,6 +1,5 @@
 #pragma once
 #include <filesystem>
-#include "OcrPackVariant.h"
 #include "../Setting.h"
 
 namespace PluginPaths {
@@ -23,7 +22,7 @@ namespace PluginPaths {
 		return s->getDataPath() / L"plugin";
 	}
 	inline std::filesystem::path ocrModels() { return root() / L"ocr-models"; }
-	// 运行时（lw_ppocr_c.dll + VC 运行库）与模型档位无关，各档共用一份
-	inline std::filesystem::path ocrRuntime(OcrPackVariant) { return root() / L"ocr-runtime" / L"ppocr-v6"; }
+	// 运行时（lw_ppocr_c.dll + VC 运行库）只有一份，与选哪个模型目录无关
+	inline std::filesystem::path ocrRuntime() { return root() / L"ocr-runtime" / L"ppocr-v6"; }
 	inline std::filesystem::path ocrBin() { return root() / L"ocr-bin"; }
 }

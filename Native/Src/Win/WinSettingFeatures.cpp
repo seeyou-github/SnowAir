@@ -10,10 +10,8 @@
 #include "../Tool/IconCodes.h"
 #include "../Ocr/OcrModelManager.h"
 #include "../Ocr/OcrRuntimeManager.h"
-#include "../Ocr/OcrPackVariant.h"
 #include "../Ocr/LwPpOcrEngine.h"
 #include "../Translate/TranslateTypes.h"
-#include "../Ocr/PluginPaths.h"
 #include "WinCap.h"
 #include "WinSetting.h"
 #include "CapVideo.h"
@@ -1100,28 +1098,27 @@ void WinSettingFeatures::buildRecognize(Ling::Node* p)
 void WinSettingFeatures::buildOcr(Ling::Node* p)
 {
 	auto* s = Setting::get();
-	// 模型列表来自 AppData\config\plugin\ocr-models 下实际存在的目录。
-	// 0=轻量 1=标准 4=系统 OCR
-	std::vector<int> ids;
+	// 模型列表 = AppData\config\plugin\ocr-models 下的子目录，显示名直接用目录名。
+	// 运行时没装时整个离线 OCR 都起不来，列表就只剩「系统 OCR」。
 	std::vector<std::wstring> labels;
-	std::error_code ec;
-	const auto modelsRoot = PluginPaths::ocrModels();
-	for (int i = 0; i < OcrPack::kCount; ++i) {
-		const auto v = OcrPack::clampVariant(i);
-		if (!std::filesystem::is_directory(modelsRoot / OcrPack::folderName(v), ec)) continue;
-		if (!OcrModelManager::instance().isInstalled(v)) continue;
-		if (!OcrRuntimeManager::instance().isInstalled(v)) continue;
-		ids.push_back(i);
-		labels.push_back(OcrPack::label(v));
+	std::vector<std::wstring> dirs;   // 前 N 项对应的模型目录名
+	if (OcrRuntimeManager::instance().isInstalled()) {
+		for (const auto& name : OcrModelManager::instance().listModels()) {
+			dirs.push_back(name);
+			labels.push_back(name);
+		}
 	}
-	ids.push_back(4);
 	labels.push_back(Lang::get(L"setting.fnOcrSystem"));
+	const int systemIndex = (int)labels.size() - 1;
 
-	const int selected = (s->getOcrEngine() == 4)
-		? 4 : std::clamp(s->getOcrPackVariant(), 0, OcrPack::kCount - 1);
-	int cur = 0;
-	for (size_t i = 0; i < ids.size(); ++i) {
-		if (ids[i] == selected) { cur = (int)i; break; }
+	// 当前选中：系统 OCR，或设置里存的目录名对应的项；名字已不在列表（被删/改名）就落第一项
+	int cur = systemIndex;
+	if (s->getOcrEngine() != 4 && !dirs.empty()) {
+		const std::wstring want = s->getOcrModelDir();
+		cur = 0;
+		for (int i = 0; i < (int)dirs.size(); ++i) {
+			if (dirs[i] == want) { cur = i; break; }
+		}
 	}
 
 	// 固定 50% 列容器：每列 = 半栏 − 半个列距，落单时也保持半宽
@@ -1134,11 +1131,14 @@ void WinSettingFeatures::buildOcr(Ling::Node* p)
 
 	auto* row1 = halfRow(p);
 	SettingUi::selectRow(halfCol(row1, false), Lang::get(L"setting.fnOcrModel"), labels, cur,
-		[ids](int i, const std::wstring&) {
-			if (i < 0 || i >= (int)ids.size()) return;
-			const int id = ids[i];
-			Setting::get()->setOcrEngine(id == 4 ? 4 : 0);
-			if (id != 4) Setting::get()->setOcrPackVariant(id);
+		[dirs, labels, systemIndex](int i, const std::wstring&) {
+			if (i < 0 || i >= (int)labels.size()) return;
+			if (i == systemIndex) {
+				Setting::get()->setOcrEngine(4);
+			} else {
+				Setting::get()->setOcrEngine(0);
+				Setting::get()->setOcrModelDir(dirs[i]);
+			}
 			LwPpOcrEngine::release();   // 换模型要重建引擎
 		}, true);
 	addResultRow(halfCol(row1, true));

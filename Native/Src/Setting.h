@@ -82,9 +82,10 @@ public:
 	void removeToolKey(const std::wstring& tool, const std::wstring& key);
 	int getOcrEngine();
 	void setOcrEngine(int v);
-	// 离线 OCR 模型档位：0 = 轻量（默认，最快，不含日文假名），1 = 标准（支持日文）
-	int getOcrPackVariant();
-	void setOcrPackVariant(int v);
+	// 离线 OCR 模型 = ocr-models 下的目录名（设置页里扫出来的就是这些目录名）。
+	// 旧配置只有档位 int（0=轻量 1=标准）时按此映射成目录名。
+	std::wstring getOcrModelDir();
+	void setOcrModelDir(const std::wstring& v);
 	// OCR 结果版式：0 = 原位覆盖（默认），1 = 文本重排（整段可编辑文本框）
 	int getOcrResultMode();
 	void setOcrResultMode(int v);
