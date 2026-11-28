@@ -653,8 +653,8 @@ ToolOcr::ToolOcr(Ling::WinBase* host, OcrResult result, bool translateMode,
 	// 自身的鼠标选区，避免"点到的位置"和"眼睛看到的文字"各算各的。
 	onMouseDown.add([this](POINT pos, bool isRight) {
 		if (isRight) {
-			// 右键直接退出：由宿主关掉当前截图 / 贴图窗口
-			if (onDismiss_) onDismiss_();
+			// 截图/OCR/翻译宿主：右键直接退出；贴图宿主保留自己的右键菜单
+			if (!pinOverlay_ && onDismiss_) onDismiss_();
 			return;
 		}
 		// 贴图上方的宿主控件（锁定/编辑/关闭）：压在浮层最上面，点击要先交给它

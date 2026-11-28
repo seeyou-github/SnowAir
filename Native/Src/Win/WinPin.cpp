@@ -972,9 +972,12 @@ void WinPin::onDown(POINT pos, BOOL isRight)
 	}
 	if (locked) return;
 	if (!editing) {
-		// 非编辑：右键直接退出贴图
+		// 非编辑：右键弹菜单（贴图右键功能保留）
 		if (isRight) {
-			close();
+			if (PinMenu::isOpen()) { PinMenu::closeMenu(); return; }
+			POINT screenPt = pos;
+			ClientToScreen(hwnd, &screenPt);
+			showContextMenu(screenPt);
 			return;
 		}
 		// 识别结果开着：文字区域归文字（编辑/拖选），只有空白区域才拖窗、双击缩略图
@@ -1546,15 +1549,6 @@ void WinPin::toggleOcrPanel(bool copyText)
 	// 贴图叠加：不显示右上角复制按钮；只有识别文本框接收鼠标事件（可选中/复制），其余穿透。
 	// 必须在建窗之前设置。
 	toolOcr->setPinOverlay(true);
-	// 右键落在浮层上：直接退出贴图
-	toolOcr->setOnDismiss([this]() {
-		const HWND h = hwnd;
-		Ling::App::get()->dq.TryEnqueue([h]() {
-			for (auto& p : winPins) {
-				if (p && p->hwnd == h && IsWindow(h)) { p->close(); break; }
-			}
-		});
-	});
 	// 浮层压在贴图之上：锁定/编辑/关闭改由浮层镜像绘制并转发点击，
 	// 否则识别文字会压住贴图控件（控件本来该在最顶部）。
 	toolOcr->setChromePainter([this](ID2D1DeviceContext* ctx) { paintHoverChrome(ctx); });

@@ -4643,10 +4643,9 @@ bool WinCap::handleLayerCancel(bool fromToolbar)
 		if (capVideo && capVideo->isRecording()) return false;
 		return true;
 	}
-	// 识别/翻译结果面板：右键先收起结果，选区保持不变；再按一次才回查找元素
+	// 识别/翻译结果面板：右键直接退出截图（不保留选区）
 	if (toolOcr) {
-		clearOcrPanel();
-		return false;
+		return true;
 	}
 	// 1) 文字编辑 → 完成并保留已输入
 	if (editingText) {
