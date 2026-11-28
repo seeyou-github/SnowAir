@@ -2,10 +2,13 @@
 #include <algorithm>
 #include <chrono>
 #include <ctime>
+#include <fstream>
+#include <iterator>
 #include <thread>
 #include "../Lang.h"
 #include "../Setting.h"
 #include "../App.h"
+#include "../Util.h"
 #include "WinSettingQuickTranslate.h"
 #include "SettingTheme.h"
 #include "SettingWidgets.h"
@@ -20,6 +23,39 @@ namespace {
 	constexpr float kGapSidebar{ 16.f };       // 历史侧栏与主面板的间距（中间那条缝）
 	constexpr float kToggleBox{ 36.f };        // 展开/折叠按钮的尺寸（与顶栏等高）
 	constexpr UINT kAnimTimerId{ 0x4151 };     // 侧栏动画定时器
+
+	// 翻译记录单独落在 <exe>\AppData\temp（不进 config.json），只留最近 1 天。
+	constexpr long long kQuickHistoryTtlMs{ 24LL * 60 * 60 * 1000 };
+
+	std::filesystem::path quickHistoryFile()
+	{
+		return Util::tempDir() / L"quickTranslate-history.json";
+	}
+
+	// JSON 文本一律按 UTF-8 落盘（与 config.json 一致）
+	std::string toUtf8(const std::wstring& w)
+	{
+		if (w.empty()) return {};
+		const int bytes = WideCharToMultiByte(CP_UTF8, 0, w.c_str(), (int)w.size(), nullptr, 0, nullptr, nullptr);
+		std::string out((size_t)bytes, '\0');
+		if (bytes > 0) WideCharToMultiByte(CP_UTF8, 0, w.c_str(), (int)w.size(), out.data(), bytes, nullptr, nullptr);
+		return out;
+	}
+
+	std::wstring fromUtf8(const std::string& s)
+	{
+		if (s.empty()) return {};
+		const int chars = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), (int)s.size(), nullptr, 0);
+		std::wstring out((size_t)chars, L'\0');
+		if (chars > 0) MultiByteToWideChar(CP_UTF8, 0, s.c_str(), (int)s.size(), out.data(), chars);
+		return out;
+	}
+
+	long long quickNowMs()
+	{
+		return std::chrono::duration_cast<std::chrono::milliseconds>(
+			std::chrono::system_clock::now().time_since_epoch()).count();
+	}
 
 	// 历史条目上的时间戳：今天只显示 HH:mm，非今天只显示 MM-DD
 	std::wstring fmtStamp(long long ts)
@@ -1192,6 +1228,8 @@ void WinSettingQuickTranslate::doTranslate(const std::wstring& preset)
 	s->msgs.push_back(um);
 	if (s->title.empty())
 		s->title = text.size() > 24 ? text.substr(0, 24) : text;
+	// 会话按「最后一次翻译」计时：1 天保留期从最近活动算起，而不是从首次创建算起
+	s->ts = quickNowMs();
 	appendBubble(L"user", text);
 
 	Msg am;
@@ -1444,14 +1482,33 @@ void WinSettingQuickTranslate::saveSessions()
 	}
 	JsonObject root;
 	root.SetNamedValue(L"sessions", arr);
-	// 独立存储键：不复用旧「AI 对话」历史（tool "chat"），避免把旧 AI 会话带进新版本
-	Setting::get()->setToolStr(L"quickTranslate", L"history", root.Stringify().c_str());
+
+	// 单独写 <exe>\AppData\temp，不再进 config.json（随时可清，不影响软件设置）
+	const auto file = quickHistoryFile();
+	std::error_code ec;
+	std::filesystem::create_directories(file.parent_path(), ec);
+	std::ofstream out(file, std::ios::binary | std::ios::trunc);
+	if (!out) return;
+	const std::string utf8 = toUtf8(std::wstring{ root.Stringify() });
+	out.write(utf8.data(), (std::streamsize)utf8.size());
 }
 
 void WinSettingQuickTranslate::loadSessions()
 {
 	sessions.clear();
-	std::wstring raw = Setting::get()->getToolStr(L"quickTranslate", L"history", L"");
+	// 从 <exe>\AppData\temp 的独立文件读（config.json 不再存翻译记录）
+	std::wstring raw;
+	{
+		std::ifstream in(quickHistoryFile(), std::ios::binary);
+		if (in) raw = fromUtf8(std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()));
+	}
+	// 旧版曾把记录写在 config.json 的 toolPin.quickTranslate.history：首次读到 temp 文件为空时
+	// 迁过来（随后清掉旧键），避免升级后用户记录凭空消失。
+	bool migrated = false;
+	if (raw.empty()) {
+		std::wstring legacy = Setting::get()->getToolStr(L"quickTranslate", L"history", L"");
+		if (!legacy.empty()) { raw = legacy; migrated = true; }
+	}
 	JsonObject root{ nullptr };
 	if (!raw.empty()) {
 		try { root = JsonObject::Parse(raw); }
@@ -1480,6 +1537,14 @@ void WinSettingQuickTranslate::loadSessions()
 			}
 		}
 	}
+
+	// 打开页面读取记录时清理超过 1 天的会话，并回写文件（否则下次打开又会读回来）
+	const long long cutoff = quickNowMs() - kQuickHistoryTtlMs;
+	const size_t oldCount = sessions.size();
+	std::erase_if(sessions, [cutoff](const Session& s) { return s.ts < cutoff; });
+	if (migrated || sessions.size() != oldCount) saveSessions();
+	if (migrated) Setting::get()->removeToolKey(L"quickTranslate", L"history");
+
 	// 每次打开快捷翻译：按设置决定是否从空白会话开始；关闭时沿用上次会话
 	if (Setting::get()->getQuickTranslateNewSession() || sessions.empty()) {
 		startNewSession();
