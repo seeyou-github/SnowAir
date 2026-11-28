@@ -1519,7 +1519,6 @@ void Util::initAppDataDirs()
 	std::error_code ec;
 	std::filesystem::create_directories(appDataDir(), ec);
 	std::filesystem::create_directories(configDir(), ec);
-	std::filesystem::create_directories(saveDir(), ec);
 	std::filesystem::create_directories(tempDir(), ec);
 }
 
