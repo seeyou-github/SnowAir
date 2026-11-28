@@ -57,54 +57,54 @@ namespace
 		// 关闭 / 完成 / 复制 / 存为文件 的掩码为 **SurfaceAll**（含全屏画布），不是 kSession：
 		//   它们原为 onKey 里不分界面的分支 —— 画布中 Esc 需能退出（穿透中先退穿透）、
 		//   Ctrl+C / Ctrl+S 需能复制保存且不关画布。
-		{ L"cmd_close",       kGrpCommon, L"cmdkey.close",       Scope::Session, Scene::Capture, SurfaceAll, true, true, L"Esc" },
-		{ L"cmd_done",        kGrpCommon, L"cmdkey.done",        Scope::Session, Scene::Capture, SurfaceAll, true, true, L"Enter" },
-		{ L"cmd_copy",        kGrpCommon, L"cmdkey.copy",        Scope::Session, Scene::Capture, SurfaceAll, true, true, L"Ctrl+C" },
+		{ L"cmd_close",       kGrpCommon, L"cmdkey.close",       Scope::Session, Scene::Capture, SurfaceAll, true, true, L"" },
+		{ L"cmd_done",        kGrpCommon, L"cmdkey.done",        Scope::Session, Scene::Capture, SurfaceAll, true, true, L"" },
+		{ L"cmd_copy",        kGrpCommon, L"cmdkey.copy",        Scope::Session, Scene::Capture, SurfaceAll, true, true, L"" },
 		// 工具栏上没有"清除全部标注"这颗按钮：纯命令键（只有系统按键能触发）
-		{ L"cmd_clear",       kGrpCommon, L"cmdkey.clear",       Scope::Session, Scene::Capture, kSession, true, true,  L"Ctrl+X" },
-		{ L"cmd_undo",        kGrpCommon, L"cmdkey.undo",        Scope::Session, Scene::Capture, kUndo,    true, true,  L"Ctrl+Z" },
-		{ L"cmd_redo",        kGrpCommon, L"cmdkey.redo",        Scope::Session, Scene::Capture, kUndo,    true, true,  L"Ctrl+Shift+Z" },
-		{ L"cmd_save",        kGrpCommon, L"cmdkey.save",        Scope::Session, Scene::Capture, SurfaceAll, true, true, L"Ctrl+S" },
+		{ L"cmd_clear",       kGrpCommon, L"cmdkey.clear",       Scope::Session, Scene::Capture, kSession, true, true,  L"" },
+		{ L"cmd_undo",        kGrpCommon, L"cmdkey.undo",        Scope::Session, Scene::Capture, kUndo,    true, true,  L"" },
+		{ L"cmd_redo",        kGrpCommon, L"cmdkey.redo",        Scope::Session, Scene::Capture, kUndo,    true, true,  L"" },
+		{ L"cmd_save",        kGrpCommon, L"cmdkey.save",        Scope::Session, Scene::Capture, SurfaceAll, true, true, L"" },
 		// 工具循环（Tab）：在工具栏的绘图工具之间循环切换。气泡里的子工具（包浆/水印/高亮）
 		// 不单独计数（见 ToolCap::cycleTool）。
-		{ L"cmd_quick_switch",kGrpCommon, L"cmdkey.quickSwitch", Scope::Session, Scene::Capture, SurfaceCapture | SurfaceRecord | SurfaceFullscreen, true, true, L"Tab" },
+		{ L"cmd_quick_switch",kGrpCommon, L"cmdkey.quickSwitch", Scope::Session, Scene::Capture, SurfaceCapture | SurfaceRecord | SurfaceFullscreen, true, true, L"" },
 		// 强制落笔：按住 Alt 落笔跳过"点选旧标注"（见 AnnotHost::altForceDraw）。固定键，只展示。
 		// 键位写作 Alt（没有主键），parseChord 解析不出 → 不参与派发，只在设置页当提示；
 		// reserveChord=false：这行只是说明，不能把 Alt 从「切换色值」手里挡掉
-		{ L"cmd_force_draw",  kGrpCommon, L"cmdkey.forceDraw",   Scope::Session, Scene::Capture, kDraw,    true, true,  L"Alt", false, false },
+		{ L"cmd_force_draw",  kGrpCommon, L"cmdkey.forceDraw",   Scope::Session, Scene::Capture, kDraw,    true, true,  L"", false, false },
 		// 切换色值：查找元素阶段在 #RRGGBB / rgb() 之间切（派发有自己的阶段分支，见 WinCap::onKey）。
 		// 默认也是 Tab，与「工具循环」同键但分属不同阶段 —— 排在其后，scan 先命中的仍是工具循环，
 		// 不会把它在 Adjust 阶段的 Tab 抢走；设置页那行带「?」，专门说明这件事。
 		// allowModifierOnly：框选完就不再生效，绑成纯 Alt/Ctrl/Shift 不会长期占键，按下去就是切一下
-		{ L"cmd_toggle_pix_color", kGrpCommon, L"cmdkey.toggleColorValue", Scope::Session, Scene::Capture, kCapture, true, false, L"Tab", true },
+		{ L"cmd_toggle_pix_color", kGrpCommon, L"cmdkey.toggleColorValue", Scope::Session, Scene::Capture, kCapture, true, false, L"", true },
 		// 右键逐层退出是既有行为，列出来只是"告诉用户有这么个键"
-		{ L"cmd_exit_level",  kGrpCommon, L"cmdkey.exitLevel",   Scope::Session, Scene::Capture, kSession, true, true,  L"MouseRight" },
+		{ L"cmd_exit_level",  kGrpCommon, L"cmdkey.exitLevel",   Scope::Session, Scene::Capture, kSession, true, true,  L"" },
 		// 选中标注后 Backspace 删除，既有行为
-		{ L"cmd_delete_sel",  kGrpCommon, L"cmdkey.deleteSel",   Scope::Session, Scene::Capture, kSession, true, true,  L"Backspace" },
+		{ L"cmd_delete_sel",  kGrpCommon, L"cmdkey.deleteSel",   Scope::Session, Scene::Capture, kSession, true, true,  L"" },
 
 		// ——— 截图：工具栏工具与动作（窗口内）———
 		// 行序同工具栏从左到右：显示光标 → 绘图工具(1..9、0) → 其余。
 		// 只有绘图工具配了默认键位，其余一概留空、由用户自己绑。
-		{ L"cmd_show_cursor",     kGrpCapture, L"cmdkey.showCursor",     Scope::Session, Scene::Capture, kCapture, true, false, L"`" },
+		{ L"cmd_show_cursor",     kGrpCapture, L"cmdkey.showCursor",     Scope::Session, Scene::Capture, kCapture, true, false, L"" },
 		// 通用绘图工具：Scene 写 None（哪个场景都能命中），掩码 kDraw（参与所有界面的冲突判定）
-		{ L"cmd_tool_rect",       kGrpCapture, L"cmdkey.toolRect",       Scope::Session, Scene::None, kDraw, true, false, L"1" },
-		{ L"cmd_tool_arrow",      kGrpCapture, L"cmdkey.toolArrow",      Scope::Session, Scene::None, kDraw, true, false, L"2" },
-		{ L"cmd_tool_pen",        kGrpCapture, L"cmdkey.toolPen",        Scope::Session, Scene::None, kDraw, true, false, L"3" },
-		{ L"cmd_tool_text",       kGrpCapture, L"cmdkey.toolText",       Scope::Session, Scene::None, kDraw, true, false, L"4" },
-		{ L"cmd_tool_serial",     kGrpCapture, L"cmdkey.toolSerial",     Scope::Session, Scene::None, kDraw, true, false, L"5" },
-		{ L"cmd_tool_mosaic",     kGrpCapture, L"cmdkey.toolMosaic",     Scope::Session, Scene::None, kDraw, true, false, L"6" },
-		{ L"cmd_tool_patina",     kGrpCapture, L"cmdkey.toolPatina",     Scope::Session, Scene::None, kDraw, true, false, L"7" },
-		{ L"cmd_tool_watermark",  kGrpCapture, L"cmdkey.toolWatermark",  Scope::Session, Scene::None, kDraw, true, false, L"8" },
-		{ L"cmd_tool_highlight",  kGrpCapture, L"cmdkey.toolHighlight",  Scope::Session, Scene::None, kDraw, true, false, L"9" },
-		{ L"cmd_tool_eraser",     kGrpCapture, L"cmdkey.toolEraser",     Scope::Session, Scene::None, kDraw, true, false, L"0" },
+		{ L"cmd_tool_rect",       kGrpCapture, L"cmdkey.toolRect",       Scope::Session, Scene::None, kDraw, true, false, L"" },
+		{ L"cmd_tool_arrow",      kGrpCapture, L"cmdkey.toolArrow",      Scope::Session, Scene::None, kDraw, true, false, L"" },
+		{ L"cmd_tool_pen",        kGrpCapture, L"cmdkey.toolPen",        Scope::Session, Scene::None, kDraw, true, false, L"" },
+		{ L"cmd_tool_text",       kGrpCapture, L"cmdkey.toolText",       Scope::Session, Scene::None, kDraw, true, false, L"" },
+		{ L"cmd_tool_serial",     kGrpCapture, L"cmdkey.toolSerial",     Scope::Session, Scene::None, kDraw, true, false, L"" },
+		{ L"cmd_tool_mosaic",     kGrpCapture, L"cmdkey.toolMosaic",     Scope::Session, Scene::None, kDraw, true, false, L"" },
+		{ L"cmd_tool_patina",     kGrpCapture, L"cmdkey.toolPatina",     Scope::Session, Scene::None, kDraw, true, false, L"" },
+		{ L"cmd_tool_watermark",  kGrpCapture, L"cmdkey.toolWatermark",  Scope::Session, Scene::None, kDraw, true, false, L"" },
+		{ L"cmd_tool_highlight",  kGrpCapture, L"cmdkey.toolHighlight",  Scope::Session, Scene::None, kDraw, true, false, L"" },
+		{ L"cmd_tool_eraser",     kGrpCapture, L"cmdkey.toolEraser",     Scope::Session, Scene::None, kDraw, true, false, L"" },
 		{ L"cmd_video_record",    kGrpCapture, L"cmdkey.videoRecord",    Scope::Session, Scene::Capture, kCapture, true, false, L"" },
 		{ L"cmd_pin",             kGrpCapture, L"cmdkey.pin",            Scope::Session, Scene::Capture, kCapture, true, false, L"" },
-		{ L"cmd_ocr",             kGrpCapture, L"cmdkey.ocr",            Scope::Session, Scene::Capture, kCapture, true, false, L"W" },
+		{ L"cmd_ocr",             kGrpCapture, L"cmdkey.ocr",            Scope::Session, Scene::Capture, kCapture, true, false, L"" },
 		// Native 使用 ZXing 实际解码，因此该命令已实装。
-		{ L"cmd_scan_qrcode",     kGrpCapture, L"cmdkey.scanQrcode",     Scope::Session, Scene::Capture, kCapture, true, false, L"Q" },
-		{ L"cmd_translate",       kGrpCapture, L"cmdkey.translate",      Scope::Session, Scene::Capture, kCapture, true, false, L"F" },
+		{ L"cmd_scan_qrcode",     kGrpCapture, L"cmdkey.scanQrcode",     Scope::Session, Scene::Capture, kCapture, true, false, L"" },
+		{ L"cmd_translate",       kGrpCapture, L"cmdkey.translate",      Scope::Session, Scene::Capture, kCapture, true, false, L"" },
 		{ L"cmd_scroll_capture",  kGrpCapture, L"cmdkey.scrollCapture",  Scope::Session, Scene::Capture, kCapture, true, false, L"" },
-		{ L"cmd_scroll_pause",    kGrpCapture, L"cmdkey.scrollPause",    Scope::Session, Scene::Capture, kCapture, true, false, L"Space" },
+		{ L"cmd_scroll_pause",    kGrpCapture, L"cmdkey.scrollPause",    Scope::Session, Scene::Capture, kCapture, true, false, L"" },
 
 		// ——— 录屏：录屏会话里的控制 ———
 		// 本组只有「开始/暂停录制」是**临时全局键**：焦点在被录的程序上，窗口内根本收不到，
@@ -114,8 +114,8 @@ namespace
 		// 演示画布内也能录屏 → 掩码同时含 Fullscreen，参与和演示组之间的冲突判定。
 		// 鼠标穿透同样是**临时全局键**：它本身就是把焦点交给别的窗，没有全局键切不回来。
 		// 掩码含录屏 → 录屏会话期间也一并镜像。系统按键页把它放在录屏组第一个。
-		{ L"cmd_mouse_through",       kGrpRecord, L"cmdkey.mouseThrough",       Scope::Global,  Scene::None, kRecord | kFullscreen, true, false, L"`" },
-		{ L"cmd_record_toggle",       kGrpRecord, L"cmdkey.recordToggle",       Scope::Global,  Scene::Record, kRecord | kFullscreen, true, false, L"F2" },
+		{ L"cmd_mouse_through",       kGrpRecord, L"cmdkey.mouseThrough",       Scope::Global,  Scene::None, kRecord | kFullscreen, true, false, L"" },
+		{ L"cmd_record_toggle",       kGrpRecord, L"cmdkey.recordToggle",       Scope::Global,  Scene::Record, kRecord | kFullscreen, true, false, L"" },
 		{ L"cmd_toggle_system_audio", kGrpRecord, L"cmdkey.toggleSystemAudio",  Scope::Session, Scene::Record, kRecord | kFullscreen, true, false, L"" },
 		{ L"cmd_toggle_gif",          kGrpRecord, L"cmdkey.toggleGif",          Scope::Session, Scene::Record, kRecord | kFullscreen, true, false, L"" },
 		{ L"cmd_toggle_mic",          kGrpRecord, L"cmdkey.toggleMic",          Scope::Session, Scene::Record, kRecord | kFullscreen, true, false, L"" },
@@ -123,7 +123,7 @@ namespace
 		// ——— 全屏画布（窗口内）———
 		// 工具栏上没有"隐藏/显示工具栏"这颗按钮：纯命令键（演示画布时收起整条工具栏）。
 		// 它同样是**临时全局键** —— 穿透/收起之后焦点已经不在本软件上，窗口内收不到。
-		{ L"cmd_toggle_toolbar", kGrpCanvas, L"cmdkey.toggleToolbar", Scope::Global, Scene::Fullscreen, kFullscreen, true, false, L"F1" },
+		{ L"cmd_toggle_toolbar", kGrpCanvas, L"cmdkey.toggleToolbar", Scope::Global, Scene::Fullscreen, kFullscreen, true, false, L"" },
 		// 创建快照：与属性栏上的按钮同一入口；默认不绑键，由用户自己配
 		{ L"cmd_demo_snapshot", kGrpCanvas, L"cmdkey.demoSnapshot", Scope::Session, Scene::Fullscreen, kFullscreen, true, false, L"" },
 	};

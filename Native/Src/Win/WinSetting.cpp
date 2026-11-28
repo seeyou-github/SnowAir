@@ -11,7 +11,6 @@
 
 // 子页面头文件（集中 include，避免 WinSetting.h 膨胀）
 #include "WinSettingTrayMenu.h"
-#include "WinSettingSystemKeys.h"
 #include "WinSettingQuickTranslate.h"
 #include "WinSettingAppearance.h"
 #include "WinSettingFeatures.h"
@@ -27,11 +26,11 @@ std::unique_ptr<WinSetting> winSetting;
 namespace {
 	unsigned long long gSettingUid = 0;   // 每建一个设置窗 +1
 
-	// 左侧导航只显示 4 项；页面索引沿用原编号（1=快捷翻译，保留功能但不放入口）。
-	constexpr int kPageOfMenu[] = { 0, 2, 3, 4 };
+	// 左侧导航只显示 3 项；页面索引沿用原编号（1=快捷翻译、2=系统按键，均保留功能但不放入口）。
+	constexpr int kPageOfMenu[] = { 0, 3, 4 };
 	int menuIndexOfPage(int page)
 	{
-		for (int i = 0; i < 4; ++i)
+		for (int i = 0; i < 3; ++i)
 			if (kPageOfMenu[i] == page) return i;
 		return -1;
 	}
@@ -259,7 +258,7 @@ void WinSetting::onCreated()
 		subLabel->setColor(SettingTheme::textSecondary);
 	}
 
-	// ② 中部：4 菜单（右键菜单 → 系统按键 → 外观 → 功能）
+	// ② 中部：3 菜单（右键菜单 → 外观 → 功能）
 	initMenuItems(sideNav);
 
 	// ③ 底部：版本号（zinc-400 弱文字）。数字从当前 exe 的内存版本资源取，与「关于」页同源；后缀带 Lite 版本标记。
@@ -364,30 +363,28 @@ void WinSetting::onCreated()
 	DwmFlush();
 }
 
-// 4 菜单：按键顺序 TrayMenu → SystemKeys → Appearance → Features（页面索引 1=Quick 保留但无入口）
+// 3 菜单：按键顺序 TrayMenu → Appearance → Features（页面索引 1=Quick、2=SystemKeys 保留但无入口）
 void WinSetting::initMenuItems(Ling::Node* sideNav)
 {
-	const std::wstring keys[4] = {
+	const std::wstring keys[3] = {
 		L"setting.trayMenu",
-		L"setting.systemKeys",
 		L"setting.appearance",
 		L"setting.function",
 	};
-	const wchar_t* icons[4] = {
+	const wchar_t* icons[3] = {
 		Icon::Dropdown,    // 右键菜单（下拉式菜单清单）
-		Icon::SystemKeys,  // 系统按键
 		Icon::Appearance,  // 外观设置
 		Icon::Function,    // 功能设置
 	};
 	menus.clear();
-	gMenuData.assign(4, MenuItemData{});
+	gMenuData.assign(3, MenuItemData{});
 
 	auto menuBox = sideNav->makeChild<Ling::Node>();
 	menuBox->setFlexGrow(1.0);
 	menuBox->setFlexDirection(Ling::FlexDirection::Column);
 	menuBox->setJustifyContent(Ling::Justify::Start);
 
-	for (int i = 0; i < 4; ++i) {
+	for (int i = 0; i < 3; ++i) {
 		auto menuItem = menuBox->makeChild<Ling::Button>();
 		menuItem->setWidthPercent(100.f);
 		menuItem->setText(L""); // 内部 Text 置空，由手动 Label 控制
@@ -460,7 +457,7 @@ void WinSetting::showPage(int index)
 {
 	if (menus.empty() || gMenuData.empty()) return;
 	if (index < 0) index = 0;
-	if (index > kPageOfMenu[3]) index = kPageOfMenu[3];
+	if (index > kPageOfMenu[2]) index = kPageOfMenu[2];
 	if (index == menuIndex) return;
 	const int oldMenu = menuIndexOfPage(menuIndex);
 	if (oldMenu >= 0) ApplyMenuItemStyle(menus[oldMenu], false, gMenuData[oldMenu]);
@@ -492,7 +489,6 @@ void WinSetting::loadPage(int index)
 	// 清理旧子页：先手动置空指针（避免访问悬空），再清空 content 的所有子节点
 	pageTrayMenu   = nullptr;
 	pageQuick      = nullptr;
-	pageSysKeys    = nullptr;
 	pageAppearance = nullptr;
 	pageFeatures   = nullptr;
 	content->removeAllChildren();
@@ -522,7 +518,7 @@ void WinSetting::loadPage(int index)
 		SettingUi::adoptChild(content, child);
 	};
 
-	// 页面索引：0=TrayMenu 1=Quick(无左侧入口) 2=SystemKeys 3=Appearance 4=Features
+	// 页面索引：0=TrayMenu 1=Quick(无左侧入口) 2=SystemKeys(无左侧入口) 3=Appearance 4=Features
 	switch (index) {
 	case 0:
 		pageTrayMenu = new WinSettingTrayMenu(this);
@@ -546,11 +542,6 @@ void WinSetting::loadPage(int index)
 		pageQuick->setPadding(0.f, 0.f, 0.f, 0.f);
 		// 让内容卡自己也用画布色：页面画布铺满后，圆角处的抗锯齿两侧同色，不再出现颗粒
 		cardNode->setBg(SettingTheme::canvas);
-		break;
-	case 2:
-		// 系统按键：命令表内容铺出来（见 CommandKeys / WinSettingSystemKeys）
-		pageSysKeys = new WinSettingSystemKeys(this);
-		adopt(pageSysKeys); makeFullFill(pageSysKeys);
 		break;
 	case 3:
 		pageAppearance = new WinSettingAppearance(this);

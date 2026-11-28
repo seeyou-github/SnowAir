@@ -535,7 +535,7 @@ void WinSettingAppearance::initThemeCtrls(Ling::Node* p)
             Ling::App::get()->dq.TryEnqueue([this]() {
                 SettingTheme::apply(Setting::get()->getAppTheme());
                 if (win) win->close();
-                // 外观页现在的下标是 3（0 右键菜单 / 1 快捷翻译 / 2 系统按键）
+                // 外观页现在的下标是 3（0 右键菜单 / 1 快捷翻译[无入口] / 2 系统按键[无入口]）
                 Ling::App::get()->dq.TryEnqueue([]() { WinSetting::init(3); });
             });
         }, true);
